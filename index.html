@@ -32,7 +32,6 @@ body{
   overflow:hidden; user-select:none; -webkit-tap-highlight-color:transparent;
   touch-action:manipulation;
 }
-/* ═══ MODALITÀ SPETTRO: tutto viola quando muori ═══ */
 body.deadmode{
   background:
     radial-gradient(1100px 700px at 85% -10%, #26093a 0%, transparent 60%),
@@ -198,7 +197,6 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif}
 .wchip.pend{border-color:var(--line);color:var(--dim);border-style:dashed;background:transparent}
 .wchip.pend b{color:var(--dim)}
 .bignum{font-family:'Orbitron';font-weight:900;font-size:4.5rem;text-align:center;color:var(--red);text-shadow:0 0 30px rgba(255,59,92,.6)}
-/* ═══ MINIGIOCHI SPETTRO (grafica spaventosa) ═══ */
 .g-info{font-family:'Orbitron';font-size:.7rem;letter-spacing:.15em;color:var(--vio);text-align:center;margin:12px 0}
 .g-ouija{position:relative;height:74px;border:1px solid rgba(194,107,255,.5);margin:10px 0;overflow:hidden;
   background:linear-gradient(90deg,rgba(194,107,255,.06),rgba(0,0,0,.55),rgba(194,107,255,.06))}
@@ -228,7 +226,6 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif}
 .seal.hit{border-color:var(--red);box-shadow:0 0 16px rgba(255,59,92,.45)}
 .seal.done{border-color:var(--grn);opacity:.45;cursor:default}
 .seal.done b{text-decoration:line-through}
-/* ═══ CHAT PRIVATA P2P ═══ */
 #pchat{position:fixed;right:12px;bottom:12px;z-index:70;width:min(360px,calc(100vw - 24px));height:min(420px,70vh);
   display:flex;flex-direction:column;background:rgba(6,14,26,.94);border:1px solid var(--cyan);backdrop-filter:blur(8px);
   clip-path:polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px);
@@ -476,8 +473,9 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif}
         <li><b>INNOCENTE</b> — completa le task e smaschera l'assassino. Conosce la parola segreta.</li>
         <li><b>ASSASSINO</b> — elimina gli operatori. <b>Non conosce la parola segreta.</b></li>
         <li><b>DETECTIVE</b> — scansiona i codici; mette in <b>QUARANTENA</b> e verifica i sospetti.</li>
-        <li><b>Eliminati</b>: diventano <b>SPETTRI</b> — interfaccia viola e <b>RITUALI SPAVENTOSI</b> (Ouija, candele, anime, rune, sigilli) per caricare la <b>SÉANCE</b>. Non sussurrano più.</li>
+        <li><b>Eliminati</b>: diventano <b>SPETTRI</b> — interfaccia viola e <b>RITUALI SPAVENTOSI</b> per caricare la <b>SÉANCE</b>. Non sussurrano più.</li>
         <li><b>Resuscitati</b>: perdono le task fantasma, tornano alle task normali; se erano caricatori la séance si disperde.</li>
+        <li><b>Chi entra a partita in corso</b>: resta in <b>SALA D'ATTESA</b> (lobby) ed entra automaticamente al round successivo.</li>
       </ul>
       <h3>◆ VITTORIA</h3>
       <ul>
@@ -495,7 +493,7 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif}
       </ul>
       <h3>◆ SÉANCE DEGLI SPIRITI</h3>
       <ul>
-        <li>4 rituali completati dagli spettri → UN <b>MEDIO</b> (innocente vivo) riceve l'unico pulsante SÉANCE → sceglie un sospetto → i morti votano SÌ/NO in segreto → verdetto pubblico al 70% di affidabilità. Ciclo ripetibile.</li>
+        <li>4 rituali degli spettri → UN <b>MEDIO</b> (innocente vivo) riceve l'unico pulsante SÉANCE → sceglie un sospetto → i morti votano SÌ/NO in segreto → verdetto pubblico (affidabilità 70%). Ciclo ripetibile.</li>
       </ul>
       <h3>◆ PAROLA SEGRETA</h3>
       <ul><li>Innocenti e detective la conoscono; l'assassino no. Riunioni Parola con firme e lista di chi ha scritto.</li></ul>
@@ -709,9 +707,8 @@ const TASKS=[
  {id:'card',name:'Badge di accesso',desc:'Trascina la scheda nello scanner alla giusta velocità.'},
  {id:'seq',name:'Codice di sicurezza',desc:'Memorizza e ripeti la sequenza luminosa.'},
  {id:'react',name:'Stabilizza reattore',desc:'Colpisci le 5 scariche elettriche.'}];
-/* ═══ RITUALI SPETTRO: nomi/descrizioni/mapping minigiochi horror ═══ */
 const GNAME={circ:'TAVOLA OUIJA',gen:'CANDELE DEL RITO',card:'ANIME ERRANTI',seq:'RUNE DEL RITUALE',react:'SIGILLI SPEZZATI'};
-const GDESC={circ:'Ferma la planchette 🔮 nella zona infestata 3 volte.',gen:'Tieni accese TUTTE le candele: si spengono da sole…',card:'Afferra 5 anime erranti prima che svaniscano nel buio.',seq:'Memorizza e ripeti il rituale di rune spettrali.',react:'Spezza i 4 sigilli: 3 colpi rapidi ciascuno prima che si richiudano.'};
+const GDESC={circ:'Ferma la planchette 🔮 nella zona infestata 3 volte.',gen:'Tieni accese TUTTE le candele: il vento le spegne…',card:'Afferra 5 anime erranti prima che svaniscano nel buio.',seq:'Memorizza e ripeti il rituale di rune spettrali.',react:'Spezza i 4 sigilli: 3 colpi rapidi ciascuno prima che si richiudano.'};
 const GMAP={circ:'ouija',gen:'candele',card:'anime',seq:'rune',react:'catene'};
 const ROLE={assassino:{l:'ASSASSINO',c:'var(--red)'},detective:{l:'DETECTIVE',c:'var(--amber)'},innocente:{l:'INNOCENTE',c:'var(--cyan)'}};
 
@@ -854,18 +851,35 @@ function onPres(){
      r.forEach(p=>{const ex=G.players.find(x=>x.id===p.id);
        if(!ex){G.players.push(mkPlayer(p.id,p.name));ch=true;}
        else if(ex.name!==p.name){ex.name=p.name;ch=true;}});
+     /* anche in lobby chi arriva oltre il MAX va in attesa */
+     r.forEach(p=>{
+       if(!G.players.some(x=>x.id===p.id)&&!G.waiting.some(w=>w.id===p.id)){
+         G.waiting.push({id:p.id,name:p.name});
+         addLog(' '+p.name+' è in sala d\'attesa (stanza piena).');
+         priv(p.id,{type:'note',txt:'⏳ STANZA PIENA: sei in sala d\'attesa, entrerai al prossimo posto libero.'});
+       }
+     });
+     G.waiting=G.waiting.filter(w=>ids.has(w.id));
      if(ch)broadcastNow();
    }else{
      const ids=new Set(r.map(p=>p.id));
      G.players.forEach(p=>{if(p.alive&&!ids.has(p.id)&&p.id!==I.id)disconnectKill(p);});
-     r.forEach(p=>{if(!G.players.some(x=>x.id===p.id)){const np=mkPlayer(p.id,p.name);np.alive=false;np.deadBy='disc';G.players.push(np);}});
+     /* ★ FIX: chi entra a partita in corso NON diventa spettro: va in SALA D'ATTESA */
+     r.forEach(p=>{
+       if(!G.players.some(x=>x.id===p.id)&&!G.waiting.some(w=>w.id===p.id)){
+         G.waiting.push({id:p.id,name:p.name});
+         addLog('⏳ '+p.name+' è entrato a partita in corso: attende il prossimo round in sala d\'attesa.');
+         priv(p.id,{type:'note',txt:'🕒 PARTITA IN CORSO: sei in sala d\'attesa. Entrerai automaticamente al prossimo round.'});
+       }
+     });
+     G.waiting=G.waiting.filter(w=>ids.has(w.id));
    }
  }else if(!isHost){
    if(!G&&PUB&&PUB.phase==='lobby'){
      const h=r.length?r.reduce((a,b)=>a.jAt<b.jAt?a:b):null;
      if(h&&h.id===I.id){
        isHost=true;
-       G={phase:'lobby',t0:0,word:'',winner:null,reveal:null,meeting:null,spoof:null,banner:null,log:[],whisperLog:{},
+       G={phase:'lobby',t0:0,word:'',winner:null,reveal:null,meeting:null,spoof:null,banner:null,log:[],whisperLog:{},waiting:[],
           puttanaActive:false,puttanaTimerAt:0,taskTarget:0,
           seanceState:'charge',seanceCur:0,seanceContrib:[],seanceMedium:null,seanceTarget:null,seanceVotes:{},seanceEndsAt:0,
           players:r.map(p=>mkPlayer(p.id,p.name))};
@@ -942,6 +956,7 @@ function broadcastNow(){
  const tgt=G.seanceState==='voting'?byId(G.seanceTarget):null;
  const pub={k:'pub',now,phase:G.phase,code:ROOM,t0:G.t0,winner:G.winner,reveal:G.reveal,banner:G.banner,
    meeting,taskTarget:G.taskTarget,taskProg:taskProg(),
+   waiting:G.waiting.map(w=>w.name),
    seance:{state:G.seanceState,cur:G.seanceCur,need:CFG.SEANCE_NEED,target:tgt?tgt.name:null},
    log:G.log.slice(-14),
    players:G.players.map(p=>({id:p.id,name:p.name,alive:p.alive,tasks:p.tasks,task:p.task,deadBy:p.deadBy,q:p.quarantined,nextAt:p.task?0:p.lastTaskAt+CFG.TASK_EVERY})),
@@ -987,8 +1002,7 @@ function ensureMedium(){
  const m=byId(G.seanceMedium);
  if(m&&m.alive&&!m.quarantined&&m.role==='innocente')return;
  G.seanceMedium=null;
- const cands=G.players.filter(p=>p.alive&&!m0(p)&&p.role==='innocente');
- function m0(x){return x.quarantined;}
+ const cands=G.players.filter(p=>p.alive&&!p.quarantined&&p.role==='innocente');
  if(cands.length){
    G.seanceMedium=pick(cands).id;
    priv(G.seanceMedium,{type:'seanceMedium'});
@@ -1260,7 +1274,7 @@ function Hscan(id,tid){
  if(eff===ass.code){
    if(t.quarantined){
      G.reveal={name:t.name,role:t.role,at:now};
-     addLog('🩸 VERIFICA CONFERMATA: '+t.name+' È L\'ASSASSINO! VINCONO GLI INNOCENTI.');
+     addLog(' VERIFICA CONFERMATA: '+t.name+' È L\'ASSASSINO! VINCONO GLI INNOCENTI.');
      endGame('innocenti');
    }else{
      t.quarantined=true;
@@ -1457,14 +1471,23 @@ function endGame(w){
  broadcastNow();
 }
 
+/* ★ FIX: al ritorno in lobby i giocatori in sala d'attesa entrano in partita (max 8) */
 function Hreset(){
  if(!G)return;
+ while(G.waiting.length&&G.players.length<CFG.MAX){
+   const w=G.waiting.shift();
+   if(!G.players.some(p=>p.id===w.id)){
+     G.players.push(mkPlayer(w.id,w.name));
+     addLog('🚪 '+w.name+' entra in partita dalla sala d\'attesa!');
+   }
+ }
  G.players.forEach(p=>Object.assign(p,{alive:true,role:null,tasks:0,task:null,rulesOk:false,revealOk:false,quarantined:false,
    ab:null,usedAbs:[],pendingAb:null,isPuttana:false,puttanaReadyAt:0,deadBy:null,
    scanCharges:0,scanNextChargeAt:0}));
- Object.assign(G,{phase:'lobby',word:'',winner:null,reveal:null,meeting:null,spoof:null,banner:null,log:[],t0:0,whisperLog:{},
+ Object.assign(G,{phase:'lobby',word:'',winner:null,reveal:null,meeting:null,spoof:null,banner:null,log:G.log,t0:0,whisperLog:{},
    puttanaActive:false,puttanaTimerAt:0,taskTarget:0,
    seanceState:'charge',seanceCur:0,seanceContrib:[],seanceMedium:null,seanceTarget:null,seanceVotes:{},seanceEndsAt:0});
+ addLog('↩ Tornati alla lobby. '+(G.waiting.length?('Ancora in attesa: '+G.waiting.map(w=>w.name).join(', ')):'Nessuno in attesa.'));
  broadcastNow();
 }
 
@@ -1639,24 +1662,28 @@ function onPub(){
  }
  $('#topbar').classList.toggle('on',p.phase!=='lobby');
  $('#g-room').textContent=p.code;
+ /* ★ FIX: se NON sono tra i giocatori (entrata a partita in corso) resto in lobby d'attesa */
+ const iAmIn=p.players.some(x=>x.id===I.id);
  const scrMap={lobby:'scr-lobby',rules:'scr-rules',reveal:'scr-reveal',play:'scr-game',ended:'scr-end'};
  let target=scrMap[p.phase];
- if(p.phase==='ended'&&p.reveal&&(Date.now()+clockOff)-p.reveal.at<3300){
+ if(p.phase!=='lobby'&&!iAmIn)target='scr-lobby';
+ if(p.phase==='ended'&&iAmIn&&p.reveal&&(Date.now()+clockOff)-p.reveal.at<3300){
    target=curScr==='scr-end'?'scr-game':curScr;
    setTimeout(()=>{if(PUB&&PUB.phase==='ended')showScreen('scr-end');},3400);
  }
  showScreen(target);
  if(p.phase==='lobby'){resetClientRound();renderLobby();}
- if(p.phase==='rules')renderRules();
- if(p.phase==='reveal')renderReveal();
- if(p.phase==='play'){renderGame();renderMeet();}
+ else if(!iAmIn){renderLobby();}
+ if(p.phase==='rules'&&iAmIn)renderRules();
+ if(p.phase==='reveal'&&iAmIn)renderReveal();
+ if(p.phase==='play'&&iAmIn){renderGame();renderMeet();}
  if(p.phase==='ended'){
    ['m-meet','m-scan','m-kill','m-sab','m-ab','m-task'].forEach(mid=>hide($('#'+mid)));
    hideChatPanel();
    $('#pch-fab').classList.add('hidden');
    document.body.classList.remove('deadmode');
    meetKey='';
-   renderEnd();
+   if(iAmIn)renderEnd();
  }
 }
 
@@ -1840,6 +1867,15 @@ function renderLobby(){
  const can=isHost&&n>=CFG.MIN&&n<=CFG.MAX;
  $('#btn-start').style.display=isHost?'':'none';
  $('#btn-start').disabled=!can;
+ /* ★ SALA D'ATTESA: partita in corso ma io non sono tra i giocatori */
+ const inGame=PUB&&PUB.players.some(x=>x.id===I.id);
+ if(PUB&&PUB.phase!=='lobby'&&!inGame){
+   const wl=(PUB.waiting||[]);
+   $('#lobby-wait').innerHTML='🕒 <b>PARTITA IN CORSO</b> — sei in <b>SALA D\'ATTESA</b>: entrerai automaticamente al prossimo round.<br>'+
+     'In partita: '+n+' · In attesa: '+wl.length+(wl.length?' ('+esc(wl.join(', '))+')':'');
+   $('#btn-start').style.display='none';
+   return;
+ }
  $('#lobby-wait').textContent=isHost
    ?(n<CFG.MIN?'Servono almeno '+CFG.MIN+' giocatori per iniziare.':'Pronto al lancio.')
    :'In attesa che l\'host avvii la partita…';
@@ -1883,7 +1919,6 @@ function renderGame(){
    if(me.q)closeActionModals();
    myQPrev=me.q;
  }
- /* ★ MODALITÀ SPETTRO: interfaccia viola per i morti */
  document.body.classList.toggle('deadmode', PUB.phase==='play' && !me.alive);
  $('#g-alive').textContent=PUB.players.filter(p=>p.alive).length+'/'+PUB.players.length;
  $('#g-name').textContent=I.name;
@@ -2695,7 +2730,7 @@ const GGAMES={
    soul();soul();
  },
  rune(st,done){
-   const SY=['💀','🕯','👁',''];
+   const SY=['💀','','',''];
    st.innerHTML='<div class="g-runes">'+SY.map((s,i)=>'<button class="rune" id="rn'+i+'">'+s+'</button>').join('')+'</div>'+
      '<div class="g-info" id="rn-info">OSSERVA IL RITUALE…</div>';
    const S=Array.from({length:5},()=>rnd(4));
@@ -2817,12 +2852,12 @@ $('#btn-create').onclick=()=>{
  I.name=n;
  isHost=true;
  ROOM=genRoom();
- G={phase:'lobby',t0:0,word:'',winner:null,reveal:null,meeting:null,spoof:null,banner:null,log:[],whisperLog:{},
+ G={phase:'lobby',t0:0,word:'',winner:null,reveal:null,meeting:null,spoof:null,banner:null,log:[],whisperLog:{},waiting:[],
     puttanaActive:false,puttanaTimerAt:0,taskTarget:0,
     seanceState:'charge',seanceCur:0,seanceContrib:[],seanceMedium:null,seanceTarget:null,seanceVotes:{},seanceEndsAt:0,
     players:[mkPlayer(I.id,n)]};
  PUB={phase:'lobby',code:ROOM,t0:0,winner:null,reveal:null,banner:null,meeting:null,
-   taskTarget:0,taskProg:0,seance:{state:'charge',cur:0,need:CFG.SEANCE_NEED,target:null},log:[],
+   taskTarget:0,taskProg:0,waiting:[],seance:{state:'charge',cur:0,need:CFG.SEANCE_NEED,target:null},log:[],
    players:G.players.map(p=>({id:p.id,name:p.name,alive:p.alive,tasks:p.tasks,task:p.task,q:false,nextAt:0}))};
  enterChannel();
  startHeartbeat();
@@ -2851,7 +2886,7 @@ $('#btn-start').onclick=()=>{SFX.ok();act({t:'start'});};
 $('#btn-rules-ok').onclick=()=>{SFX.ok();SEC._ok=true;act({t:'rulesOk'});renderRules();};
 $('#btn-ready').onclick=()=>{SFX.ok();$('#btn-ready').disabled=true;act({t:'revealOk'});};
 $('#btn-eye').onclick=()=>{wordHidden=!wordHidden;updateWord();SFX.click();};
-$('#btn-mute').onclick=()=>{MUTE=!MUTE;$('#btn-mute').textContent=MUTE?'🔇':'';if(AMB)AMB.gain.value=MUTE?0:.03;};
+$('#btn-mute').onclick=()=>{MUTE=!MUTE;$('#btn-mute').textContent=MUTE?'🔇':'🔊';if(AMB)AMB.gain.value=MUTE?0:.03;};
 $('#btn-quit').onclick=()=>location.reload();
 $('#btn-again').onclick=()=>{if(isHost){SFX.ok();resetClientRound();lastTaskKey='';lastDockKey='';act({t:'reset'});}};
 $('#inp-code').addEventListener('keydown',e=>{if(e.key==='Enter')$('#btn-join').click();});
