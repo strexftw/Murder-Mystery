@@ -397,16 +397,19 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif}
       <ul><li>A inizio partita innocenti e detective ricevono la stessa parola segreta. L'assassino no. Nelle <b>Riunioni Parola</b> ognuno scrive UNA parola collegata all'argomento: vedi chi ha già inviato, e nella fase <b>PAROLE RIVELATE</b> ogni parola è firmata dal suo autore.</li></ul>
       <h3>◆ ASSASSINO</h3>
       <ul>
-        <li>Dopo <b>30s</b> sblocchi il <b>SABOTAGGIO CODICI</b> (prima abilità!): anonimo, riusabile ogni <b>60s</b> — <b>TUTTI</b> adottano il codice del bersaglio scelto (anche te stesso). Termina al primo scan del Detective.</li>
+        <li>Dopo <b>30s</b> sblocchi il <b>SABOTAGGIO CODICI</b> (prima abilità!): anonimo, riusabile ogni <b>60s</b> — <b>TUTTI</b> adottano il codice del bersaglio scelto (anche te stesso). <b>Resiste a 2 scansioni</b> del Detective, poi svanisce.</li>
         <li>Se il bersaglio del sabotaggio è il <b>Detective</b>: allarme <b>hackeraggio</b> per tutti, riuso istantaneo, ma il Detective ottiene <b>una cifra del tuo codice</b>.</li>
         <li>Prima <b>UCCISIONE</b> disponibile dopo <b>50s</b>, poi ricarica di <b>45s</b>.</li>
         <li>Chi viene ucciso vede un indizio: <b>una lettera CASUALE del nome dell'assassino</b>.</li>
       </ul>
       <h3>◆ DETECTIVE</h3>
       <ul>
-        <li>Dopo <b>1:45</b> scansioni i codici (ricarica <b>25s</b>): codice assassino → <b>scoperto</b>. Ogni scan è annunciato nel registro e finisce nel tuo <b>ARCHIVIO SCANSIONI</b>.</li>
-        <li>Se il tuo codice viene sabotato ricevi un <b>indizio hacker</b> (una cifra del codice assassino).</li>
-        <li>Se vieni eliminato, <b>un nuovo detective</b> è scelto in anonimato tra gli innocenti (scansiona dopo <b>40s</b>).</li>
+        <li>Lo <b>SCAN</b> si attiva dopo <b>20 secondi</b>: hai <b>3 CARICHE</b> (⚡), +1 ogni <b>2,5 minuti</b> fino a max 3; ricarica tecnica di <b>20s</b> tra uno scan e l'altro.</li>
+        <li>Ogni scansione è <b>annunciata nel registro</b> e il giocatore scansionato riceve un <b>avviso privato</b> (counterplay: l'assassino scansionato sa di essere nel mirino).</li>
+        <li>Se leggi il codice dell'assassino (non coperto da sabotaggio) → <b>l'assassino è scoperto</b> e gli innocenti vincono.</li>
+        <li>Ogni scan finisce nel tuo <b>ARCHIVIO SCANSIONI</b> (nome + codice letto + task).</li>
+        <li>Se il tuo codice viene sabotato ricevi un <b>indizio hacker</b>: una cifra del codice assassino.</li>
+        <li>Se vieni eliminato, <b>un nuovo detective</b> è scelto in anonimato tra gli innocenti (scan dopo <b>40s</b>, 3 cariche nuove).</li>
       </ul>
       <h3>◆ ABILITÀ CASUALI DALLE TASK (solo innocenti e detective)</h3>
       <ul>
@@ -466,6 +469,7 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif}
         <div id="ab-list" class="hidden" style="margin-top:14px"></div>
         <div id="scan-archive" class="hidden" style="margin-top:14px">
           <div class="sysline amb">ARCHIVIO SCANSIONI</div>
+          <div id="scancharges" style="margin-top:6px"></div>
           <div id="scanlist" style="margin-top:6px"></div>
           <div id="scanclues" style="margin-top:8px"></div>
         </div>
@@ -568,11 +572,15 @@ const SB_URL = "https://xkvnwezcdvkrisqhuvhx.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhrdm53ZXpjZHZrcmlzcWh1dmh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA4NDgxNDksImV4cCI6MjEwNjQyNDE0OX0.-1QaeGq0lU8MsjtSUpLWwTRxpFzWxtxAK00BzLNC6Zg";
 
 const CFG={MIN:3,MAX:8,MAXNAME:8,
-  SAB_UNLOCK:30000,   // assassino: SABOTAGGIO = prima abilità, sbloccato dopo 30s
+  SAB_UNLOCK:30000,   // assassino: SABOTAGGIO = prima abilità, dopo 30s
   FIRST_KILL:50000,   // assassino: prima uccisione dopo 50s
   KILL_CD:45000,
   SAB_CD:60000,
-  SCAN_UNLOCK:105000,SCAN_CD:25000,NEWDET_SCAN:40000,
+  SCAN_UNLOCK:20000,  // detective: scan attivo dopo 20s
+  SCAN_CD:20000,      // detective: ricarica tecnica tra scan 20s
+  SCAN_MAX:3,         // detective: max cariche accumulate
+  SCAN_RECHARGE:150000, // detective: +1 carica ogni 2,5 min
+  NEWDET_SCAN:40000,
   TASK_EVERY:50000,
   WORD_TIME:40000,WORD_SHOW:15000,
   VOTE_TIME:40000,VOTE_REVEAL:5000,
@@ -667,7 +675,8 @@ if(!SB_URL.startsWith('http')){$('#cfg-warn').classList.add('on');}
 else SB=window.supabase.createClient(SB_URL,SB_KEY);
 
 function mkPlayer(id,name){return{id,name,alive:true,role:null,code:mkCode(),tasks:0,task:null,lastTaskAt:0,
- killReadyAt:0,sabReadyAt:0,scanReadyAt:0,cdw:0,cdv:0,rulesOk:false,revealOk:false,nextAt:0,
+ killReadyAt:0,sabReadyAt:0,scanReadyAt:0,scanCharges:0,scanNextChargeAt:0,
+ cdw:0,cdv:0,rulesOk:false,revealOk:false,nextAt:0,
  ab:null,usedAbs:[],pendingAb:null,puttanaReadyAt:0,deadBy:null};}
 
 /* ══════════════════════ CANALE ══════════════════════ */
@@ -756,7 +765,6 @@ function onPres(){
  }
 }
 
-/* ★ FIX: alla morte la task attiva viene ANNULLATA */
 function cancelTask(p){
  if(p&&p.task){p.task=null;p.lastTaskAt=Date.now();}
 }
@@ -783,7 +791,7 @@ function broadcastNow(){
    const o={type:'sync',cdw:p.cdw,cdv:p.cdv,
      ab:p.ab,used:p.usedAbs,put:p.puttanaReadyAt,deadBy:p.deadBy};
    if(p.role==='assassino'){o.kill=p.killReadyAt;o.sab=p.sabReadyAt;}
-   if(p.role==='detective')o.scan=p.scanReadyAt;
+   if(p.role==='detective'){o.scan=p.scanReadyAt;o.chg=p.scanCharges;o.chgAt=p.scanNextChargeAt;}
    priv(p.id,o);
  });
  let meeting=null;
@@ -810,11 +818,20 @@ function hostTick(){
  const now=Date.now();
  if(G.phase==='play'){
    if(G.meeting)meetTick(now);
-   else G.players.forEach(p=>{
-     if(p.alive&&!p.task&&now-p.lastTaskAt>=CFG.TASK_EVERY){
-       p.task=pick(TASKS).id;p.lastTaskAt=now;
-     }
-   });
+   else{
+     G.players.forEach(p=>{
+       if(p.alive&&!p.task&&now-p.lastTaskAt>=CFG.TASK_EVERY){
+         p.task=pick(TASKS).id;p.lastTaskAt=now;
+       }
+     });
+     /* ═══ RICARICA CARICHE SCANSIONI (detective) ═══ */
+     G.players.forEach(p=>{
+       if(p.role==='detective'&&p.alive&&now>=p.scanNextChargeAt){
+         p.scanNextChargeAt=now+CFG.SCAN_RECHARGE;
+         if(p.scanCharges<CFG.SCAN_MAX)p.scanCharges++;
+       }
+     });
+   }
  }
 }
 setInterval(()=>hostTick(),1000);
@@ -859,6 +876,8 @@ function startPlay(){
  a.sabReadyAt=now+CFG.SAB_UNLOCK;
  a.killReadyAt=now+CFG.FIRST_KILL;
  d.scanReadyAt=now+CFG.SCAN_UNLOCK;
+ d.scanCharges=CFG.SCAN_MAX;
+ d.scanNextChargeAt=now+CFG.SCAN_RECHARGE;
  G.players.forEach(p=>{p.lastTaskAt=now;p.cdw=0;p.cdv=0;});
  addLog('Sistemi della stazione attivi. Buona fortuna, operatori.');
  broadcastNow();
@@ -950,25 +969,33 @@ function HabChoice(id,pickSel){
  broadcastNow();
 }
 
+/* ═══ SCAN: cariche, avviso al scansionato, spoof resiste 2 scan ═══ */
 function Hscan(id,tid){
  const d=byId(id),t=byId(tid),now=Date.now();
- const ok=d&&d.role==='detective'&&d.alive&&t&&t.alive&&G.phase==='play'&&!G.meeting&&now>=d.scanReadyAt;
- if(!ok){priv(id,{type:'scanFail'});return;}
+ if(!d||d.role!=='detective'||!d.alive||G.phase!=='play'||G.meeting){priv(id,{type:'scanFail'});return;}
+ if(now<d.scanReadyAt||d.scanCharges<=0||!t||!t.alive){priv(id,{type:'scanFail'});return;}
  d.scanReadyAt=now+CFG.SCAN_CD;
+ d.scanCharges--;
  const ass=G.players.find(p=>p.role==='assassino');
  let eff=t.code;
- if(G.spoof)eff=G.spoof.code;
+ if(G.spoof){
+   eff=G.spoof.code;
+   G.spoof.uses--;
+   if(G.spoof.uses<=0){
+     G.spoof=null;
+     priv(ass.id,{type:'note',txt:'◈ Il tuo sabotaggio codici si è ESaurito (2 scan assorbite): codici reali ripristinati.'});
+   }else{
+     priv(ass.id,{type:'note',txt:'◈ Il tuo spoof ha assorbito uno scan del Detective: resiste ancora a '+G.spoof.uses+' scan.'});
+   }
+ }
  addLog('🔎 Il Detective ha scansionato '+t.name+'.');
+ /* ★ COUNTERPLAY: il giocatore scansionato viene avvisato in privato */
+ priv(t.id,{type:'note',txt:'⚠ QUALCUNO HA APPENA SCANSIONATO IL TUO CODICE DI RICONOSCIMENTO!'});
  if(t.role==='assassino'&&eff===ass.code){
-   G.spoof=null;
    G.reveal={name:t.name,role:'assassino',at:now};
    endGame('innocenti');
  }else{
-   priv(d.id,{type:'scanRes',target:t.name,code:eff,tasks:t.tasks});
-   if(G.spoof){
-     G.spoof=null;
-     priv(ass.id,{type:'note',txt:'◈ Uno scan del Detective ha consumato il sabotaggio: codici ripristinati.'});
-   }
+   priv(d.id,{type:'scanRes',target:t.name,code:eff,tasks:t.tasks,chg:d.scanCharges});
  }
  broadcastNow();
 }
@@ -979,7 +1006,7 @@ function Hsab(id,tid){
  const t=byId(tid);
  if(!t||!t.alive)return;
  if(t.role==='detective'){
-   G.spoof={code:t.code};
+   G.spoof={code:t.code,uses:2};
    a.sabReadyAt=now;
    const digits=[];
    for(let i=0;i<a.code.length;i++){if(/\d/.test(a.code[i]))digits.push(i);}
@@ -990,9 +1017,9 @@ function Hsab(id,tid){
    G.players.forEach(p=>priv(p.id,{type:'fx',fx:'hack'}));
    addLog('⚠ HACKERAGGIO IN CORSO: il codice del Detective è stato compromesso!');
  }else{
-   G.spoof={code:t.code};
+   G.spoof={code:t.code,uses:2};
    a.sabReadyAt=now+CFG.SAB_CD;
-   priv(id,{type:'note',txt:'◈ Codici di tutta la stazione uniformati su quello di '+t.name+'. Terminerà al primo scan del Detective.'});
+   priv(id,{type:'note',txt:'◈ Codici uniformati su quello di '+t.name+'. Il sabotaggio resiste a 2 scansioni del Detective.'});
  }
  broadcastNow();
 }
@@ -1110,6 +1137,8 @@ function promote(){
  const p=pick(c);
  p.role='detective';
  p.scanReadyAt=Date.now()+CFG.NEWDET_SCAN;
+ p.scanCharges=CFG.SCAN_MAX;
+ p.scanNextChargeAt=Date.now()+CFG.SCAN_RECHARGE;
  priv(p.id,{type:'init2'});
  G.banner={txt:'IL DETECTIVE È CADUTO — UN NUOVO DETECTIVE AGISCE IN ANONIMATO',tone:'amber',at:Date.now()};
  addLog('Un nuovo detective è stato nominato.');
@@ -1131,7 +1160,8 @@ function endGame(w){
 function Hreset(){
  if(!G)return;
  G.players.forEach(p=>Object.assign(p,{alive:true,role:null,tasks:0,task:null,rulesOk:false,revealOk:false,
-   ab:null,usedAbs:[],pendingAb:null,puttanaReadyAt:0,deadBy:null}));
+   ab:null,usedAbs:[],pendingAb:null,puttanaReadyAt:0,deadBy:null,
+   scanCharges:0,scanNextChargeAt:0}));
  Object.assign(G,{phase:'lobby',word:'',winner:null,reveal:null,meeting:null,spoof:null,banner:null,log:[],t0:0});
  broadcastNow();
 }
@@ -1184,7 +1214,6 @@ function onMsg(m){
  }
 }
 
-/* ★ FIX: chiude i modali azione (task inclusa) quando vieni eliminato */
 function closeActionModals(){
  ['m-task','m-scan','m-kill','m-sab','m-ab'].forEach(id=>hide($('#'+id)));
 }
@@ -1221,7 +1250,7 @@ function onPriv(m){
    break;
   case 'scanFail':
    hide($('#m-scan'));
-   banner('SCANSIONE ANNULLATA: CONDIZIONI NON VALIDE','amber');
+   banner('SCANSIONE ANNULLATA: CARICHE O CONDIZIONI NON VALIDE','amber');
    SFX.err();
    break;
   case 'clue':
@@ -1371,9 +1400,9 @@ function renderReveal(){
  $('#role-name').textContent=r.l;
  $('#role-name').style.color=r.c;
  $('#role-desc').textContent=SEC.role==='assassino'
-   ?'Il SABOTAGGIO CODICI si sblocca dopo 30s (riuso 60s): TUTTI adottano il codice del bersaglio che scegli (anche te stesso); termina al primo scan del Detective. Se saboti il Detective: allarme hackeraggio, riuso istantaneo, ma gli riveli una cifra del tuo codice. Prima UCCISIONE dopo 50s, poi ricarica 45s. ATTENZIONE: innocenti e detective possono trovare ABILITÀ CASUALI dalle task (max 1). NON conosci la parola segreta.'
+   ?'Il SABOTAGGIO CODICI si sblocca dopo 30s (riuso 60s) e RESISTE A 2 SCANSIONI: TUTTI adottano il codice del bersaglio che scegli (anche te stesso). Se saboti il Detective: allarme hackeraggio, riuso istantaneo, ma gli riveli una cifra del tuo codice. Prima UCCISIONE dopo 50s, poi ricarica 45s. ATTENZIONE: innocenti e detective possono trovare ABILITÀ CASUALI dalle task (max 1). NON conosci la parola segreta.'
    :SEC.role==='detective'
-   ?'Dopo 1:45 scansioni i codici (ricarica 25s): ogni scan è annunciato nel registro e alimenta il tuo ARCHIVIO SCANSIONI. Se il tuo codice viene sabotato ricevi una cifra del codice assassino. Completando task puoi trovare ABILITÀ CASUALI (max 1: se ne trovi un\'altra scegli se tenerla o sostituirla). Conosci la parola segreta.'
+   ?'SCAN attivo dopo 20s con 3 CARICHE (⚡): +1 ogni 2,5 min (max 3), ricarica tecnica 20s tra scan. Ogni scan è annunciato nel registro, il bersaglio riceve un avviso privato, e il sabotaggio dell\'assassino resiste a 2 scan. Tutto finisce nel tuo ARCHIVIO SCANSIONI. Conosci la parola segreta.'
    :'Completa le task (una ogni 50s): puoi trovare ABILITÀ CASUALI annunciate in anonimo (massimo 1: se ne trovi un\'altra scegli se tenerla o sostituirla). Conosci la parola segreta.';
  $('#role-word').textContent=SEC.word||'??? — SCONOSCIUTA';
  $('#role-word').style.color=SEC.word?'var(--grn)':'var(--red)';
@@ -1384,7 +1413,6 @@ function renderGame(){
  if(!PUB)return;
  const me=PUB.players.find(p=>p.id===I.id);
  if(!me)return;
- /* ★ FIX: se sono appena morto, chiudi i modali azione (task annullata) */
  if(!me.alive&&myAlivePrev){closeActionModals();}
  myAlivePrev=me.alive;
  $('#g-alive').textContent=PUB.players.filter(p=>p.alive).length+'/'+PUB.players.length;
@@ -1446,6 +1474,12 @@ function renderArchive(){
  if(!box)return;
  if(SEC.role!=='detective'){box.classList.add('hidden');return;}
  box.classList.remove('hidden');
+ const now=Date.now()+clockOff;
+ const chg=SYNC.chg||0;
+ let ch='<div class="lg" style="border:0;padding:4px 0"><span class="amb mono">⚡ CARICHE: '+chg+'/'+CFG.SCAN_MAX+'</span>';
+ if(chg<CFG.SCAN_MAX)ch+=' <span class="dim" style="font-size:.7rem">· +1 tra '+fmt((SYNC.chgAt||now)-now)+'</span>';
+ ch+='</div>';
+ $('#scancharges').innerHTML=ch;
  $('#scanlist').innerHTML=SCANLIST.length
    ?SCANLIST.map((e,i)=>'<div class="lg"><span class="mono dim">'+String(i+1).padStart(2,'0')+'</span><b>'+esc(e.name)+
      '</b> → <span class="cyn mono">'+esc(e.code)+'</span> <span class="dim">('+e.tasks+' task)</span></div>').join('')
@@ -1533,7 +1567,17 @@ function updateDock(){
  const now=Date.now()+clockOff,free=!PUB.meeting;
  setCd('word',SYNC.cdw,'RIUNIONE PAROLA',free);
  setCd('vote',SYNC.cdv,'RIUNIONE VOTO',free);
- if(SEC.role==='detective')setCd('scan',SYNC.scan,'SCANSIONA',free);
+ if(SEC.role==='detective'){
+   const b=$('#db-scan');
+   if(b){
+     const rem=(SYNC.scan||0)-now;
+     const chg=SYNC.chg||0;
+     const s=b.querySelector('.sec');
+     if(rem>0){b.disabled=true;s.textContent=fmt(rem);}
+     else if(chg<=0){b.disabled=true;s.textContent='0 ⚡';}
+     else{b.disabled=!free;s.textContent='⚡'+chg;}
+   }
+ }
  if(SEC.role==='assassino'){
    setCd('sab',SYNC.sab,'SABOTAGGIO',free);
    const b=$('#db-kill');
@@ -1642,8 +1686,10 @@ function buildMeet(m){
 /* ═══════ SCANSIONE / KILL / SABOTAGGIO / ABILITÀ ═══════ */
 function openScan(){
  if(!PUB)return;
+ if((SYNC.chg||0)<=0){banner('⚡ CARICHE SCANSIONE ESAURITE: ATTENDI LA RICARICA','amber');SFX.err();return;}
  const alive=PUB.players.filter(p=>p.alive&&p.id!==I.id);
- $('#scan-body').innerHTML='<h2 class="mt amb">SCANSIONE CODICE</h2><p class="sub">Seleziona l\'operatore da ispezionare. Lo scan sarà annunciato nel registro.</p><div class="vlist">'+
+ $('#scan-body').innerHTML='<h2 class="mt amb">SCANSIONE CODICE</h2><p class="sub">Hai <b class="amb">⚡ '+
+ (SYNC.chg||0)+' cariche</b>. Il bersaglio riceverà un avviso privato. Lo scan sarà annunciato nel registro.</p><div class="vlist">'+
  alive.map(p=>'<button class="vbtn" data-id="'+p.id+'">⬡ '+esc(p.name)+' <span class="mono dim" style="font-size:.7rem">task: '+p.tasks+'</span></button>').join('')+
  '</div><button class="btn ghost" id="sc-x">ANNULLA</button>';
  $('#sc-x').onclick=()=>hide($('#m-scan'));
@@ -1671,7 +1717,8 @@ function showScanRes(m){
  $('#scan-body').innerHTML='<h2 class="mt amb">ESITO SCANSIONE</h2><div class="rescard cut">'+
  '<div class="big">✓ CODICE PULITO</div><div class="mono" style="font-size:.8rem">OPERATORE: '+esc(m.target)+'</div>'+
  '<div class="mono" style="font-size:.8rem;margin:8px 0">CODICE LETTO: <b class="oc">'+esc(m.code)+'</b></div>'+
- '<div class="mono" style="font-size:.8rem">TASK COMPLETATE: <b>'+m.tasks+'</b></div></div>'+
+ '<div class="mono" style="font-size:.8rem">TASK COMPLETATE: <b>'+m.tasks+'</b></div>'+
+ '<div class="mono amb" style="font-size:.8rem;margin-top:8px">⚡ CARICHE RIMASTE: '+m.chg+'</div></div>'+
  '<button class="btn wide" id="sc-ok">CHIUDI</button>';
  $('#sc-ok').onclick=()=>hide($('#m-scan'));
 }
@@ -1701,7 +1748,7 @@ function openSab(){
  if(!PUB)return;
  const all=PUB.players.filter(p=>p.alive);
  $('#sab-body').innerHTML='<h2 class="mt red">SABOTAGGIO CODICI</h2>'+
- '<p class="sub">Anonimo · <b>TUTTI</b> gli operatori adotteranno il codice del bersaglio finché il Detective non esegue una scansione. Se il bersaglio è il Detective (non sai chi è!) scatta l\'allarme hackeraggio ma ottieni il riuso istantaneo.</p>'+
+ '<p class="sub">Anonimo · <b>TUTTI</b> adottano il codice del bersaglio. <b>Resiste a 2 scansioni</b> del Detective. Se il bersaglio è il Detective (non sai chi è!) scatta l\'allarme hackeraggio ma ottieni il riuso istantaneo.</p>'+
  '<div class="vlist">'+
  all.map(p=>'<button class="vbtn" data-id="'+p.id+'">'+(p.id===I.id?'⬡ '+esc(p.name)+' — TU (autosabotaggio)':'⬡ '+esc(p.name))+'</button>').join('')+
  '</div><button class="btn ghost" id="sb-x">ANNULLA</button>';
@@ -1864,7 +1911,6 @@ const GAMES={
    ['pointerup','pointercancel'].forEach(ev=>b.addEventListener(ev,()=>hold=false));
    function step(t){
      if(fin)return;
-     /* ★ FIX: se il modale task viene chiuso (eliminazione), ferma il minigioco */
      if(!$('#m-task').classList.contains('on')){fin=true;return;}
      const dt=Math.min(40,t-last);
      last=t;
@@ -1960,7 +2006,6 @@ const GAMES={
      a.appendChild(s);
      let life=2400;
      const iv=setInterval(()=>{
-       /* ★ FIX: se il modale viene chiuso, ferma le scariche */
        if(!$('#m-task').classList.contains('on')){clearInterval(iv);return;}
        life-=60;
        s.style.opacity=Math.max(.15,life/2400);
