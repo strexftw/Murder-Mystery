@@ -176,7 +176,6 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif}
 .wchip.pend{border-color:var(--line);color:var(--dim);border-style:dashed;background:transparent}
 .wchip.pend b{color:var(--dim)}
 .bignum{font-family:'Orbitron';font-weight:900;font-size:4.5rem;text-align:center;color:var(--red);text-shadow:0 0 30px rgba(255,59,92,.6)}
-/* ═══ CHAT PRIVATA P2P (sopra i modali riunione) ═══ */
 #pchat{position:fixed;right:12px;bottom:12px;z-index:70;width:min(360px,calc(100vw - 24px));height:min(420px,70vh);
   display:flex;flex-direction:column;background:rgba(6,14,26,.94);border:1px solid var(--cyan);backdrop-filter:blur(8px);
   clip-path:polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px);
@@ -233,6 +232,8 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif}
 .rescard{border:1px solid var(--grn);background:rgba(61,255,160,.06);padding:20px;margin:14px 0;text-align:center}
 .rescard .big{font-family:'Orbitron';color:var(--grn);letter-spacing:.2em;margin-bottom:12px}
 .rescard .oc{color:var(--cyan);word-break:break-all}
+.rescard.badq{border-color:var(--red);background:rgba(255,59,92,.07)}
+.rescard.badq .big{color:var(--red)}
 .scanfx{text-align:center;padding:14px}
 .bar.wide{margin:16px auto;max-width:340px}
 #banner{position:fixed;inset:0;z-index:80;display:none;place-items:center;pointer-events:none;text-align:center;padding:0 16px}
@@ -376,7 +377,7 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif}
       <h1 class="glitch" data-t="PROTOCOLLO OMBRA">PROTOCOLLO<br>OMBRA</h1>
       <div class="bootlog" id="bootlog"></div>
       <p class="dim" style="max-width:480px;line-height:1.5">Un assassino si nasconde tra gli operatori della stazione.
-      Task, sussurri, séance e abilità casuali: scopritelo prima che sia troppo tardi.</p>
+      Task, sussurri, séance, quarantena e abilità casuali: scopritelo prima che sia troppo tardi.</p>
     </div>
     <div class="panel cut tcard">
       <div class="phead" style="margin:-26px -26px 10px">ACCESSO OPERATORE</div>
@@ -418,62 +419,56 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif}
       <ul>
         <li><b>INNOCENTE</b> — completa le task e smaschera l'assassino. Conosce la parola segreta.</li>
         <li><b>ASSASSINO</b> — elimina gli operatori. <b>Non conosce la parola segreta.</b></li>
-        <li><b>DETECTIVE</b> — può scansionare i codici di riconoscimento per trovare l'assassino.</li>
-        <li><b>Eliminati</b>: perdono ogni abilità attiva, diventano <b>SPETTRI</b> con task fantasma per la <b>SÉANCE</b> e <b>non possono più sussurrare</b>.</li>
-        <li><b>Resuscitati</b>: perdono le task fantasma in corso, tornano alle task normali; se erano spiriti caricatori la séance si disperde.</li>
+        <li><b>DETECTIVE</b> — scansiona i codici; mette in <b>QUARANTENA</b> e verifica i sospetti.</li>
+        <li><b>Eliminati</b>: diventano <b>SPETTRI</b> con task fantasma per la <b>SÉANCE</b>; non sussurrano più.</li>
+        <li><b>Resuscitati</b>: perdono le task fantasma, tornano alle task normali; se erano caricatori la séance si disperde.</li>
       </ul>
       <h3>◆ VITTORIA</h3>
       <ul>
-        <li><b>Innocenti</b>: eliminano l'assassino (voto / detective / spalmatore) OPPURE completano la <b>BARRA STAZIONE</b> (task di innocenti+detective = 8 × giocatori).</li>
+        <li><b>Innocenti</b>: espellono l'assassino col voto, lo spalmano, oppure lo fanno <b>confermare in QUARANTENA</b> dal Detective; o completano la <b>BARRA STAZIONE</b> (8 × giocatori).</li>
         <li><b>Assassino</b>: resta con al massimo un altro giocatore in vita.</li>
+      </ul>
+      <h3>◆ QUARANTENA (accertamenti del Detective)</h3>
+      <ul>
+        <li>Se una scansione legge un codice <b>corrispondente a quello dell'assassino</b> (assassino vero, OPPURE innocente mascherato dal sabotaggio del proprio codice), il giocatore viene <b>MESSO IN QUARANTENA</b>: niente task, niente abilità, escluso da Puttana/Medio/Detective-supplente; se era Puttana il ruolo passa subito a un altro innocente.</li>
+        <li>Il Detective riceve l'istruzione: <b>"per rilasciare [nome], scansionalo di nuovo"</b>. La <b>scansione di verifica ignora le maschere</b> e legge il codice REALE.</li>
+        <li>Verifica = <b>corrisponde di nuovo</b> → <b>VITTORIA INNOCENTI</b> (era l'assassino). Verifica = <b>pulito</b> → il giocatore viene <b>RILASCIATO</b> e torna a giocare.</li>
       </ul>
       <h3>◆ SUSSURRI PRIVATI (chat P2P illimitata)</h3>
       <ul>
-        <li>Ogni giocatore <b>vivo</b> può sussurrare <b>senza limiti</b>: chat 1-a-1 con finestre multiple (una visibile, le altre in tab con contatore messaggi).</li>
-        <li><b>Aprire un canale è PUBBLICO</b>: ogni volta che selezioni/apri una chat con qualcuno, il registro eventi scrive <b>"🤫 X STA SUSSURRANDO CON Y"</b>. Il <b>contenuto</b> dei messaggi resta <b>SEGRETO</b> tra i due.</li>
-        <li>Si può chattare <b>sempre</b>, anche durante riunioni e votazioni (il pannello 🤫 sta sopra i modali).</li>
+        <li>Ogni vivo può sussurrare <b>senza limiti</b>: chat 1-a-1 con finestre multiple.</li>
+        <li><b>Aprire un canale è PUBBLICO</b> ("🤫 X STA SUSSURRANDO CON Y"); il contenuto resta segreto. Chattabile anche durante le riunioni.</li>
       </ul>
       <h3>◆ SÉANCE DEGLI SPIRITI (ciclo ripetibile)</h3>
       <ul>
-        <li>Gli <b>spettri</b> completano <b>4 task fantasma</b> per caricare la séance.</li>
-        <li>Quando è pronta, UN SOLO <b>MEDIO</b> è scelto <b>a caso tra gli innocenti VIVI</b> (mai detective né assassino) e riceve in segreto <b>l'unico pulsante SÉANCE</b>.</li>
-        <li>Il Medio sceglie un sospetto: <b>tutti i morti</b> votano in segreto <b>SÌ / NO</b> ("è l'assassino?").</li>
-        <li>Verdetto di maggioranza <b>PUBBLICO</b>: <b>"GLI SPIRITI HANNO DECISO… ma non tutti gli spiriti sono buoni"</b>. Pareggio → divisi.</li>
-        <li>Pulsante sparisce, gli spettri ricaricano con altre 4 task: ciclo infinito.</li>
+        <li>Gli spettri completano <b>4 task fantasma</b>; UN SOLO <b>MEDIO</b> (innocente vivo, mai detective/assassino/quarantena) riceve l'unico pulsante SÉANCE.</li>
+        <li>Il Medio sceglie un sospetto: tutti i morti votano SÌ/NO in segreto; verdetto di maggioranza pubblico ("non tutti gli spiriti sono buoni"); pareggio → divisi. Ciclo ricaricabile.</li>
       </ul>
       <h3>◆ PAROLA SEGRETA</h3>
-      <ul><li>Innocenti e detective ricevono la stessa parola segreta; l'assassino no. Nelle <b>Riunioni Parola</b> ognuno scrive UNA parola collegata: vedi chi ha già inviato, e nelle <b>PAROLE RIVELATE</b> ogni parola è firmata.</li></ul>
+      <ul><li>Innocenti e detective la conoscono; l'assassino no. Riunioni Parola con firme e lista di chi ha scritto.</li></ul>
       <h3>◆ ASSASSINO</h3>
       <ul>
-        <li>Dopo <b>30s</b> sblocchi il <b>SABOTAGGIO CODICI</b>: anonimo, riusabile ogni <b>60s</b> — <b>TUTTI</b> adottano il codice del bersaglio (anche te stesso). <b>Resiste a 2 scansioni</b>.</li>
-        <li>Bersaglio = <b>Detective</b>: allarme <b>hackeraggio</b> per tutti, riuso istantaneo, ma il Detective ottiene <b>una cifra del tuo codice</b>.</li>
-        <li>Prima <b>UCCISIONE</b> dopo <b>50s</b>, poi ricarica <b>45s</b>. La vittima vede <b>una lettera CASUALE</b> del tuo nome.</li>
-        <li>Occhio alla <b>BARRA STAZIONE</b>: se i buoni la completano, hai perso.</li>
+        <li>Dopo <b>30s</b>: <b>SABOTAGGIO CODICI</b> (riuso 60s, resiste a 2 scan). Copi un bersaglio: <b>tutti tranne il Detective</b> leggono quel codice; puoi copiare <b>TE STESSO</b> — ma allora ogni scansionato corrisponderà e finirà in <b>QUARANTENA</b> finché la verifica non lo rilascia!</li>
+        <li>Bersaglio = Detective: hackeraggio pubblico, riuso istantaneo, ma gli riveli una cifra del tuo codice.</li>
+        <li>Prima uccisione <b>50s</b>, ricarica <b>45s</b>; la vittima vede una lettera casuale del tuo nome.</li>
       </ul>
       <h3>◆ DETECTIVE</h3>
       <ul>
-        <li>Scan attivo dopo <b>20s</b>: <b>3 CARICHE</b> (⚡), +1 ogni <b>2,5 min</b> (max 3), ricarica tecnica <b>20s</b>. Scan annunciato nel registro + avviso privato al bersaglio.</li>
-        <li>Codice assassino non coperto → <b>scoperto</b>. Tutto nel tuo <b>ARCHIVIO SCANSIONI</b>. Se il tuo codice è sabotato ricevi una cifra del codice assassino.</li>
-        <li>Se vieni eliminato, <b>un nuovo detective</b> è scelto in anonimato tra gli innocenti.</li>
+        <li>Scan dopo <b>20s</b>: 3 cariche (+1 ogni 2,5 min), ricarica 20s. Scan annunciato + avviso privato al bersaglio.</li>
+        <li>Codice corrispondente all'assassino → <b>QUARANTENA</b> (non vittoria immediata): riverifica per confermare o rilasciare. Durante un sabotaggio leggi il <b>CODICE MASCHERA</b> e il soggetto risulta pulito.</li>
+        <li>Archivio scansioni: una riga per giocatore, aggiornata nell'ordine delle scansioni.</li>
       </ul>
-      <h3>◆ LA PUTTANA (PROMOZIONE SEGRETAA — SOLO INNOCENTI VIVI)</h3>
+      <h3>◆ LA PUTTANA (promozione segreta — solo innocenti vivi non in quarantena)</h3>
       <ul>
-        <li>Un <b>innocente vivo</b> arriva a <b>5 task</b> → <b>TIMER NASCOSTO 30s</b>. Allo scadere, chi ha <b>più task</b> tra gli innocenti vivi è promosso; <b>pareggio → random</b>. Il timer <b>si resetta e riparte</b> ogni 30s.</li>
-        <li>Potere: resuscita un eliminato da <b>ASSASSINO o SPALMATORE</b>, riusabile ogni <b>4 minuti</b>. MAI sui votati.</li>
+        <li>Innocente vivo a <b>5 task</b> → timer nascosto 30s → promosso chi ha più task (pareggio random); ciclo continuo; ruolo unico trasferibile.</li>
+        <li>Resuscita un eliminato da assassino/spalmatore ogni 4 minuti; mai i votati.</li>
       </ul>
-      <h3>◆ ABILITÀ CASUALI DALLE TASK (solo innocenti e detective)</h3>
+      <h3>◆ ABILITÀ CASUALI DALLE TASK (innocenti e detective)</h3>
       <ul>
-        <li>Ogni task completata può dare <b>1 abilità</b> (annuncio anonimo colorato + festeggiamento). <b>MAX 1</b>: se ne trovi un'altra scegli se <b>TENERLA</b> o <b>SOSTITUIRLA</b>.</li>
-        <li><b>SPALMATORE PAZZO (8%)</b> — una volta: elimini un giocatore; se era l'ASSASSINO vincete subito.</li>
-        <li><b>SPARLATORE (8%)</b> — una volta: svela <b>pubblicamente</b> il ruolo di un giocatore.</li>
-        <li><b>GESÙ STA CON TE (8%)</b> — passiva (resusciti alla prima uccisione) oppure attiva da vivo: resusciti TU un ucciso da assassino/spalmatore.</li>
-        <li><b>SONO TORNATO MERDE (8%)</b> — passiva (se votato rientri) oppure attiva da vivo: resusciti TU un espulso dai voti.</li>
+        <li>1 abilità max per drop (8/8/8/8%): SPALMATORE, SPARLATORE, GESÙ, MERDE — con doppia modalità passiva/attiva dove previsto.</li>
       </ul>
-      <h3>◆ RIUNIONI (ogni 2 minuti per tipo)</h3>
-      <ul>
-        <li><b>Riunione Parola</b> — parole legate all'argomento segreto per smascherare chi bluffa.</li>
-        <li><b>Riunione Voto</b> — il più votato è eliminato; dopo <b>5s</b> si rivela il ruolo.</li>
-      </ul>
+      <h3>◆ RIUNIONI (ogni 2 min per tipo)</h3>
+      <ul><li><b>Parola</b> e <b>Voto</b> come sempre: il votato fuori rivela il ruolo dopo 5s.</li></ul>
     </div>
     <div style="text-align:center;margin-top:20px">
       <button class="btn big" id="btn-rules-ok">✓ HO LETTO E HO CAPITO</button>
@@ -508,12 +503,17 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif}
         <h3 style="margin:12px 0 4px;letter-spacing:.12em" id="g-name">—</h3>
         <div class="sysline" style="margin-top:14px">CODICE RICONOSCIMENTO</div>
         <div class="mono cyn" id="g-code" style="font-size:1.3rem;margin:4px 0">—</div>
-        <div class="sysline">PAROLA SEGRETA <button class="iconbtn" id="btn-eye" style="padding:1px 7px;font-size:.8rem">👁</button></div>
+        <div id="g-mask-wrap" class="hidden" style="margin-top:10px">
+          <div class="sysline red">CODICE MASCHERA (SABOTAGGIO ATTIVO)</div>
+          <div class="mono red" id="g-mask" style="font-size:1.1rem;margin:4px 0">—</div>
+        </div>
+        <div class="sysline" style="margin-top:14px">PAROLA SEGRETA <button class="iconbtn" id="btn-eye" style="padding:1px 7px;font-size:.8rem">👁</button></div>
         <div class="mono" id="g-word" style="font-size:1.1rem;margin-top:4px">—</div>
         <div id="ab-list" class="hidden" style="margin-top:14px"></div>
         <div id="scan-archive" class="hidden" style="margin-top:14px">
           <div class="sysline amb">ARCHIVIO SCANSIONI</div>
           <div id="scancharges" style="margin-top:6px"></div>
+          <div id="scanquar" style="margin-top:6px"></div>
           <div id="scanlist" style="margin-top:6px"></div>
           <div id="scanclues" style="margin-top:8px"></div>
         </div>
@@ -562,7 +562,6 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif}
 <div class="modal" id="m-sab"><div class="mbox panel cut" id="sab-body"></div></div>
 <div class="modal" id="m-ab"><div class="mbox panel cut" id="ab-body"></div></div>
 
-<!-- ═══ FINESTRA CHAT PRIVATA + PULSANTE GALLEGGIANTE ═══ -->
 <div id="pchat" class="hidden">
   <div class="pch-tabs" id="pch-tabs"></div>
   <div class="pch-head" id="pch-head">🤫 —</div>
@@ -633,7 +632,7 @@ const CFG={MIN:3,MAX:8,MAXNAME:8,
   SCAN_UNLOCK:20000,SCAN_CD:20000,SCAN_MAX:3,SCAN_RECHARGE:150000,NEWDET_SCAN:40000,
   TASK_EVERY:50000,
   TASK_WIN_MULT:8,
-  WHISPER_ANNOUNCE_CD:10000, // anti-spam: stesso canale ri-annunciato al max ogni 10s
+  WHISPER_ANNOUNCE_CD:10000,
   SEANCE_NEED:4,
   SEANCE_VOTE:20000,
   WORD_TIME:40000,WORD_SHOW:15000,
@@ -646,7 +645,7 @@ const VIO='#c26bff';
 
 const ABS={
  spalmatore:{n:'LO SPALMATORE PAZZO',ch:8,c:'#b87333',d:'UNA VOLTA: elimina un giocatore a scelta. Se era l\'ASSASSINO vincete immediatamente. Se era un innocente… hai spalmato un amico, con tanto di jumpscare.'},
- puttana:{n:'LA PUTTANA',ch:0,c:'#ff6ec7',d:'RUOLO DA PROMOZIONE (conteggio task ogni 30s, solo innocenti vivi): resuscita un eliminato da ASSASSINO o SPALMATORE, riusabile ogni 4 minuti. MAI sui votati.'},
+ puttana:{n:'LA PUTTANA',ch:0,c:'#ff6ec7',d:'RUOLO DA PROMOZIONE (conteggio task ogni 30s, solo innocenti vivi non in quarantena): resuscita un eliminato da ASSASSINO o SPALMATORE, riusabile ogni 4 minuti. MAI sui votati.'},
  sparlatore:{n:'LO SPARLATORE',ch:8,c:'#c26bff',d:'UNA VOLTA: svela PUBBLICAMENTE nel registro eventi il ruolo di un giocatore (innocente, detective o assassino).'},
  gesu:{n:'CHE GESÙ STA CON TE',ch:8,c:'#ffd700',d:'DOPPIA MODALITÀ — PASSIVA: la prima volta che vieni eliminato da ASSASSINO o SPALMATORE resusciti sul colpo. ATTIVA da vivo: resusciti TU un eliminato da assassino/spalmatore, consumandola.'},
  merde:{n:'SONO TORNATO MERDE',ch:8,c:'#ff8c42',d:'DOPPIA MODALITÀ — PASSIVA: se vieni ESPULSO DAI VOTI ti riattivi e rientri. ATTIVA da vivo: resusciti TU un espulso dalle votazioni, consumandola.'}};
@@ -724,9 +723,9 @@ function bgDraw(ts){bx.clearRect(0,0,bg.width,bg.height);
 const I={id:uid(),name:''};
 let SB=null,chan=null,ROOM='',isHost=false,G=null,PUB=null,SEC={},SYNC={};
 let clockOff=0,curScr='',sentW=0,sentV=0,seenBanner=0,seenReveal=0,meetKey='',lastTaskKey='',endPlayed=false;
-let lastDockKey='',myAlivePrev=true,sentSeanceVote=0;
+let lastDockKey='',myAlivePrev=true,myQPrev=false,sentSeanceVote=0;
 let SCANLIST=[],SCANCLUES=[];
-let CHATS={},activeChat=null; // chat private p2p
+let CHATS={},activeChat=null;
 const joinAt=Date.now();
 
 if(!SB_URL.startsWith('http')){$('#cfg-warn').classList.add('on');}
@@ -734,7 +733,7 @@ else SB=window.supabase.createClient(SB_URL,SB_KEY);
 
 function mkPlayer(id,name){return{id,name,alive:true,role:null,code:mkCode(),tasks:0,task:null,lastTaskAt:0,
  killReadyAt:0,sabReadyAt:0,scanReadyAt:0,scanCharges:0,scanNextChargeAt:0,
- cdw:0,cdv:0,rulesOk:false,revealOk:false,nextAt:0,
+ cdw:0,cdv:0,rulesOk:false,revealOk:false,nextAt:0,quarantined:false,
  ab:null,usedAbs:[],pendingAb:null,isPuttana:false,puttanaReadyAt:0,deadBy:null};}
 
 /* ══════════════════════ CANALE ══════════════════════ */
@@ -838,10 +837,7 @@ function resurrectCleanup(p){
  if(idx>=0){
    G.seanceContrib.splice(idx,1);
    if(G.seanceState==='ready'){
-     G.seanceState='charge';
-     G.seanceCur=0;
-     G.seanceMedium=null;
-     G.seanceContrib=[];
+     G.seanceState='charge';G.seanceCur=0;G.seanceMedium=null;G.seanceContrib=[];
      addLog('🕯 LA RESURREZIONE DI '+p.name+' HA DISPERSO GLI SPIRITI: séance annullata, gli spettri dovranno ricaricarla da zero.',VIO);
    }else if(G.seanceState==='charge'){
      G.seanceCur=Math.max(0,G.seanceCur-1);
@@ -850,7 +846,7 @@ function resurrectCleanup(p){
  if(G.seanceState==='voting')delete G.seanceVotes[p.id];
 }
 
-function disconnectKill(p){p.alive=false;p.deadBy='disc';cancelTask(p);addLog(p.name+' si è disconnesso.');
+function disconnectKill(p){p.alive=false;p.deadBy='disc';p.quarantined=false;cancelTask(p);addLog(p.name+' si è disconnesso.');
  if(p.role==='assassino'){endGame('innocenti');return;}checkWin();
  if(G.phase==='play'&&p.role==='detective')promote();broadcastNow();}
 
@@ -873,7 +869,7 @@ function broadcastNow(){
    const o={type:'sync',cdw:p.cdw,cdv:p.cdv,
      ab:p.ab,used:p.usedAbs,isP:p.isPuttana,put:p.puttanaReadyAt,deadBy:p.deadBy,
      med:(G.seanceState==='ready'&&G.seanceMedium===p.id)};
-   if(p.role==='assassino'){o.kill=p.killReadyAt;o.sab=p.sabReadyAt;}
+   if(p.role==='assassino'){o.kill=p.killReadyAt;o.sab=p.sabReadyAt;o.mask=G.spoof?G.spoof.code:null;}
    if(p.role==='detective'){o.scan=p.scanReadyAt;o.chg=p.scanCharges;o.chgAt=p.scanNextChargeAt;}
    priv(p.id,o);
  });
@@ -892,17 +888,17 @@ function broadcastNow(){
    meeting,taskTarget:G.taskTarget,taskProg:taskProg(),
    seance:{state:G.seanceState,cur:G.seanceCur,need:CFG.SEANCE_NEED,target:tgt?tgt.name:null},
    log:G.log.slice(-14),
-   players:G.players.map(p=>({id:p.id,name:p.name,alive:p.alive,tasks:p.tasks,task:p.task,deadBy:p.deadBy,nextAt:p.task?0:p.lastTaskAt+CFG.TASK_EVERY})),
+   players:G.players.map(p=>({id:p.id,name:p.name,alive:p.alive,tasks:p.tasks,task:p.task,deadBy:p.deadBy,q:p.quarantined,nextAt:p.task?0:p.lastTaskAt+CFG.TASK_EVERY})),
    ended:G.phase==='ended'?G.players.map(p=>({name:p.name,role:p.role,tasks:p.tasks,alive:p.alive,isPuttana:p.isPuttana})):null};
  send(pub);
  PUB=pub;
  onPub();
 }
 
-/* ═══ CICLO PUTTANA ═══ */
+/* ═══ CICLO PUTTANA (esclude quarantenati) ═══ */
 function puttanaTick(now){
  if(!G.puttanaActive){
-   if(G.players.some(p=>p.alive&&p.role==='innocente'&&p.tasks>=CFG.PUTTANA_TRIGGER)){
+   if(G.players.some(p=>p.alive&&!p.quarantined&&p.role==='innocente'&&p.tasks>=CFG.PUTTANA_TRIGGER)){
      G.puttanaActive=true;
      G.puttanaTimerAt=now+CFG.PUTTANA_TIMER;
    }
@@ -913,8 +909,8 @@ function puttanaTick(now){
 }
 function evaluatePuttana(){
  const cur=G.players.find(p=>p.isPuttana);
- if(cur&&(!cur.alive||cur.role!=='innocente'))cur.isPuttana=false;
- const cands=G.players.filter(p=>p.alive&&p.role==='innocente');
+ if(cur&&(!cur.alive||cur.quarantined||cur.role!=='innocente'))cur.isPuttana=false;
+ const cands=G.players.filter(p=>p.alive&&!p.quarantined&&p.role==='innocente');
  if(!cands.length)return;
  const max=Math.max.apply(null,cands.map(p=>p.tasks));
  const tied=cands.filter(p=>p.tasks===max);
@@ -935,9 +931,9 @@ function evaluatePuttana(){
 function ensureMedium(){
  if(G.seanceState!=='ready')return;
  const m=byId(G.seanceMedium);
- if(m&&m.alive&&m.role==='innocente')return;
+ if(m&&m.alive&&!m.quarantined&&m.role==='innocente')return;
  G.seanceMedium=null;
- const cands=G.players.filter(p=>p.alive&&p.role==='innocente');
+ const cands=G.players.filter(p=>p.alive&&!p.quarantined&&p.role==='innocente');
  if(cands.length){
    G.seanceMedium=pick(cands).id;
    priv(G.seanceMedium,{type:'seanceMedium'});
@@ -959,13 +955,7 @@ function resolveSeance(){
    msg='🕯 GLI SPIRITI HANNO DECISO: "NO, '+tname+' NON È L\'ASSASSINO" ('+yes+' sì / '+no+' no). Ma attenzione: non tutti gli spiriti sono buoni.';
  }
  addLog(msg,VIO);
- G.seanceState='charge';
- G.seanceCur=0;
- G.seanceContrib=[];
- G.seanceMedium=null;
- G.seanceTarget=null;
- G.seanceVotes={};
- G.seanceEndsAt=0;
+ G.seanceState='charge';G.seanceCur=0;G.seanceContrib=[];G.seanceMedium=null;G.seanceTarget=null;G.seanceVotes={};G.seanceEndsAt=0;
  broadcastNow();
 }
 
@@ -979,6 +969,7 @@ function hostTick(){
    if(G.meeting)meetTick(now);
    G.players.forEach(p=>{
      if(p.task)return;
+     if(p.quarantined)return; // niente task in quarantena
      if(now-p.lastTaskAt<CFG.TASK_EVERY)return;
      if(p.alive){p.task=pick(TASKS).id;p.lastTaskAt=now;}
      else if(p.role!=='assassino'){p.task=pick(TASKS).id;p.lastTaskAt=now;}
@@ -1055,13 +1046,13 @@ function consumeGesu(t,src){
 
 function Hkill(id,tid){
  const a=byId(id),t=byId(tid),now=Date.now();
- if(!a||a.role!=='assassino'||!a.alive||!t||!t.alive||t.id===a.id||G.phase!=='play'||G.meeting||now<a.killReadyAt)return;
+ if(!a||a.role!=='assassino'||!a.alive||a.quarantined||!t||!t.alive||t.id===a.id||G.phase!=='play'||G.meeting||now<a.killReadyAt)return;
  a.killReadyAt=now+CFG.KILL_CD;
  if(consumeGesu(t,'kill')){
    priv(a.id,{type:'note',txt:'❌ KILL ANNULLATO: GESÙ STA CON '+t.name+'.'});
    broadcastNow();return;
  }
- t.alive=false;t.deadBy='kill';cancelTask(t);
+ t.alive=false;t.deadBy='kill';t.quarantined=false;cancelTask(t);
  priv(t.id,{type:'fx',fx:'jump',letter:randomLetter(a.name),by:'ass'});
  addLog('☠ '+t.name+' è stato eliminato.');
  checkWin();
@@ -1071,12 +1062,12 @@ function Hkill(id,tid){
 
 function Hspalm(id,tid){
  const p=byId(id),t=byId(tid),now=Date.now();
- if(!p||!p.alive||p.ab!=='spalmatore'||G.phase!=='play'||G.meeting)return;
+ if(!p||!p.alive||p.quarantined||p.ab!=='spalmatore'||G.phase!=='play'||G.meeting)return;
  if(!t||!t.alive||t.id===p.id)return;
  p.usedAbs.push('spalmatore');
  p.ab=null;
  if(consumeGesu(t,'spalm')){broadcastNow();return;}
- t.alive=false;t.deadBy='spalm';cancelTask(t);
+ t.alive=false;t.deadBy='spalm';t.quarantined=false;cancelTask(t);
  if(t.role==='assassino'){
    addLog('🩸 LO SPALMATORE HA COLPITO NEL SEGNO: '+t.name+' ERA L\'ASSASSINO!',ABS.spalmatore.c);
    G.reveal={name:t.name,role:'assassino',at:now};
@@ -1093,7 +1084,7 @@ function Hspalm(id,tid){
 /* ═══ RESURREZIONI ═══ */
 function Hputt(id,tid){
  const p=byId(id),t=byId(tid),now=Date.now();
- if(!p||!p.alive||!p.isPuttana||now<p.puttanaReadyAt||G.phase!=='play'||G.meeting)return;
+ if(!p||!p.alive||p.quarantined||!p.isPuttana||now<p.puttanaReadyAt||G.phase!=='play'||G.meeting)return;
  if(!t||t.alive||(t.deadBy!=='kill'&&t.deadBy!=='spalm'))return;
  t.alive=true;t.deadBy=null;
  resurrectCleanup(t);
@@ -1104,7 +1095,7 @@ function Hputt(id,tid){
 }
 function HabGesuRev(id,tid){
  const p=byId(id),t=byId(tid),now=Date.now();
- if(!p||!p.alive||p.ab!=='gesu'||G.phase!=='play'||G.meeting)return;
+ if(!p||!p.alive||p.quarantined||p.ab!=='gesu'||G.phase!=='play'||G.meeting)return;
  if(!t||t.alive||(t.deadBy!=='kill'&&t.deadBy!=='spalm'))return;
  p.usedAbs.push('gesu');p.ab=null;
  t.alive=true;t.deadBy=null;
@@ -1114,7 +1105,7 @@ function HabGesuRev(id,tid){
 }
 function HabMerdeRev(id,tid){
  const p=byId(id),t=byId(tid),now=Date.now();
- if(!p||!p.alive||p.ab!=='merde'||G.phase!=='play'||G.meeting)return;
+ if(!p||!p.alive||p.quarantined||p.ab!=='merde'||G.phase!=='play'||G.meeting)return;
  if(!t||t.alive||t.deadBy!=='vote')return;
  p.usedAbs.push('merde');p.ab=null;
  t.alive=true;t.deadBy=null;
@@ -1132,7 +1123,7 @@ function Hmerde(id){
  broadcastNow();
 }
 
-/* ═══ SUSSURRI: canale pubblico, contenuti privati, illimitati ═══ */
+/* ═══ SUSSURRI ═══ */
 function HwhisperOpen(id,tid){
  const p=byId(id),t=byId(tid),now=Date.now();
  if(!p||!p.alive||!t||!t.alive||t.id===p.id||G.phase!=='play')return;
@@ -1151,9 +1142,29 @@ function HwhisperMsg(id,tid,text){
  priv(t.id,{type:'whisperMsg',from:p.id,fromName:p.name,text:txt});
 }
 
+/* ═══ SÉANCE azioni ═══ */
+function HseanceTarget(id,tid){
+ const p=byId(id),t=byId(tid),now=Date.now();
+ if(!p||!p.alive||p.quarantined||G.seanceState!=='ready'||G.seanceMedium!==p.id||G.phase!=='play'||G.meeting)return;
+ if(!t||!t.alive||t.id===p.id)return;
+ G.seanceState='voting';G.seanceTarget=t.id;G.seanceVotes={};G.seanceEndsAt=now+CFG.SEANCE_VOTE;
+ addLog('🕯 IL MEDIO INTERROGA GLI SPIRITI SU '+t.name+'…',VIO);
+ G.players.forEach(q=>{if(!q.alive)priv(q.id,{type:'seanceVote',target:t.name,endsAt:G.seanceEndsAt});});
+ priv(p.id,{type:'note',txt:'🕯 Hai invocato gli spiriti su '+t.name+'. Attendi il loro verdetto…'});
+ broadcastNow();
+}
+function HseanceBallot(id,vote){
+ const p=byId(id);
+ if(!p||p.alive||G.seanceState!=='voting'||G.seanceVotes[p.id]!==undefined)return;
+ G.seanceVotes[p.id]=(vote==='yes');
+ const dead=G.players.filter(q=>!q.alive);
+ if(dead.every(q=>G.seanceVotes[q.id]!==undefined))resolveSeance();
+ else broadcastNow();
+}
+
 function Hspar(id,tid){
  const p=byId(id),t=byId(tid);
- if(!p||!p.alive||p.ab!=='sparlatore'||G.phase!=='play'||G.meeting)return;
+ if(!p||!p.alive||p.quarantined||p.ab!=='sparlatore'||G.phase!=='play'||G.meeting)return;
  if(!t||!t.alive||t.id===p.id)return;
  p.usedAbs.push('sparlatore');p.ab=null;
  const lab=t.role==='assassino'?'L\'ASSASSINO':t.role==='detective'?'IL DETECTIVE':'INNOCENTE';
@@ -1169,6 +1180,7 @@ function HabChoice(id,pickSel){
  broadcastNow();
 }
 
+/* ═══ SCAN + QUARANTENA ═══ */
 function Hscan(id,tid){
  const d=byId(id),t=byId(tid),now=Date.now();
  if(!d||d.role!=='detective'||!d.alive||G.phase!=='play'||G.meeting){priv(id,{type:'scanFail'});return;}
@@ -1176,31 +1188,61 @@ function Hscan(id,tid){
  d.scanReadyAt=now+CFG.SCAN_CD;
  d.scanCharges--;
  const ass=G.players.find(p=>p.role==='assassino');
- let eff=t.code;
- if(G.spoof){
-   eff=G.spoof.code;
-   G.spoof.uses--;
-   if(G.spoof.uses<=0){
-     G.spoof=null;
-     priv(ass.id,{type:'note',txt:'◈ Il tuo sabotaggio codici si è ESAURITO (2 scan assorbite): codici reali ripristinati.'});
-   }else{
-     priv(ass.id,{type:'note',txt:'◈ Il tuo spoof ha assorbito uno scan del Detective: resiste ancora a '+G.spoof.uses+' scan.'});
+ let eff;
+ if(t.quarantined){
+   /* VERIFICA: legge il codice REALE, ignora le maschere */
+   eff=t.code;
+ }else{
+   eff=t.code;
+   if(G.spoof){
+     eff=G.spoof.code;
+     G.spoof.uses--;
+     if(G.spoof.uses<=0){
+       G.spoof=null;
+       priv(ass.id,{type:'note',txt:'◈ Il tuo sabotaggio codici si è ESAURITO (2 scan assorbite): codici reali ripristinati.'});
+     }else{
+       priv(ass.id,{type:'note',txt:'◈ Il tuo spoof ha assorbito uno scan del Detective: resiste ancora a '+G.spoof.uses+' scan.'});
+     }
    }
  }
- addLog('🔎 Il Detective ha scansionato '+t.name+'.');
+ addLog('🔎 Il Detective ha scansionato '+t.name+(t.quarantined?' (VERIFICA)':'')+'.');
  priv(t.id,{type:'note',txt:'⚠ QUALCUNO HA APPENA SCANSIONATO IL TUO CODICE DI RICONOSCIMENTO!'});
- if(t.role==='assassino'&&eff===ass.code){
-   G.reveal={name:t.name,role:'assassino',at:now};
-   endGame('innocenti');
+ if(eff===ass.code){
+   if(t.quarantined){
+     /* CONFERMA DEFINITIVA */
+     G.reveal={name:t.name,role:t.role,at:now};
+     addLog(' VERIFICA CONFERMATA: '+t.name+' È L\'ASSASSINO! VINCONO GLI INNOCENTI.');
+     endGame('innocenti');
+   }else{
+     /* QUARANTENA */
+     t.quarantined=true;
+     cancelTask(t);
+     if(t.isPuttana){
+       t.isPuttana=false;
+       addLog('💋 LA PUTTANA È FINITA IN QUARANTENA: il ruolo passa di mano.',ABS.puttana.c);
+       evaluatePuttana();
+     }
+     addLog('⛔ '+t.name+' È STATO MESSO IN QUARANTENA: il codice letto corrisponde a quello dell\'assassino! Accertamenti in corso.');
+     priv(d.id,{type:'scanRes',id:t.id,target:t.name,code:eff,tasks:t.tasks,chg:d.scanCharges,q:true});
+     priv(d.id,{type:'note',txt:'⛔ '+t.name+' è in QUARANTENA. Se vuoi rilasciarlo: scansionalo di nuovo (la verifica legge il codice REALE). Se corrisponde di nuovo → vittoria. Se pulito → rilascio.'});
+     priv(t.id,{type:'note',txt:'⛔ SEI IN QUARANTENA: niente task né abilità finché il Detective non ti verifica.'});
+   }
  }else{
-   priv(d.id,{type:'scanRes',target:t.name,code:eff,tasks:t.tasks,chg:d.scanCharges});
+   if(t.quarantined){
+     t.quarantined=false;
+     addLog('✅ '+t.name+' È STATO RILASCIATO: codice verificato, non è l\'assassino.');
+     priv(t.id,{type:'note',txt:'✅ SEI STATO RILASCIATO: puoi tornare a giocare normalmente.'});
+     priv(d.id,{type:'scanRes',id:t.id,target:t.name,code:eff,tasks:t.tasks,chg:d.scanCharges,released:true});
+   }else{
+     priv(d.id,{type:'scanRes',id:t.id,target:t.name,code:eff,tasks:t.tasks,chg:d.scanCharges});
+   }
  }
  broadcastNow();
 }
 
 function Hsab(id,tid){
  const a=byId(id),now=Date.now();
- if(!a||a.role!=='assassino'||!a.alive||G.phase!=='play'||G.meeting||now<a.sabReadyAt)return;
+ if(!a||a.role!=='assassino'||!a.alive||a.quarantined||G.phase!=='play'||G.meeting||now<a.sabReadyAt)return;
  const t=byId(tid);
  if(!t||!t.alive)return;
  if(t.role==='detective'){
@@ -1217,14 +1259,14 @@ function Hsab(id,tid){
  }else{
    G.spoof={code:t.code,uses:2};
    a.sabReadyAt=now+CFG.SAB_CD;
-   priv(id,{type:'note',txt:'◈ Codici uniformati su quello di '+t.name+'. Il sabotaggio resiste a 2 scansioni.'});
+   priv(id,{type:'note',txt:'◈ Codici uniformati su quello di '+t.name+'. Il sabotaggio resiste a 2 scansioni. Sul tuo dispositivo vedi anche il CODICE MASCHERA.'});
  }
  broadcastNow();
 }
 
 function HtaskDone(id){
  const p=byId(id);
- if(!p||G.phase!=='play'||!p.task)return;
+ if(!p||G.phase!=='play'||!p.task||p.quarantined)return;
  p.task=null;
  p.lastTaskAt=Date.now();
  if(!p.alive){
@@ -1323,7 +1365,7 @@ function applyVote(){
  if(m.result){
    const p=byId(m.result.id);
    if(p){
-     p.alive=false;p.deadBy='vote';cancelTask(p);
+     p.alive=false;p.deadBy='vote';p.quarantined=false;cancelTask(p);
      G.reveal={name:p.name,role:p.role,at:Date.now()};
      addLog(p.name+' è stato espulso dalla stazione.');
      if(p.ab==='merde')priv(p.id,{type:'note',txt:'🔥 Hai SONO TORNATO MERDE: attivala dal dock per rientrare!'});
@@ -1338,7 +1380,7 @@ function applyVote(){
 }
 
 function promote(){
- const c=G.players.filter(p=>p.alive&&p.role==='innocente');
+ const c=G.players.filter(p=>p.alive&&!p.quarantined&&p.role==='innocente');
  if(!c.length)return;
  const p=pick(c);
  p.role='detective';
@@ -1369,7 +1411,7 @@ function endGame(w){
 
 function Hreset(){
  if(!G)return;
- G.players.forEach(p=>Object.assign(p,{alive:true,role:null,tasks:0,task:null,rulesOk:false,revealOk:false,
+ G.players.forEach(p=>Object.assign(p,{alive:true,role:null,tasks:0,task:null,rulesOk:false,revealOk:false,quarantined:false,
    ab:null,usedAbs:[],pendingAb:null,isPuttana:false,puttanaReadyAt:0,deadBy:null,
    scanCharges:0,scanNextChargeAt:0}));
  Object.assign(G,{phase:'lobby',word:'',winner:null,reveal:null,meeting:null,spoof:null,banner:null,log:[],t0:0,whisperLog:{},
@@ -1442,7 +1484,7 @@ function resetClientRound(){
  CHATS={};activeChat=null;
  hideChatPanel();
  endPlayed=false;
- myAlivePrev=true;
+ myAlivePrev=true;myQPrev=false;
  sentW=0;sentV=0;sentSeanceVote=0;
  const br=$('#btn-ready');
  if(br){br.disabled=false;}
@@ -1457,7 +1499,7 @@ function onPriv(m){
    SYNC={};
    SCANLIST=[];SCANCLUES=[];
    CHATS={};activeChat=null;hideChatPanel();
-   myAlivePrev=true;
+   myAlivePrev=true;myQPrev=false;
    const br=$('#btn-ready');
    if(br)br.disabled=false;
    SFX.reveal();
@@ -1497,17 +1539,25 @@ function onPriv(m){
      renderChatMsgs();
    }else{
      CHATS[pid].unread++;
-     if(!CHATS[pid].msgs.length||CHATS[pid].msgs.length===1)banner('🤫 '+m.fromName+' STA SUSSURRANDO CON TE','cyan',4000);
+     if(CHATS[pid].msgs.length===1)banner('🤫 '+m.fromName+' STA SUSSURRANDO CON TE','cyan',4000);
    }
    SFX.msg();
    updateFab();
    if(isChatVisible())renderChatTabs();
    break;}
-  case 'scanRes':
-   SCANLIST.push({name:m.target,code:m.code,tasks:m.tasks});
+  case 'scanRes':{
+   /* ★ ARCHIVIO: una riga per giocatore, aggiornata e riordinata secondo l'ultima scansione */
+   const ex=SCANLIST.find(e=>e.id===m.id);
+   if(ex){
+     ex.code=m.code;ex.tasks=m.tasks;ex.n=(ex.n||1)+1;
+     SCANLIST.splice(SCANLIST.indexOf(ex),1);
+     SCANLIST.push(ex);
+   }else{
+     SCANLIST.push({id:m.id,name:m.target,code:m.code,tasks:m.tasks,n:1});
+   }
    showScanRes(m);
    renderArchive();
-   break;
+   break;}
   case 'scanFail':
    hide($('#m-scan'));
    banner('SCANSIONE ANNULLATA: CARICHE O CONDIZIONI NON VALIDE','amber');
@@ -1520,7 +1570,7 @@ function onPriv(m){
    renderArchive();
    break;
   case 'note':
-   banner(m.txt,'cyan');
+   banner(m.txt,'cyan',5000);
    break;
  }
 }
@@ -1762,10 +1812,10 @@ function renderReveal(){
  $('#role-name').style.color=r.c;
  const common=' Hai i SUSSURRI PRIVATI (🤫): chat p2p illimitata, canale pubblico ma contenuto segreto.';
  $('#role-desc').textContent=(SEC.role==='assassino'
-   ?'Il SABOTAGGIO CODICI si sblocca dopo 30s (riuso 60s) e RESISTE A 2 SCANSIONI: TUTTI adottano il codice del bersaglio che scegli (anche te stesso). Se saboti il Detective: allarme hackeraggio, riuso istantaneo, ma gli riveli una cifra del tuo codice. Prima UCCISIONE dopo 50s, poi ricarica 45s. ATTENZIONE: la BARRA STAZIONE completa fa vincere i buoni; le task danno ABILITÀ CASUALI e promuovono LA PUTTANA; gli spiriti dei morti votano alle séance. NON conosci la parola segreta.'
+   ?'Il SABOTAGGIO CODICI si sblocca dopo 30s (riuso 60s) e RESISTE A 2 SCANSIONI: tutti tranne il Detective leggono il codice del bersaglio (anche te stesso: ma allora ogni scansionato corrisponderà e finirà in QUARANTENA finché la verifica non lo rilascia!). Sul tuo dispositivo vedi codice REALE + MASCHERA. Se saboti il Detective: hackeraggio, riuso istantaneo, ma gli riveli una cifra del tuo codice. Prima UCCISIONE dopo 50s, ricarica 45s. NON conosci la parola segreta.'
    :SEC.role==='detective'
-   ?'SCAN attivo dopo 20s con 3 CARICHE (⚡): +1 ogni 2,5 min (max 3), ricarica tecnica 20s. Ogni scan è annunciato nel registro, il bersaglio riceve un avviso privato, e il sabotaggio resiste a 2 scan. Tutto nel tuo ARCHIVIO SCANSIONI. Le task possono darti ABILITÀ CASUALI (max 1). Conosci la parola segreta.'
-   :'Completa le task (una ogni 50s): la BARRA STAZIONE piena fa vincere i buoni, puoi trovare ABILITÀ CASUALI (max 1) e il conteggio task promuove in segreto LA PUTTANA ogni 30s. Conosci la parola segreta.')+common;
+   ?'SCAN dopo 20s con 3 CARICHE (⚡, +1 ogni 2,5 min, ricarica 20s). Se leggi un codice corrispondente a quello dell\'assassino → QUARANTENA: riverifica (la verifica legge il codice REALE): corrisponde → vittoria · pulito → rilascio. Durante un sabotaggio leggi il CODICE MASCHERA e il soggetto risulta pulito. Archivio: una riga per giocatore, in ordine di scansione. Conosci la parola segreta.'+common
+   :'Completa le task (una ogni 50s): la BARRA STAZIONE piena fa vincere i buoni, puoi trovare ABILITÀ CASUALI (max 1) e il conteggio task promuove in segreto LA PUTTANA ogni 30s. Attento alla QUARANTENA se l\'assassino maschera il proprio codice! Conosci la parola segreta.'+common);
  $('#role-word').textContent=SEC.word||'??? — SCONOSCIUTA';
  $('#role-word').style.color=SEC.word?'var(--grn)':'var(--red)';
  $('#role-code').textContent=SEC.code;
@@ -1780,21 +1830,32 @@ function renderGame(){
    if(!me.alive){hideChatPanel();}
  }
  myAlivePrev=me.alive;
+ if(me.q!==myQPrev){
+   if(me.q)closeActionModals();
+   myQPrev=me.q;
+ }
  $('#g-alive').textContent=PUB.players.filter(p=>p.alive).length+'/'+PUB.players.length;
  $('#g-name').textContent=I.name;
  const chip=$('#chip-role');
  if(me.alive&&SEC.role){
-   chip.textContent=ROLE[SEC.role].l+(SYNC.isP?' · PUTTANA':'');
-   chip.style.color=ROLE[SEC.role].c;
-   chip.style.borderColor=ROLE[SEC.role].c;
+   chip.textContent=ROLE[SEC.role].l+(SYNC.isP?' · PUTTANA':'')+(me.q?' · QUARANTENA':'');
+   if(me.q){chip.style.color='var(--red)';chip.style.borderColor='var(--red)';}
+   else{chip.style.color=ROLE[SEC.role].c;chip.style.borderColor=ROLE[SEC.role].c;}
  }else{
    chip.textContent='ELIMINATO';
    chip.style.color='var(--red)';
    chip.style.borderColor='var(--red)';
  }
  $('#g-code').textContent=SEC.code||'—';
+ const mw=$('#g-mask-wrap');
+ if(SEC.role==='assassino'&&SYNC.mask){
+   mw.classList.remove('hidden');
+   $('#g-mask').textContent=SYNC.mask;
+ }else{
+   mw.classList.add('hidden');
+ }
  updateWord();
- renderAbList();
+ renderAbList(me);
  renderArchive();
  const prog=PUB.taskProg||0,tgt=PUB.taskTarget||1;
  $('#station-bar').style.width=Math.min(100,prog/tgt*100)+'%';
@@ -1807,9 +1868,9 @@ function renderGame(){
    else if(se.state==='ready')sl.innerHTML='🕯 SÉANCE: <b>PRONTA</b> — il Medio è stato scelto in segreto';
    else sl.innerHTML='🕯 GLI SPIRITI SI CONSULTANO SU <b>'+esc(se.target||'…')+'</b>…';
  }else sl.classList.add('hidden');
- const dockKey=(me.alive?'1':'0')+'|'+(SEC.role||'')+'|'+(SYNC.ab||'')+'|'+(SYNC.deadBy||'')+'|'+(SYNC.isP?'P':'')+'|'+(SYNC.med?'M':'');
+ const dockKey=(me.alive?'1':'0')+'|'+(me.q?'Q':'')+'|'+(SEC.role||'')+'|'+(SYNC.ab||'')+'|'+(SYNC.deadBy||'')+'|'+(SYNC.isP?'P':'')+'|'+(SYNC.med?'M':'');
  if(dockKey!==lastDockKey){lastDockKey=dockKey;buildDock();}
- const key=me.task+'|'+me.alive;
+ const key=me.task+'|'+me.alive+'|'+(me.q?'q':'');
  if(key!==lastTaskKey){
    lastTaskKey=key;
    buildTaskCard(me);
@@ -1821,7 +1882,7 @@ function renderGame(){
  updateFab();
 }
 
-function renderAbList(){
+function renderAbList(me){
  const box=$('#ab-list');
  if(!box)return;
  const held=SYNC.ab,used=(SYNC.used||[]);
@@ -1829,6 +1890,7 @@ function renderAbList(){
  box.classList.remove('hidden');
  const now=Date.now()+clockOff;
  let h='<div class="sysline grn">POTERI PRIVATI</div>';
+ if(me&&me.q)h+='<div class="lg red">⛔ SEI IN QUARANTENA: abilità e task sospese finché il Detective non ti verifica.</div>';
  if(SYNC.isP){
    const st=(SYNC.put||0)>now?'CD '+fmt((SYNC.put||0)-now):'PRONTA';
    h+='<div class="lg"><b style="color:'+ABS.puttana.c+'">LA PUTTANA</b> <span class="cyn mono" style="font-size:.65rem">PROMOZIONE · '+st+
@@ -1859,8 +1921,11 @@ function renderArchive(){
  if(chg<CFG.SCAN_MAX)ch+=' <span class="dim" style="font-size:.7rem">· +1 tra '+fmt((SYNC.chgAt||now)-now)+'</span>';
  ch+='</div>';
  $('#scancharges').innerHTML=ch;
+ const q=(PUB&&PUB.players)?PUB.players.filter(p=>p.q):[];
+ $('#scanquar').innerHTML=q.map(p=>'<div class="lg red">⛔ '+esc(p.name)+' IN QUARANTENA: scansionalo di nuovo per VERIFICARLO (la verifica legge il codice reale). Corrisponde → vittoria · Pulito → rilascio.</div>').join('');
  $('#scanlist').innerHTML=SCANLIST.length
    ?SCANLIST.map((e,i)=>'<div class="lg"><span class="mono dim">'+String(i+1).padStart(2,'0')+'</span><b>'+esc(e.name)+
+     ((e.n||1)>1?' <span class="dim mono" style="font-size:.65rem">×'+e.n+'</span>':'')+
      '</b> → <span class="cyn mono">'+esc(e.code)+'</span> <span class="dim">('+e.tasks+' task)</span></div>').join('')
    :'<div class="lg dim">Nessuna scansione effettuata.</div>';
  $('#scanclues').innerHTML=SCANCLUES.map(c=>'<div class="lg amb">🕵 INDIZIO HACK: cifra "<b>'+esc(c.char)+
@@ -1897,6 +1962,10 @@ function buildTaskCard(me){
    if(bt)bt.onclick=()=>openTask(me.task);
    return;
  }
+ if(me.q){
+   tc.innerHTML='<div class="deadnote">⛔ IN QUARANTENA — task e abilità sospese<br><span style="font-size:.7rem;letter-spacing:.1em">in attesa di verifica del Detective</span></div>';
+   return;
+ }
  if(me.task){
    const def=TASKS.find(t=>t.id===me.task);
    tc.innerHTML='<div class="taskcard cut"><h3>▸ '+def.name+'</h3><p class="dim">'+def.desc+
@@ -1929,6 +1998,12 @@ function buildDock(){
    return;
  }
  let h=dockBtn('word','RIUNIONE PAROLA')+dockBtn('vote','RIUNIONE VOTO')+dockBtn('whis','SUSSURRI');
+ if(me.q){
+   /* quarantena: niente abilità, niente scan/kill/sab */
+   d.innerHTML=h;
+   wireDockBasic();
+   return;
+ }
  if(SYNC.med)h+=dockBtn('seance','SÉANCE','',VIO);
  if(SEC.role==='detective')h+=dockBtn('scan','SCANSIONA','amb');
  if(SEC.role==='assassino')h+=dockBtn('sab','SABOTAGGIO','red')+dockBtn('kill','ELIMINA','red','',true);
@@ -1939,9 +2014,7 @@ function buildDock(){
  if(held==='gesu')h+=dockBtn('abgres','GESÙ: RESUSCITA','',ABS.gesu.c);
  if(held==='merde')h+=dockBtn('abmres','MERDE: RESUSCITA','',ABS.merde.c);
  d.innerHTML=h;
- $('#db-word').onclick=()=>{SFX.click();act({t:'meet',kind:'word'});};
- $('#db-vote').onclick=()=>{SFX.click();act({t:'meet',kind:'vote'});};
- $('#db-whis').onclick=()=>{SFX.click();openAb('whisper');};
+ wireDockBasic();
  if($('#db-seance'))$('#db-seance').onclick=()=>{SFX.click();openAb('seance');};
  if($('#db-scan'))$('#db-scan').onclick=()=>{SFX.click();openScan();};
  if($('#db-sab'))$('#db-sab').onclick=()=>{SFX.click();openSab();};
@@ -1951,6 +2024,11 @@ function buildDock(){
  if($('#db-abspa'))$('#db-abspa').onclick=()=>{SFX.click();openAb('sparlatore');};
  if($('#db-abgres'))$('#db-abgres').onclick=()=>{SFX.click();openAb('gesu');};
  if($('#db-abmres'))$('#db-abmres').onclick=()=>{SFX.click();openAb('merde');};
+}
+function wireDockBasic(){
+ $('#db-word').onclick=()=>{SFX.click();act({t:'meet',kind:'word'});};
+ $('#db-vote').onclick=()=>{SFX.click();act({t:'meet',kind:'vote'});};
+ $('#db-whis').onclick=()=>{SFX.click();openAb('whisper');};
 }
 
 function setCd(key,until,label,baseOk){
@@ -1969,6 +2047,10 @@ function updateDock(){
  const now=Date.now()+clockOff,free=!PUB.meeting;
  setCd('word',SYNC.cdw,'RIUNIONE PAROLA',free);
  setCd('vote',SYNC.cdv,'RIUNIONE VOTO',free);
+ const bw2=$('#db-whis');
+ if(bw2)bw2.disabled=false;
+ const bse=$('#db-seance');
+ if(bse)bse.disabled=!free;
  if(SEC.role==='detective'){
    const b=$('#db-scan');
    if(b){
@@ -2066,8 +2148,8 @@ function buildMeet(m){
    if(m.stage===1){
      const alive=PUB.players.filter(p=>p.alive&&p.id!==I.id);
      B.innerHTML='<h2 class="mt red">VOTAZIONE DI ESPULSIONE</h2><p class="sub">Indetta da <b>'+esc(m.byName)+
-     '</b> · La maggioranza decide chi eliminare.</p><div class="vlist">'+
-     alive.map(p=>'<button class="vbtn" data-id="'+p.id+'">⬡ '+esc(p.name)+'</button>').join('')+
+     '</b> · La maggioranza decide chi eliminare. I quarantenati possono essere votati normalmente.</p><div class="vlist">'+
+     alive.map(p=>'<button class="vbtn" data-id="'+p.id+'">⬡ '+esc(p.name)+(p.q?' ⛔':'')+'</button>').join('')+
      '<button class="vbtn skip" data-id="skip">SALTA VOTO</button></div>'+
      '<div class="meet-meta mono"><span id="meet-n"></span><span id="meet-timer"></span></div><div class="bar red"><i id="meet-bar"></i></div>';
      $$('#meet-body .vbtn').forEach(b=>b.onclick=()=>{
@@ -2093,8 +2175,9 @@ function openScan(){
  if((SYNC.chg||0)<=0){banner('⚡ CARICHE SCANSIONE ESAURITE: ATTENDI LA RICARICA','amber');SFX.err();return;}
  const alive=PUB.players.filter(p=>p.alive&&p.id!==I.id);
  $('#scan-body').innerHTML='<h2 class="mt amb">SCANSIONE CODICE</h2><p class="sub">Hai <b class="amb">⚡ '+
- (SYNC.chg||0)+' cariche</b>. Il bersaglio riceverà un avviso privato. Lo scan sarà annunciato nel registro.</p><div class="vlist">'+
- alive.map(p=>'<button class="vbtn" data-id="'+p.id+'">⬡ '+esc(p.name)+' <span class="mono dim" style="font-size:.7rem">task: '+p.tasks+'</span></button>').join('')+
+ (SYNC.chg||0)+' cariche</b>. ⛔ = quarantenato: la scansione su di lui è una VERIFICA (legge il codice reale).</p><div class="vlist">'+
+ alive.map(p=>'<button class="vbtn" data-id="'+p.id+'">⬡ '+esc(p.name)+(p.q?' <span class="mono red" style="font-size:.7rem">⛔ QUARANTENA·VERIFICA</span>':'')+
+   ' <span class="mono dim" style="font-size:.7rem">task: '+p.tasks+'</span></button>').join('')+
  '</div><button class="btn ghost" id="sc-x">ANNULLA</button>';
  $('#sc-x').onclick=()=>hide($('#m-scan'));
  $$('#scan-body .vbtn').forEach(b=>b.onclick=()=>{hide($('#m-scan'));runScan(b.dataset.id);});
@@ -2117,13 +2200,31 @@ function runScan(tid){
 
 function showScanRes(m){
  show($('#m-scan'));
- SFX.ok();
- $('#scan-body').innerHTML='<h2 class="mt amb">ESITO SCANSIONE</h2><div class="rescard cut">'+
- '<div class="big">✓ CODICE PULITO</div><div class="mono" style="font-size:.8rem">OPERATORE: '+esc(m.target)+'</div>'+
- '<div class="mono" style="font-size:.8rem;margin:8px 0">CODICE LETTO: <b class="oc">'+esc(m.code)+'</b></div>'+
- '<div class="mono" style="font-size:.8rem">TASK COMPLETATE: <b>'+m.tasks+'</b></div>'+
- '<div class="mono amb" style="font-size:.8rem;margin-top:8px">⚡ CARICHE RIMASTE: '+m.chg+'</div></div>'+
- '<button class="btn wide" id="sc-ok">CHIUDI</button>';
+ let inner;
+ if(m.q){
+   SFX.alarm();
+   inner='<h2 class="mt red">ESITO SCANSIONE</h2><div class="rescard cut badq">'+
+   '<div class="big">⛔ CODICE = QUELLO DELL\'ASSASSINO</div>'+
+   '<div class="mono" style="font-size:.8rem">OPERATORE: '+esc(m.target)+' → MESSO IN QUARANTENA</div>'+
+   '<div class="mono" style="font-size:.8rem;margin:8px 0">CODICE LETTO: <b class="oc">'+esc(m.code)+'</b></div>'+
+   '<div class="dim" style="font-size:.9rem;margin-top:8px">Per rilasciarlo o confermarlo: <b>scansionalo di nuovo</b>. La verifica legge il codice REALE (ignora le maschere). Corrisponde → vittoria innocenti · Pulito → rilascio.</div>'+
+   '<div class="mono amb" style="font-size:.8rem;margin-top:8px">⚡ CARICHE RIMASTE: '+m.chg+'</div></div>';
+ }else if(m.released){
+   SFX.ok();
+   inner='<h2 class="mt amb">ESITO VERIFICA</h2><div class="rescard cut">'+
+   '<div class="big">✅ RILASCIATO: NON È L\'ASSASSINO</div>'+
+   '<div class="mono" style="font-size:.8rem">OPERATORE: '+esc(m.target)+' → torna a giocare</div>'+
+   '<div class="mono" style="font-size:.8rem;margin:8px 0">CODICE REALE LETTO: <b class="oc">'+esc(m.code)+'</b></div>'+
+   '<div class="mono amb" style="font-size:.8rem;margin-top:8px">⚡ CARICHE RIMASTE: '+m.chg+'</div></div>';
+ }else{
+   SFX.ok();
+   inner='<h2 class="mt amb">ESITO SCANSIONE</h2><div class="rescard cut">'+
+   '<div class="big">✓ CODICE PULITO</div><div class="mono" style="font-size:.8rem">OPERATORE: '+esc(m.target)+'</div>'+
+   '<div class="mono" style="font-size:.8rem;margin:8px 0">CODICE LETTO: <b class="oc">'+esc(m.code)+'</b></div>'+
+   '<div class="mono" style="font-size:.8rem">TASK COMPLETATE: <b>'+m.tasks+'</b></div>'+
+   '<div class="mono amb" style="font-size:.8rem;margin-top:8px">⚡ CARICHE RIMASTE: '+m.chg+'</div></div>';
+ }
+ $('#scan-body').innerHTML=inner+'<button class="btn wide" id="sc-ok">CHIUDI</button>';
  $('#sc-ok').onclick=()=>hide($('#m-scan'));
 }
 
@@ -2132,7 +2233,7 @@ function openKill(){
  const alive=PUB.players.filter(p=>p.alive&&p.id!==I.id);
  let sel=null;
  $('#kill-body').innerHTML='<h2 class="mt red">BERSAGLIO</h2><p class="sub">Scegli chi eliminare. Primo tocco: seleziona · Secondo tocco: conferma.</p><div class="vlist">'+
- alive.map(p=>'<button class="vbtn" data-id="'+p.id+'">⬡ '+esc(p.name)+'</button>').join('')+'</div>'+
+ alive.map(p=>'<button class="vbtn" data-id="'+p.id+'">⬡ '+esc(p.name)+(p.q?' ⛔':'')+'</button>').join('')+'</div>'+
  '<button class="btn ghost" id="k-x">ANNULLA</button>';
  $('#k-x').onclick=()=>hide($('#m-kill'));
  $$('#kill-body .vbtn').forEach(b=>{
@@ -2152,7 +2253,7 @@ function openSab(){
  if(!PUB)return;
  const all=PUB.players.filter(p=>p.alive);
  $('#sab-body').innerHTML='<h2 class="mt red">SABOTAGGIO CODICI</h2>'+
- '<p class="sub">Anonimo · <b>TUTTI</b> adottano il codice del bersaglio. <b>Resiste a 2 scansioni</b>. Se il bersaglio è il Detective (non sai chi è!) scatta l\'allarme hackeraggio ma ottieni il riuso istantaneo.</p>'+
+ '<p class="sub">Anonimo · <b>TUTTI tranne il Detective</b> leggono/adoptano il codice del bersaglio; resiste a 2 scan. Se copi <b>TE STESSO</b>, ogni scansionato corrisponderà e finirà in QUARANTENA (rischioso!). Bersaglio Detective → hackeraggio + riuso istantaneo + cifra rivelata.</p>'+
  '<div class="vlist">'+
  all.map(p=>'<button class="vbtn" data-id="'+p.id+'">'+(p.id===I.id?'⬡ '+esc(p.name)+' — TU (autosabotaggio)':'⬡ '+esc(p.name))+'</button>').join('')+
  '</div><button class="btn ghost" id="sb-x">ANNULLA</button>';
@@ -2207,7 +2308,7 @@ function openAb(kind){
    $$('#ab-body .vbtn').forEach(b=>b.onclick=()=>{act({t:t,tgt:b.dataset.id});hide($('#m-ab'));});
    show($('#m-ab'));
  }else{
-   const alive=PUB.players.filter(p=>p.alive&&p.id!==I.id);
+   const alive=PUB.players.filter(p=>p.alive&&p.id!==I.id&&!p.q);
    const col=kind==='spalmatore'?ABS.spalmatore.c:ABS.sparlatore.c;
    const title=kind==='spalmatore'?'LO SPALMATORE PAZZO':'LO SPARLATORE';
    const sub=kind==='spalmatore'
@@ -2221,31 +2322,6 @@ function openAb(kind){
    $$('#ab-body .vbtn').forEach(b=>b.onclick=()=>{act({t:t,tgt:b.dataset.id});hide($('#m-ab'));});
    show($('#m-ab'));
  }
-}
-
-/* ═══════ SÉANCE: medio + voto spiriti ═══════ */
-function HseanceTarget(id,tid){
- const p=byId(id),t=byId(tid),now=Date.now();
- if(!p||!p.alive||G.seanceState!=='ready'||G.seanceMedium!==p.id||G.phase!=='play'||G.meeting)return;
- if(!t||!t.alive||t.id===p.id)return;
- G.seanceState='voting';
- G.seanceTarget=t.id;
- G.seanceVotes={};
- G.seanceEndsAt=now+CFG.SEANCE_VOTE;
- addLog('🕯 IL MEDIO INTERROGA GLI SPIRITI SU '+t.name+'…',VIO);
- G.players.forEach(q=>{
-   if(!q.alive)priv(q.id,{type:'seanceVote',target:t.name,endsAt:G.seanceEndsAt});
- });
- priv(p.id,{type:'note',txt:'🕯 Hai invocato gli spiriti su '+t.name+'. Attendi il loro verdetto…'});
- broadcastNow();
-}
-function HseanceBallot(id,vote){
- const p=byId(id);
- if(!p||p.alive||G.seanceState!=='voting'||G.seanceVotes[p.id]!==undefined)return;
- G.seanceVotes[p.id]=(vote==='yes');
- const dead=G.players.filter(q=>!q.alive);
- if(dead.every(q=>G.seanceVotes[q.id]!==undefined))resolveSeance();
- else broadcastNow();
 }
 
 /* ═══════ JUMPSCARE / HACK / FINE ═══════ */
@@ -2438,7 +2514,7 @@ const GAMES={
      input=false;
      $('#seqmsg').textContent='OSSERVA…';
      S.forEach((v,i)=>setTimeout(()=>flash(v),600*i+400));
-     setTimeout(()=>{input=true;idx=0;$('#seqmsg').textContent='RIPETI LA SEQUENZA';},600*S.length+500);
+     setTimeout(()=>{input:true;idx=0;$('#seqmsg').textContent='RIPETI LA SEQUENZA';},600*S.length+500);
    }
    for(let i=0;i<4;i++)$('#pad'+i).onclick=()=>{
      if(!input)return;
@@ -2499,7 +2575,7 @@ function loop(ts){
  if(PUB.phase==='play'){
    $('#g-clock').textContent=fmt(now-PUB.t0);
    const me=PUB.players.find(p=>p.id===I.id);
-   if(me&&me.alive&&!me.task){
+   if(me&&me.alive&&!me.task&&!me.q){
      const n=$('#nextin');
      if(n)n.textContent=fmt((me.nextAt||0)-now);
    }
@@ -2556,7 +2632,7 @@ $('#btn-create').onclick=()=>{
     players:[mkPlayer(I.id,n)]};
  PUB={phase:'lobby',code:ROOM,t0:0,winner:null,reveal:null,banner:null,meeting:null,
    taskTarget:0,taskProg:0,seance:{state:'charge',cur:0,need:CFG.SEANCE_NEED,target:null},log:[],
-   players:G.players.map(p=>({id:p.id,name:p.name,alive:p.alive,tasks:p.tasks,task:p.task,nextAt:0}))};
+   players:G.players.map(p=>({id:p.id,name:p.name,alive:p.alive,tasks:p.tasks,task:p.task,q:false,nextAt:0}))};
  enterChannel();
  startHeartbeat();
  showScreen('scr-lobby');
