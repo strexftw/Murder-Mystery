@@ -5,7 +5,7 @@
    ══════════════════════════════════════════════════════════════ */
 
 /* ═══ CREDENZIALI SUPABASE (OBBLIGATORIE) ═══ */
-const SB_URL = "INCOLLA_QUI_IL_TUO_SUPABASE_URL";
+const SB_URL = "https://xkvnwezcdvkrisqhuvhx.supabase.co";
 const SB_KEY = "INCOLLA_QUI_LA_TUA_ANON_KEY";
 
 /* ═══ PARAMETRI DI GIOCO ═══ */
