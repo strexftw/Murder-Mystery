@@ -5,8 +5,8 @@
    ══════════════════════════════════════════════════════════════ */
 
 /* ═══ CREDENZIALI SUPABASE (OBBLIGATORIE) ═══ */
-const SB_URL = "INCOLLA_QUI_IL_TUO_SUPABASE_URL";
-const SB_KEY = "INCOLLA_QUI_LA_TUA_ANON_KEY";
+const SB_URL = "https://xkvnwezcdvkrisqhuvhx.supabase.co/rest/v1/";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhrdm53ZXpjZHZrcmlzcWh1dmh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA4NDgxNDksImV4cCI6MjEwNjQyNDE0OX0.-1QaeGq0lU8MsjtSUpLWwTRxpFzWxtxAK00BzLNC6Zg";
 
 /* ═══ PARAMETRI DI GIOCO ═══ */
 const CFG = {
