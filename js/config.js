@@ -1,3 +1,4 @@
+/* ════════════════════════════════════════
    PROTOCOLLO OMBRA — js/config.js
    Configurazione, costanti, abilità, parole, task, ruoli.
    ⚠️ Incolla qui sotto SB_URL e SB_KEY di Supabase.
