@@ -51,6 +51,7 @@ function broadcastNow(){
     players: G.players.map(p=>({
       id:p.id, name:p.name, alive:p.alive, tasks:p.tasks, task:p.task,
       deadBy:p.deadBy, q:p.quarantined,
+      // Task assegnata → niente countdown (la card è già visibile)
       nextAt: p.task ? 0 : p.lastTaskAt + CFG.TASK_EVERY
     })),
     coop: G.coopSessions, coopInvites: G.coopInvites,
@@ -167,6 +168,21 @@ function hostTick(){
       return;
     }
     if(p.quarantined) return;
+    /* ── TASK DI COPPIA: finestra «SVOLGI TASK» ─────────────────────
+       Appena scade il countdown delle task dei vivi può uscire una task
+       SINGOLA o una task DOPPA. Se esce la task doppia, il giocatore che
+       l'ha ricevuta deve cliccare «SVOLGI TASK» e inviarla: solo allora
+       un altro giocatore a random riceve la notifica di svolgerla insieme
+       (minigiochi multiplayer). Se non la invia entro COOP_REQUEST_WINDOW,
+       la ricerca del compagno salta comunque e il pulsante ricompare. */
+    if(p.task && p.task.type==='coop' && p.task.coopState==='needRequest'){
+      if(now >= p.task.requestExpiresAt){
+        p.task.coopState = 'needInvite';
+        requestCoopInvite(p, now);
+        broadcastNow();
+      }
+      return;
+    }
     if(p.task && p.task.critical && now >= p.task.criticalAt){ killByStation(p); return; }
     if(p.task) return;
     if(now - p.lastTaskAt < CFG.TASK_EVERY) return;
@@ -193,8 +209,17 @@ function assignTask(p, now){
     priv(p.id, {type:'critAlert'});
   } else if(Math.random() < CFG.COOP_CHANCE &&
             G.players.filter(q => q.alive && !q.quarantined && q.id!==p.id).length > 0){
-    p.task = { id:base, type:'coop', critical:false, criticalAt:0, partner:null, coopState:'needInvite' };
-    requestCoopInvite(p, now);
+    /* ═══ TASK DOPPA ═══
+       Appena il countdown scade e viene sorteggiata una task doppia, al
+       giocatore compare SOLO il pulsante «SVOLGI TASK». La ricerca del
+       compagno a random NON parte subito: inizia quando il giocatore INVIA
+       la task (t:'coopRequest' → HcoopRequest: un altro giocatore vivo a
+       caso riceve la notifica per svolgerla insieme con i minigiochi
+       multiplayer). Se non la invia entro COOP_REQUEST_WINDOW, la ricerca
+       del compagno salta comunque e il pulsante ricompare. */
+    p.task = { id:base, type:'coop', critical:false, criticalAt:0, partner:null,
+               coopState:'needRequest', inviteId:null, sentAt:0,
+               requestExpiresAt:now + CFG.COOP_REQUEST_WINDOW };
   } else {
     p.task = { id:base, type:'single', critical:false, criticalAt:0, partner:null, coopState:null };
   }
@@ -252,6 +277,26 @@ function requestCoopInvite(p, now){
   p.task.inviteId = invId;
   priv(partner.id, {type:'coopInvite', from:p.id, fromName:p.name, inviteId:invId, base:p.task.id});
 }
+
+/* ═══ «SVOLGI TASK» SU UNA TASK DOPPA ═══
+   Il giocatore che ha ricevuto la task doppia clicca «SVOLGI TASK» e la
+   invia: solo a quel punto parte la ricerca del compagno → un altro
+   giocatore VIVO a random riceve la notifica (invito ACCETTA/RIFIUTA) per
+   svolgere la task insieme con i minigiochi multiplayer. Se nessuno accetta
+   entro COOP_INVITE_TIME, si riprova con un altro compagno casuale. */
+function HcoopRequest(id){
+  const p = byId(id), now = Date.now();
+  if(!p || G.phase!=='play' || !p.alive || p.quarantined) return;
+  if(!p.task || p.task.type!=='coop') return;
+  // Anti-doppio invio: ignora se la richiesta è già partita o la sessione è attiva
+  if(p.task.coopState!=='needRequest') return;
+  p.task.sentAt = now;
+  p.task.requestExpiresAt = 0; // disarma la scadenza automatica della finestra
+  p.task.coopState = 'needInvite';
+  requestCoopInvite(p, now);
+  priv(p.id, {type:'note', txt:'🤝 Task inviata: in attesa che un compagno accetti…'});
+  broadcastNow();
+}
 function advanceCoopPartner(requesterId){
   const p = byId(requesterId);
   if(!p || !p.task || p.task.type!=='coop') return;
@@ -287,18 +332,20 @@ function acceptCoopInvite(inviteId, accept){
   requester.task.partner = partner.id;
   requester.task.coopState = 'active';
   requester.task.coopSession = sessId;
+  // Il compagno entra in task: blocca la ricerca di altri compagni (la sua
+  // eventuale richiesta «SVOLGI TASK» viene ignorata da HcoopRequest)
   partner.task = { id:coopType, type:'coop', critical:false, criticalAt:0, partner:requester.id,
-                   coopState:'active', coopSession:sessId, lastTaskAt:Date.now() };
+                   coopState:'active', coopSession:sessId, inviteId:null, requestExpiresAt:0, sentAt:Date.now(), lastTaskAt:Date.now() };
   priv(requester.id, {type:'coopStart', session:sessId, type:coopType, partner:partner.id, partnerName:partner.name, state:state});
   priv(partner.id,  {type:'coopStart', session:sessId, type:coopType, partner:requester.id, partnerName:requester.name, state:state});
-  addLog('🤝 TASK DI COPPIA avviata: '+COOPNAMES[coopType]+'.', ABS.puttana.c);
+  addLog('🤝 TASK DI COPPIA avviata: '+COOPNAMES[coopType]+' — '+requester.name+' e '+partner.name+' giocano insieme!', ABS.puttana.c);
 }
 function coopComplete(s){
   const pa = byId(s.a), pb = byId(s.b);
   if(pa){ pa.tasks++; pa.task=null; pa.lastTaskAt=Date.now(); }
   if(pb){ pb.tasks++; pb.task=null; pb.lastTaskAt=Date.now(); }
   for(const k in G.coopSessions){ if(G.coopSessions[k]===s) delete G.coopSessions[k]; }
-  addLog('🤝 TASK DI COPPIA completata da '+pa.name+' e '+pb.name+'!', ABS.puttana.c);
+  addLog('🤝 TASK DI COPPIA completata da '+pa.name+' e '+pb.name+': +1 barra per entrambi!', ABS.puttana.c);
   if(pa.role!=='assassino' && taskProg()>=G.taskTarget){ addLog('🏆 INTEGRITÀ STAZIONE COMPLETA!'); endGame('innocenti'); }
   broadcastNow();
 }
@@ -851,6 +898,7 @@ function hostAct(o){
     case 'abMerde':    Hmerde(o.id); break;
     case 'abChoice':   HabChoice(o.id, o.pick); break;
     case 'coopAccept': acceptCoopInvite(o.inviteId, o.accept); break;
+    case 'coopRequest':HcoopRequest(o.id); break;
     case 'coopTap':    HcoopTap(o.id); break;
     case 'coopValve':  HcoopValve(o.id, o.vidx, o.pos); break;   /* ✅ corretto */
     case 'coopRunes':  HcoopSubmitRunes(o.id, o.seq); break;
