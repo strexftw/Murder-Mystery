@@ -378,7 +378,7 @@ function initUI(){
   $('#btn-copy').onclick = ()=>{ navigator.clipboard&&navigator.clipboard.writeText(ROOM); SFX.ok(); banner('CODICE COPIATO ✓','cyan'); };
   $('#btn-leave').onclick = ()=>location.reload();
   $('#btn-start').onclick = ()=>{ SFX.ok(); act({t:'start'}); };
-  $('#btn-rules-ok').onclick = ()=>{ SFX.ok(); SEC._ok=true; act({t:'rulesOk'}); renderRules(); };
+  $('#btn-rules-ok').onclick = ()=>{ SFX.ok(); act({t:'rulesOk'}); };
   $('#btn-ready').onclick = ()=>{ SFX.ok(); $('#btn-ready').disabled=true; act({t:'revealOk'}); };
   $('#btn-eye').onclick = ()=>{ wordHidden=!wordHidden; updateWord(); SFX.click(); };
   $('#btn-mute').onclick = ()=>{ MUTE=!MUTE; $('#btn-mute').textContent=MUTE?'🔇':'🔊'; if(AMB)AMB.gain.value=MUTE?0:.03; };

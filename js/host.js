@@ -22,32 +22,7 @@ function broadcastNow(){
       isP:p.isPuttana, put:p.puttanaReadyAt, deadBy:p.deadBy,
       med:(G.seanceState==='ready' && G.seanceMedium===p.id) };
     if(p.role==='assassino'){ o.kill=p.killReadyAt; o.sab=p.sabReadyAt; o.mask=G.spoof?G.spoof.code:null; }
-    /* ═══ FIX DETECTIVE (HOST) ═══
-       L'host è anche un giocatore: i suoi «sync» privati gli vengono
-       recapitati da priv() in network.js. Se però la partita è stata creata
-       prima che il canale realtime fosse pronto, quel self-delivery può
-       perdersi e SYNC del detective resta vuoto → il pulsante SCANSIONA si
-       auto-blocca («0 ⚡ CARICHE ESAURITE») anche se le cariche ci sono.
-       Qui, quando il destinatario è il giocatore locale, applichiamo SUBITO
-       lo sync direttamente, senza passare dal canale. */
-    if(p.role==='detective'){
-      o.scan=p.scanReadyAt; o.chg=p.scanCharges; o.chgAt=p.scanNextChargeAt;
-      if(isHost && p.id===I.id){ try{ onMsg({k:'priv', to:p.id, ...o}); }catch(e){} }
-    }
-    /* ═══ FIX TASK DOPPA (HOST) ═══
-       Anche i messaggi coopStart / note vanno recapitati subito al
-       giocatore locale: se il canale realtime non consegna il broadcast al
-       proprio mittente, l'host che svolge una task doppia non vede mai il
-       minigioco aprirsi (né a lui né, in cascata, al compagno). */
-    if(isHost && p.id===I.id){
-      const sess = p.task && p.task.type==='coop' && p.task.coopSession ? G.coopSessions[p.task.coopSession] : null;
-      if(sess && !sess.done){
-        const other = byId(sess.a===p.id ? sess.b : sess.a);
-        onMsg({k:'priv', to:p.id, type:'coopStart', session:p.task.coopSession,
-               game:sess.type, partner:other?other.id:null,
-               partnerName:other?other.name:'', state:sess});
-      }
-    }
+    if(p.role==='detective'){ o.scan=p.scanReadyAt; o.chg=p.scanCharges; o.chgAt=p.scanNextChargeAt; }
     priv(p.id, o);
   });
 
@@ -75,24 +50,33 @@ function broadcastNow(){
     log: G.log.slice(-14),
     players: G.players.map(p=>({
       id:p.id, name:p.name, alive:p.alive, tasks:p.tasks, task:p.task,
-      deadBy:p.deadBy, q:p.quarantined,
+      deadBy:p.deadBy, q:p.quarantined, rulesOk:p.rulesOk, revealOk:p.revealOk,
       // Task assegnata → niente countdown (la card è già visibile)
       nextAt: p.task ? 0 : p.lastTaskAt + CFG.TASK_EVERY
     })),
     coop: G.coopSessions, coopInvites: G.coopInvites,
-    /* ═══ FIX COMPAGNI VISIBILI ═══
+    /* ═══ COMPAGNI VISIBILI (task doppia) ═══
        Lista dei compagni disponibili per la task doppia, calcolata lato
        host (che possiede i dati di sessione/invito) ed esportata per ogni
-       giocatore. Senza questa lista il client non può mostrare «con chi
-       puoi farla». */
-    coopAvail: {},
+       giocatore. Insieme ai nomi degli INDISPONIBILI col MOTIVO
+       («occupato · si libera a fine task», «in coppia», «quarantena»…),
+       così la scheda di scelta spiega perché un compagno non è selezionabile. */
+    coopAvail: {}, coopBusy: {},
     ended: G.phase==='ended'
       ? G.players.map(p=>({name:p.name, role:p.role, tasks:p.tasks, alive:p.alive, isPuttana:p.isPuttana})) : null
   };
-  // Compila la mappa dei disponibili per ogni giocatore con una task doppia
+  // Compila la mappa dei disponibili/indisponibili per ogni giocatore
+  // con una task doppia (serve alla scheda di scelta del compagno)
   G.players.forEach(p=>{
-    if(p.task && p.task.type==='coop'){
+    if(p.task && p.task.type==='coop' && p.alive){
       pub.coopAvail[p.id] = coopAvailablePartners(p).map(q=>({id:q.id, name:q.name}));
+      const busy = {};
+      G.players.forEach(q=>{
+        if(q.id === p.id) return;
+        const rsn = coopBusyReason(q);
+        if(rsn) busy[q.id] = { name:q.name, why:rsn };
+      });
+      pub.coopBusy[p.id] = busy;
     }
   });
   send(pub);
@@ -338,6 +322,28 @@ function coopAvailablePartners(p){
   }
   return G.players.filter(q => q.alive && !q.quarantined && q.id !== p.id &&
                               !q.task && !busy.has(q.id));
+}
+
+/* ═══ MOTIVI DI INDISPONIBILITÀ (per la lista compagni nel client) ═══
+   Spiegato all'utente il PERCHÉ un giocatore non è selezionabile:
+   «occupato» si libera appena termina la sua task (singola/doppia/critica). */
+function coopBusyReason(q){
+  if(!q.alive)               return 'morto';
+  if(q.quarantined)          return 'quarantena';
+  if(q.task){
+    if(q.task.type === 'coop') return 'in coppia';
+    if(q.task.critical)        return 'task critica';
+    return 'occupato';
+  }
+  for(const k in G.coopSessions){
+    const s = G.coopSessions[k];
+    if(s && !s.done && (s.a===q.id || s.b===q.id)) return 'in coppia';
+  }
+  for(const k in G.coopInvites){
+    const inv = G.coopInvites[k];
+    if(inv && (inv.requester===q.id || inv.partner===q.id)) return 'invito in corso';
+  }
+  return null; // disponibile
 }
 
 /* ═══ INVITO TASK DI COPPIA (compagno SCELTO MANUALMENTE) ═══

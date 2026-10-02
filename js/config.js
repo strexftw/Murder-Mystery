@@ -33,8 +33,8 @@ const CFG = {
   // Task di coppia
   COOP_CHANCE: 0.25,        // probabilità che una task sia di coppia (task DOPPA)
   COOP_REQUEST_WINDOW: 60000, // finestra «SVOLGI TASK»: se non la invii entro 60s, si annulla da sola
-  COOP_PICK_WINDOW: 30000,  // finestra SCELTA COMPAGNO: dopo l'invio hai 30s per
-                            // scegliere con chi farla; se non scegli, la task si annulla
+  COOP_PICK_WINDOW: 45000,  // finestra SCELTA COMPAGNO: dopo l'invio hai 45s per
+                            // scegliere con chi farla dalla lista; se non scegli, la task si annulla
   COOP_INVITE_TIME: 20000,  // finestra ACCETTA/RIFIUTA 20s (per il compagno scelto)
   COOP_BRIDGE_TIME: 20000,  // durata ponte energetico
   COOP_BRIDGE_DRAIN: 3.2,   // drenaggio barra al secondo
