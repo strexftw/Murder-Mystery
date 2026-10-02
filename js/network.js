@@ -19,6 +19,14 @@ function enterChannel(){
           // L'host ribroadcasta lo stato appena entra nel canale
           setTimeout(()=>broadcastNow(), 600);
           setTimeout(()=>broadcastNow(), 1500);
+          /* ═══ FIX "HOST DIVENTA SPETTATORE" (TRACK) ═══
+             Il track è asincrono: se un sync di presenza arriva VUOTO/PARZIALE
+             prima che il nostro track sia confermato, l'host si auto-elimina dal
+             roster e alla partenza resta senza ruolo (= spettatore).
+             Appena il track è OK, ribadiamo SUBITO il roster al channel. */
+          chan.track({ id: I.id, name: I.name, jAt: joinAt, host: true }, ()=>{
+            try{ onPres(); }catch(e){}
+          });
         } else if(!isHost){
           // Il client si presenta all'host (più tentativi)
           setTimeout(()=>act({t:'hi'}), 500);
@@ -67,19 +75,39 @@ function stopHeartbeat(){
   if(heartbeatInterval){ clearInterval(heartbeatInterval); heartbeatInterval = null; }
 }
 
-/* ═══ SINCRONIZZA IL ROSTER GIOCATORI DALLE PRESENZE ═══ */
-function syncRosterFromPresence(){
+/* ═══ SINCRONIZZA IL ROSTER GIOCATORI DALLE PRESENZE ═══
+   ⚠️ REGOLA D'ORO: le presenze realtime sono VOLATILI (un micro-drop di
+   rete le consegna VUOTE o PARZIALI). Quindi:
+     - MAI rimuovere un giocatore dal roster (soprattutto l'HOST stesso):
+       se l'host si auto-elimina da G.players, alla partenza non riceve più
+       il messaggio privato "init" (ruolo + parola) → resta senza ruolo →
+       il gioco lo mostra come SPETTRO / SPETTATORE. Ecco il bug che hai visto.
+     - Si aggiungono solo i presenti confermati (id presente in roster). */
+let lastPresenceFull = 0;   // timestamp ultimo sync con roster non vuoto
+function syncRosterFromPresence(force){
   if(!chan || !G) return;
   const r = roster();
+  // Presenza vuota = glitch (capita appena dopo il track): ignora il tick,
+  // riprova al prossimo heartbeat, altrimenti si aspetta 15s e si autopulisce.
+  if(!r.length && !force){
+    if(Date.now() - lastPresenceFull > 15000) lastPresenceFull = Date.now();
+    return;
+  }
+  lastPresenceFull = Date.now();
   if(G.phase === 'lobby'){
     const ids = new Set(r.map(p => p.id));
     let changed = false;
-    G.players = G.players.filter(p => p.id === I.id || ids.has(p.id));
+    // Nessuna rimozione qui: chi esce davvero viene gestito da onPres/leave.
     r.forEach(p => {
       const ex = G.players.find(x => x.id === p.id);
       if(!ex){ G.players.push(mkPlayer(p.id, p.name)); changed = true; }
       else if(ex.name !== p.name){ ex.name = p.name; changed = true; }
     });
+    // Sicurezza: l'host locale deve SEMPRE essere nel roster giocatori.
+    if(!G.players.some(p => p.id === I.id)){
+      G.players.unshift(mkPlayer(I.id, I.name || 'HOST'));
+      changed = true;
+    }
     if(changed) broadcastNow();
   }
 }
@@ -94,14 +122,25 @@ function onPres(){
 
   if(isHost && G){
     if(G.phase === 'lobby'){
-      const ids = new Set(r.map(p => p.id));
+      /* ═══ FIX "HOST DIVENTA SPETTATORE" (LOBBY) ═══
+         Prima, a ogni sync di presenza, l'host filtrava G.players tenendo solo
+         chi compariva nelle presenze. Le presenze Supabase sono volatili: se un
+         sync arriva VUOTO o PARZIALE (micro-drop, track non ancora confermato),
+         l'host cancellava sé stesso dal roster → alla partenza della partita
+         HrulesOk() non mandava più a lui il privato "init" con ruolo e parola →
+         SEC.role resta null → chip "SPETTRO" + modalità spettatore.
+         Ora: niente rimozioni qui (chi esce davvero viene ripulito alla ripresa
+         del gioco / in Hstart), e l'host è SEMPRE garantito nel roster. */
+      if(!r.length){ return; }   // glitch: ignora questo sync
       let ch = false;
-      G.players = G.players.filter(p => p.id === I.id || ids.has(p.id));
       r.forEach(p => {
         const ex = G.players.find(x => x.id === p.id);
         if(!ex){ G.players.push(mkPlayer(p.id, p.name)); ch = true; }
         else if(ex.name !== p.name){ ex.name = p.name; ch = true; }
       });
+      if(!G.players.some(p => p.id === I.id)){
+        G.players.unshift(mkPlayer(I.id, I.name || 'HOST')); ch = true;
+      }
       if(ch) broadcastNow();
     } else {
       /* ── IN PARTITA ── */
