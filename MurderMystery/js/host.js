@@ -148,17 +148,25 @@ function coopTick(now){
 /* ═══ TICK PRINCIPALE HOST ═══ */
 function hostTick(){
   if(!isHost || !G) return;
-  const now = Date.now();
+  // Le riunioni scadono anche fuori dalla fase 'play' (es. revealed during ended)
+  if(G.meeting && G.phase !== 'lobby') meetTick(Date.now());
   if(G.phase !== 'play') return;
+  const now = Date.now();
   puttanaTick(now);
   coopTick(now);
   if(G.seanceState==='ready') ensureMedium();
   else if(G.seanceState==='voting' && now>=G.seanceEndsAt) resolveSeance();
-  if(G.meeting) meetTick(now);
 
-  // Assegnazione task + scadenza task critiche
+  // Assegnazione task + scadenza task critiche (vivi) / rituali spettro (morti)
   G.players.forEach(p=>{
-    if(!p.alive || p.quarantined) return;
+    if(!p.alive){
+      cancelTask(p); // estingue eventuali residui coop della vita precedente
+      if(p.task) return;
+      if(now - p.lastTaskAt < CFG.TASK_EVERY) return;
+      assignGhostTask(p, now);
+      return;
+    }
+    if(p.quarantined) return;
     if(p.task && p.task.critical && now >= p.task.criticalAt){ killByStation(p); return; }
     if(p.task) return;
     if(now - p.lastTaskAt < CFG.TASK_EVERY) return;
@@ -193,10 +201,32 @@ function assignTask(p, now){
   p.lastTaskAt = now;
 }
 
+/* ═══ TASK SPETTRO (per i morti, alimentano la SÉANCE) ═══ */
+function assignGhostTask(p, now){
+  const base = pick(TASKS).id; // id in comune con GNAME/GDESC/GMAP
+  p.task = { id:base, type:'ghost', critical:false, criticalAt:0, partner:null, coopState:null };
+  p.lastTaskAt = now;
+}
+function seanceAddProgress(){
+  G.seanceCur++;
+  if(G.seanceState === 'charge' && G.seanceCur >= CFG.SEANCE_NEED){
+    G.seanceState = 'ready';
+    ensureMedium();
+    G.banner = { txt:'🕯 LA SÉANCE È PRONTA — I MORTI HANNO FINITO I RITUALI', tone:'violet', at:Date.now() };
+    addLog('🕯 La séance è pronta: il Medio può interrogare gli spiriti.', VIO);
+  }
+}
+function ghostTaskDone(p){
+  p.task = null;
+  p.lastTaskAt = Date.now();
+  seanceAddProgress();
+  addLog('🕯 Uno spettro ha completato un rituale ('+G.seanceCur+'/'+CFG.SEANCE_NEED').', VIO);
+}
+
 /* ═══ ELIMINAZIONE DALLA STAZIONE (task critica scaduta) ═══ */
 function killByStation(p){
   if(!p.alive) return;
-  p.alive = false; p.deadBy = 'station'; p.task = null;
+  p.alive = false; p.deadBy = 'station'; cancelTask(p);
   priv(p.id, {type:'fx', fx:'jump', letter:'', by:'station'});
   addLog('🚨 LA STAZIONE HA ELIMINATO '+p.name+': TASK CRITICA SCADUTA.', ABS.sparlatore.c);
   if(p.role==='assassino'){ endGame('innocenti'); return; }
@@ -595,7 +625,16 @@ function Hsab(id, tid){
 /* ══════════════════════ TASK COMPLETATA + ABILITÀ ══════════════════════ */
 function HtaskDone(id){
   const p = byId(id);
-  if(!p || G.phase!=='play' || !p.task || p.quarantined) return;
+  if(!p || G.phase!=='play') return;
+  // ── SPETTRI: i rituali completati caricano la séance (niente task classiche) ──
+  if(!p.alive){
+    if(!p.task || p.task.type !== 'ghost') return;
+    ghostTaskDone(p);
+    broadcastNow();
+    return;
+  }
+  if(p.quarantined) return;
+  if(!p.task) return;
   if(p.task.type==='coop') return; // le coop si completano in coopComplete
   p.task = null;
   p.tasks++;

@@ -71,9 +71,47 @@ function randomLetter(name){
   return clean.charAt(rnd(clean.length)).toUpperCase();
 }
 
+/* ═══ VALIDAZIONE NOME ═══ */
+function validName(){
+  const el = $('#inp-name');
+  const n = el ? el.value.trim().slice(0, CFG.MAXNAME) : '';
+  if(!n){ banner('INSERISCI UN NOME', 'red'); return null; }
+  return n;
+}
+
 /* ═══ HELPERS GIOCO ═══ */
 // Ritorna il giocatore con quell'id dentro G (definito in state.js)
 function byId(id){ return G ? G.players.find(p => p.id === id) : null; }
+
+// Annulla la task in corso di un giocatore (e la eventuale sessione coop)
+function cancelTask(p){
+  if(!p || !p.task) return;
+  if(G && G.coopInvites){
+    for(const k in G.coopInvites){
+      const inv = G.coopInvites[k];
+      if(inv && (inv.requester === p.id || inv.partner === p.id)) delete G.coopInvites[k];
+    }
+  }
+  if(p.task.type === 'coop' && p.task.coopSession && G && G.coopSessions){
+    const s = G.coopSessions[p.task.coopSession];
+    if(s){
+      s.done = true; s.fail = true;
+      const other = byId(s.a === p.id ? s.b : s.a);
+      if(other && other.task && other.task.coopSession === p.task.coopSession) other.task = null;
+      delete G.coopSessions[p.task.coopSession];
+    }
+  }
+  p.task = null;
+}
+
+// Pulizie alla resurrezione: nessun residuo di task/quarantena/morte
+function resurrectCleanup(p){
+  if(!p) return;
+  p.quarantined = false;
+  p.task = null;
+  p.lastTaskAt = Date.now();
+  priv(p.id, {type:'note', txt:'✨ SEI TORNATO IN VITA: riprendi a operare.'});
+}
 
 // Numero di giocatori vivi NON assassini (per la condizione di vittoria assassino)
 function aliveNonAss(){ return G.players.filter(p => p.alive && p.role !== 'assassino').length; }

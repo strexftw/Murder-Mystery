@@ -34,6 +34,15 @@ function send(o){
   if(chan) chan.send({ type:'broadcast', event:'msg', payload:o });
 }
 
+/* ═══ INVIA UN MESSAGGIO PRIVATO A UN GIOCATORE ═══
+   Broadcast filtrato: il payload reca il destinatario (to) e ogni
+   client lo ignora se non è il proprio (vedi onMsg in client.js). */
+function priv(id, o){
+  o.k = 'priv';
+  o.to = id;
+  send(o);
+}
+
 /* ═══ LEGGI IL ROSTER DELLE PRESENZE ═══ */
 function roster(){
   const ps = chan.presenceState();
