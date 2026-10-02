@@ -371,13 +371,45 @@ const GGAMES = {
 function openCoopGame(){
   if(!myCoopState) return;
   const sessId = myCoopState.session;
-  const type = myCoopState.type;
+  // ★ Il campo del gioco è «game» (rinominato da «type»: type è il
+  // discriminante del messaggio, valeva 'coopStart' e non apriva nulla).
+  // Fallback: stato di sessione broadcastato in PUB.coop.
+  const s0 = (PUB && PUB.coop) ? PUB.coop[sessId] : null;
+  const type = myCoopState.game || myCoopState.gtype ||
+               (s0 ? (s0.gtype || (['ponte','codice','valvole'].includes(s0.type) ? s0.type : '')) : '');
   $('#ab-body').innerHTML = '';
   show($('#m-ab'));
   SFX.coop();
   if(type==='ponte')   coopPonte(sessId);
   else if(type==='codice') coopCodice(sessId);
   else if(type==='valvole') coopValvole(sessId);
+  else coopSync(sessId); // stato non ancora sincronizzato: riprova da solo
+}
+
+/* ═══ SINCRONIZZAZIONE SESSIONE COOP ═══
+   Se il broadcast della sessione (PUB.coop) o il coopStart non sono ancora
+   arrivati, il minigioco mostra «Sincronizzazione…» e ritenta per ~5s,
+   invece di chiudere il modal a vuoto. */
+function coopSync(sessId){
+  let tries = 0;
+  const iv = setInterval(()=>{
+    tries++;
+    const s = (PUB && PUB.coop) ? PUB.coop[sessId] : null;
+    if(!$('#m-ab').classList.contains('on')){ clearInterval(iv); return; }
+    if(s){
+      clearInterval(iv);
+      const gtype = s.gtype || s.type;
+      if(myCoopState) myCoopState.game = gtype;
+      if(gtype==='ponte') coopPonte(sessId);
+      else if(gtype==='codice') coopCodice(sessId);
+      else if(gtype==='valvole') coopValvole(sessId);
+      return;
+    }
+    if(tries>=17){ clearInterval(iv); hide($('#m-ab')); banner('↫ Sessione coop non trovata: attendi la task card e riapri.', 'amber', 4000); }
+  }, 300);
+  const B = $('#ab-body');
+  B.innerHTML = '<h2 class="mt" style="color:var(--grn)">🤝 TASK DI COPPIA</h2>'+
+    '<p class="dim" style="margin-top:14px">⏳ Sincronizzazione con il compagno…</p>';
 }
 
 /* ── PONTE ENERGETICO: martellate insieme sulla barra ── */

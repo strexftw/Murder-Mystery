@@ -60,6 +60,22 @@ function priv(id, o){
   }
 }
 
+/* ═══ INVIA UN PRIVATO A PIÙ DESTINATARI (consegna garantita anche all'host) ═══
+   Supabase NON recapita i broadcast al proprio mittente: se uno dei
+   destinatari è l'host stesso, il messaggio gli arriva solo tramite la
+   consegna locale di priv() (★ FIX DETECTIVE). privBoth() incapsula il
+   pattern «stesso evento per entrambi i membri della coppia» usato dalle
+   task di coppia (coopOpen / coopEnd): ogni destinatario riceve una copia
+   con il proprio «to», così nessuno resta senza il messaggio. */
+function privBoth(ids, o){
+  const seen = new Set();
+  ids.forEach(id => {
+    if(!id || seen.has(id)) return;
+    seen.add(id);
+    priv(id, Object.assign({}, o));
+  });
+}
+
 /* ═══ LEGGI IL ROSTER DELLE PRESENZE ═══ */
 function roster(){
   const ps = chan.presenceState();
