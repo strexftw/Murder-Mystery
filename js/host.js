@@ -119,12 +119,22 @@ function resolveSeance(){
 
 /* ══════════════════════ TASK DI COPPIA ══════════════════════ */
 function coopTick(now){
-  // Scadenza inviti coop
+  // Scadenza inviti coop: il compagno scelto non ha risposto entro
+  // COOP_INVITE_TIME → l'invito decade e chi ha la task doppia può
+  // scegliere di nuovo un altro compagno dalla lista (niente rimbalzi
+  // automatici a random che generavano «traffico» di sessioni fantasma).
   for(const k in G.coopInvites){
     const inv = G.coopInvites[k];
     if(inv && now >= inv.expiresAt){
       delete G.coopInvites[k];
-      advanceCoopPartner(inv.requester);
+      const r = byId(inv.requester);
+      if(r && r.task && r.task.type === 'coop'){
+        r.task.coopState = 'needPick';
+        r.task.partner = null;
+        r.task.inviteId = null;
+        r.task.pickExpiresAt = now + CFG.COOP_PICK_WINDOW;
+        priv(r.id, {type:'note', txt:'↫ '+inv.partnerName+' non ha risposto: scegli un altro compagno.'});
+      }
     }
   }
   // Sessioni coop attive (aggiornamento ponte energetico)
@@ -168,20 +178,36 @@ function hostTick(){
       return;
     }
     if(p.quarantined) return;
-    /* ── TASK DI COPPIA: finestra «SVOLGI TASK» ─────────────────────
-       Appena scade il countdown delle task dei vivi può uscire una task
-       SINGOLA o una task DOPPA. Se esce la task doppia, il giocatore che
-       l'ha ricevuta deve cliccare «SVOLGI TASK» e inviarla: solo allora
-       un altro giocatore a random riceve la notifica di svolgerla insieme
-       (minigiochi multiplayer). Se non la invia entro COOP_REQUEST_WINDOW,
-       la ricerca del compagno salta comunque e il pulsante ricompare. */
-    if(p.task && p.task.type==='coop' && p.task.coopState==='needRequest'){
-      if(now >= p.task.requestExpiresAt){
-        p.task.coopState = 'needInvite';
-        requestCoopInvite(p, now);
+    /* ── TASK DI COPPIA: ciclo di vita ──────────────────────────────
+       1. needRequest → il giocatore che ha la task doppia deve cliccare
+          «SVOLGI TASK · INVIA». Entro COOP_REQUEST_WINDOW, altrimenti la
+          task si annulla da sola (niente invii automatici).
+       2. needPick    → scelta MANUAL del compagno: il giocatore apre la
+          lista dei compagni DISPONIBILI (vivi, senza task, non in
+          quarantena, non già impegnati in una coop) e invita chi vuole.
+          Entro COOP_PICK_WINDOW, altrimenti la task si annulla.
+       3. inviting    → il compagno scelto ha COOP_INVITE_TIME per
+          accettare/rifiutare; se non risponde l'invito decade e si torna
+          alla scelta (mai più rimbalzi a random infiniti).
+       4. active      → minigioco multiplayer insieme: +1 barra a entrambi. */
+    if(p.task && p.task.type==='coop'){
+      if(p.task.coopState==='needRequest' && now >= p.task.requestExpiresAt){
+        cancelTask(p);
+        p.lastTaskAt = now; // riparte il countdown della prossima task
+        priv(p.id, {type:'note', txt:'↫ Task doppia scaduta: non l\'hai inviata.'});
+        addLog('↫ '+p.name+' non ha inviato la task doppia: annullata.', ABS.sparlatore.c);
         broadcastNow();
+        return;
       }
-      return;
+      if(p.task.coopState==='needPick' && now >= (p.task.pickExpiresAt||0)){
+        cancelTask(p);
+        p.lastTaskAt = now;
+        priv(p.id, {type:'note', txt:'↫ Task doppia scaduta: nessun compagno scelto.'});
+        addLog('↫ '+p.name+' non ha scelto il compagno: task doppia annullata.', ABS.sparlatore.c);
+        broadcastNow();
+        return;
+      }
+      if(p.task.type==='coop') return; // stati gestiti da UI / tick qui sopra
     }
     if(p.task && p.task.critical && now >= p.task.criticalAt){ killByStation(p); return; }
     if(p.task) return;
@@ -208,17 +234,17 @@ function assignTask(p, now){
     addLog('🚨 '+p.name+' ha una TASK CRITICA: 30 secondi!', ABS.sparlatore.c);
     priv(p.id, {type:'critAlert'});
   } else if(Math.random() < CFG.COOP_CHANCE &&
-            G.players.filter(q => q.alive && !q.quarantined && q.id!==p.id).length > 0){
+            coopAvailablePartners(p).length > 0){
     /* ═══ TASK DOPPA ═══
        Appena il countdown scade e viene sorteggiata una task doppia, al
-       giocatore compare SOLO il pulsante «SVOLGI TASK». La ricerca del
-       compagno a random NON parte subito: inizia quando il giocatore INVIA
-       la task (t:'coopRequest' → HcoopRequest: un altro giocatore vivo a
-       caso riceve la notifica per svolgerla insieme con i minigiochi
-       multiplayer). Se non la invia entro COOP_REQUEST_WINDOW, la ricerca
-       del compagno salta comunque e il pulsante ricompare. */
+       giocatore compare il pulsante «SVOLGI TASK · INVIA». Quando lo invia
+       (t:'coopRequest') si apre la SCELTA DEL COMPAGNO: vede la lista dei
+       giocatori disponibili (vivi, senza task, non in quarantena, non già
+       in coppia) e invita quello che vuole — niente più abbinamenti a
+       random che si accavallavano creando «traffico» di inviti. Se non
+       sceglie entro COOP_PICK_WINDOW la task si annulla da sola. */
     p.task = { id:base, type:'coop', critical:false, criticalAt:0, partner:null,
-               coopState:'needRequest', inviteId:null, sentAt:0,
+               coopState:'needRequest', inviteId:null, sentAt:0, pickExpiresAt:0,
                requestExpiresAt:now + CFG.COOP_REQUEST_WINDOW };
   } else {
     p.task = { id:base, type:'single', critical:false, criticalAt:0, partner:null, coopState:null };

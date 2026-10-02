@@ -21,7 +21,9 @@ const CFG = {
   SCAN_CD: 20000,      // ricarica scan 20s
   SCAN_MAX: 3,         // cariche max
   SCAN_RECHARGE: 150000, // +1 carica ogni 2,5 min
-  NEWDET_SCAN: 40000,  // nuovo detective scansiona dopo 40s
+  NEWDET_SCAN: 40000,  // nuovo detective scansiona dopo 40s (invece che
+                       // subito: chi diventa detective a partita già avviata
+                       // non può scansionare nell'immediato)
   // Task
   TASK_EVERY: 50000,   // una task ogni 50s
   TASK_WIN_MULT: 8,    // barra stazione = 8 × giocatori
@@ -30,8 +32,10 @@ const CFG = {
   CRIT_TIME: 30000,    // 30s per completarla
   // Task di coppia
   COOP_CHANCE: 0.25,        // probabilità che una task sia di coppia (task DOPPA)
-  COOP_REQUEST_WINDOW: 60000, // finestra «SVOLGI TASK»: se non la invii entro 60s, parte comunque la ricerca del compagno
-  COOP_INVITE_TIME: 20000,  // finestra ACCETTA/RIFIUTA 20s
+  COOP_REQUEST_WINDOW: 60000, // finestra «SVOLGI TASK»: se non la invii entro 60s, si annulla da sola
+  COOP_PICK_WINDOW: 30000,  // finestra SCELTA COMPAGNO: dopo l'invio hai 30s per
+                            // scegliere con chi farla; se non scegli, la task si annulla
+  COOP_INVITE_TIME: 20000,  // finestra ACCETTA/RIFIUTA 20s (per il compagno scelto)
   COOP_BRIDGE_TIME: 20000,  // durata ponte energetico
   COOP_BRIDGE_DRAIN: 3.2,   // drenaggio barra al secondo
   COOP_TAP: 7,              // energia per ogni martellata

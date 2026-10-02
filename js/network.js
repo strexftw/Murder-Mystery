@@ -44,11 +44,20 @@ function send(o){
 
 /* ═══ INVIA UN MESSAGGIO PRIVATO A UN GIOCATORE ═══
    Broadcast filtrato: il payload reca il destinatario (to) e ogni
-   client lo ignora se non è il proprio (vedi onMsg in client.js). */
+   client lo ignora se non è il proprio (vedi onMsg in client.js).
+   ★ FIX DETECTIVE (HOST): Supabase NON recapita i broadcast al proprio
+   mittente. Se il destinatario coincide con il giocatore locale (host),
+   il messaggio gli viene consegnato direttamente qui. Senza questo fix
+   l'host-detective non riceve mai il sync con le cariche (SYNC.chg
+   risulta vuoto → «SCANSIONE BLOCCATA: CARICHE ESAURITE») né i privati
+   come coopInvite / coopStart / init2. */
 function priv(id, o){
   o.k = 'priv';
   o.to = id;
   send(o);
+  if(isHost && id === I.id){
+    try{ onMsg(o); }catch(e){ console.warn('priv-self', e); }
+  }
 }
 
 /* ═══ LEGGI IL ROSTER DELLE PRESENZE ═══ */
