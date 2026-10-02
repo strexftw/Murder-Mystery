@@ -9,6 +9,17 @@
 function openTask(tid){
   if(!tid) return;
   const me = PUB && PUB.players.find(p => p.id === I.id);
+  // Task DOPPA in attesa di essere inviata: il pulsante «SVOLGI TASK» della
+  // card gestisce l'invio (coopRequest), non apre nessun minigioco singolo.
+  if(me && me.alive && me.task && typeof me.task==='object' && me.task.type==='coop'){
+    if(me.task.coopState==='needRequest' || me.task.coopState==='needInvite' || me.task.coopState==='inviting'){
+      SFX.ok(); act({t:'coopRequest'});
+      banner('🤝 Task doppia inviata: in attesa di un compagno…', 'grn', 3000);
+      return;
+    }
+    openCoopGame();
+    return;
+  }
   const ghost = me && !me.alive;
   $('#task-title').textContent = ghost ? (GNAME[tid]||'RITUALE') : ((TASKS.find(t=>t.id===tid)||{}).name || 'TASK');
   $('#task-desc').textContent = ghost ? (GDESC[tid]||'') : ((TASKS.find(t=>t.id===tid)||{}).desc || '');

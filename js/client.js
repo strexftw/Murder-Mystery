@@ -374,7 +374,7 @@ function renderGame(){
   const dockKey = (me.alive?'1':'0')+'|'+(SEC.role||'')+'|'+(SYNC.ab||'')+'|'+(SYNC.deadBy||'')+'|'+(SYNC.isP?'P':'')+'|'+(SYNC.med?'M':'');
   if(dockKey !== lastDockKey){ lastDockKey = dockKey; buildDock(); }
 
-  const key = me.task+'|'+me.alive+'|'+(me.q?'q':'');
+  const key = me.task+'|'+me.alive+'|'+(me.q?'q':'')+'|'+((me.task&&me.task.coopState)||'');
   if(key !== lastTaskKey){ lastTaskKey = key; buildTaskCard(me); }
 
   $('#g-taskcount').textContent = me.tasks+' ✓';
@@ -471,15 +471,38 @@ function buildTaskCard(me){
     tc.innerHTML = '<div class="deadnote">⛔ IN QUARANTENA — task e abilità sospese<br><span style="font-size:.7rem">in attesa di verifica del Detective</span></div>';
     return;
   }
-  // ── TASK DI COPPIA ──
+  // ── TASK DI COPPIA (DOPPIA) ──
   if(me.task && typeof me.task==='object' && me.task.type==='coop'){
     const cn = COOPNAMES[me.task.id] || 'TASK DI COPPIA';
-    let inner = '<div class="taskcard cut"><h3 style="color:var(--grn)">🤝 '+cn+'</h3><p class="dim">'+(COOPDESC[me.task.id]||'')+'</p>';
-    if(me.task.coopState==='inviting') inner += '<p class="dim" style="margin-top:8px">⏳ In attesa che il compagno accetti…</p>';
-    else if(me.task.coopState==='active') inner += '<button class="btn grn" id="btn-task" style="margin-top:12px">APRI TASK DI COPPIA</button>';
+    let inner = '<div class="taskcard cut"><h3 style="color:var(--grn)">🤝 '+cn+' <span class="badge imp">DOPPIO</span></h3><p class="dim">'+(COOPDESC[me.task.id]||'')+'</p>';
+    if(me.task.coopState==='needRequest'){
+      // Il giocatore che ha ricevuto la task doppia DEVE cliccare «SVOLGI TASK»
+      // e inviarla: solo allora un altro giocatore a random riceverà la
+      // notifica di svolgerla insieme con i minigiochi multiplayer.
+      const rem = Math.max(0, (me.task.requestExpiresAt||0) - (Date.now()+clockOff));
+      inner += '<p class="dim" style="margin-top:8px;max-width:100%">Svolgi questa task <b>DOPPIA</b> con un compagno.<br>'
+             + '<span class="mono dim" style="font-size:.7rem">⏳ Inviala entro '+fmt(rem)+' o partirà da sola la ricerca del compagno.</span></p>'
+             + '<button class="btn grn" id="btn-task" style="margin-top:12px">✓ SVOLGI TASK · INVIA</button>';
+    }
+    else if(me.task.coopState==='inviting'){
+      inner += '<p class="dim" style="margin-top:8px">⏳ Task inviata: in attesa che <b>'+esc((PUB.players.find(x=>x.id===me.task.partner)||{name:'un compagno'}).name)+'</b> accetti…</p>';
+    }
+    else if(me.task.coopState==='active'){
+      inner += '<p class="dim" style="margin-top:8px">🤝 In coppia con <b>'+esc((PUB.players.find(x=>x.id===me.task.partner)||{name:'il compagno'}).name)+'</b>: svolgete il minigioco insieme!</p>'
+             + '<button class="btn grn" id="btn-task" style="margin-top:12px">APRI TASK DI COPPIA</button>';
+    }
+    else {
+      // needInvite: invito annullato (nessun compagno disponibile) o in ri-partenza
+      inner += '<p class="dim" style="margin-top:8px">↻ Task non inviata: riprova.</p>'
+             + '<button class="btn grn" id="btn-task" style="margin-top:12px">✓ SVOLGI TASK · INVIA</button>';
+    }
     inner += '</div>';
     tc.innerHTML = inner;
-    const bt = $('#btn-task'); if(bt) bt.onclick = ()=>openCoopGame();
+    const bt = $('#btn-task');
+    if(bt){
+      if(me.task.coopState==='active') bt.onclick = ()=>openCoopGame();
+      else bt.onclick = ()=>{ SFX.ok(); act({t:'coopRequest'}); };
+    }
     return;
   }
   // ── TASK SINGOLA (normale o critica) ──

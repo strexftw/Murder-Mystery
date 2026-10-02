@@ -29,7 +29,8 @@ const CFG = {
   CRIT_CHANCE: 0.06,
   CRIT_TIME: 30000,    // 30s per completarla
   // Task di coppia
-  COOP_CHANCE: 0.25,        // probabilità che una task sia di coppia
+  COOP_CHANCE: 0.25,        // probabilità che una task sia di coppia (task DOPPA)
+  COOP_REQUEST_WINDOW: 60000, // finestra «SVOLGI TASK»: se non la invii entro 60s, parte comunque la ricerca del compagno
   COOP_INVITE_TIME: 20000,  // finestra ACCETTA/RIFIUTA 20s
   COOP_BRIDGE_TIME: 20000,  // durata ponte energetico
   COOP_BRIDGE_DRAIN: 3.2,   // drenaggio barra al secondo
