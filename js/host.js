@@ -175,6 +175,26 @@ function coopTick(now){
       }
     }
   }
+  /* ═══ SICUREZZA «APRI TASK DI COPPIA» ═══
+     Se una sessione coop è nata ma un giocatore (per esempio l'host, che
+     riceve i privati solo in locale) non ha ricevuto il messaggio coopStart,
+     la sua card resta in «active» senza dati di sessione → il pulsante non
+     apre il minigioco. Qui rigeneriamo il coopStart da PUB/G ogni tick finché
+     manca: appena arriva, il client apre il minigioco anche da solo. */
+  for(const k in G.coopSessions){
+    const s = G.coopSessions[k];
+    if(!s || s.done) continue;
+    const pa = byId(s.a), pb = byId(s.b);
+    if(!pa || !pb) continue;
+    [pa, pb].forEach(p=>{
+      if(p.task && p.task.type==='coop' && p.task.coopState==='active' && p.id===I.id
+         && (!myCoopState || myCoopState.session!==k)){
+        const other = (p.id===s.a) ? pb : pa;
+        priv(p.id, {type:'coopStart', session:k, type:s.type, partner:other.id,
+                    partnerName:other.name, state:s});
+      }
+    });
+  }
 }
 
 /* ═══ TICK PRINCIPALE HOST ═══ */
@@ -416,9 +436,15 @@ function acceptCoopInvite(inviteId, accept){
     broadcastNow();
     return;
   }
-  const coopType = pick(COOP_TYPES);
+  const coopType = COOPNAMES[requester.task.id] ? requester.task.id : pick(COOP_TYPES);
   const sessId = inviteId;
-  const state = { type:coopType, a:requester.id, b:partner.id, done:false, fail:false };
+  // ⚠️ Il campo si chiama «gtype» e NON «type»: in un messaggio privato il
+  // campo «type» è già occupato dal tipo di messaggio ('coopStart'). Mettere
+  // type:'ponte' dentro la sessione E nel payload priv significava spedire
+  // {type:'ponte', ...} → onPriv non riconosceva il messaggio, il compagno
+  // (e chiunque avesse perso il privato) non riceveva mai l'apertura del
+  // minigioco multiplayer: solo chi aveva inviato la richiesta lo apriva.
+  const state = { gtype:coopType, a:requester.id, b:partner.id, done:false, fail:false };
   if(coopType==='ponte'){ state.energy=60; state.endsAt=Date.now()+CFG.COOP_BRIDGE_TIME; }
   if(coopType==='codice'){
     const runes = []; for(let i=0;i<CFG.COOP_RUNES;i++) runes.push(pick(RUNE_CHARS));
