@@ -811,7 +811,9 @@ function doHack(){
   if(hackTimer) clearTimeout(hackTimer);
   hackTimer = setTimeout(()=>hide(h), 2000);
 }
-let hackTimer = null;
+// NOTE: "hackTimer" è dichiarato in js/ui.js (caricato dopo client.js).
+// La duplicazione con "let" causava un ReferenceError fatale a caricamento
+// ("Identifier 'hackTimer' has already been declared").
 
 /* ═══ FINE PARTITA ═══ */
 function renderEnd(){

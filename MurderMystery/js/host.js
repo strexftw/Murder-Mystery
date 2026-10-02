@@ -220,7 +220,7 @@ function ghostTaskDone(p){
   p.task = null;
   p.lastTaskAt = Date.now();
   seanceAddProgress();
-  addLog('🕯 Uno spettro ha completato un rituale ('+G.seanceCur+'/'+CFG.SEANCE_NEED').', VIO);
+  addLog('🕯 Uno spettro ha completato un rituale ('+G.seanceCur+'/'+CFG.SEANCE_NEED+')', VIO);
 }
 
 /* ═══ ELIMINAZIONE DALLA STAZIONE (task critica scaduta) ═══ */
