@@ -86,6 +86,35 @@ function onPriv(m){
       banner('🤝 TASK DI COPPIA con '+m.partnerName+'!', 'cyan', 3000);
       SFX.coop();
       break;
+    /* ═══ coopOpen: il minigioco multiplayer si APRE AUTOMATICAMENTE su
+       ENTRAMBI gli schermi dopo l'accettazione dell'invito. Se la pagina
+       è in background e il modal non si apre, resta il pulsante
+       «APRI TASK DI COPPIA» nella task card (e la sicurezza coopTick del
+       host rigenera il coopStart finché manca). ═══ */
+    case 'coopOpen':
+      if(!myCoopState || myCoopState.session !== m.session){
+        const s0 = (PUB && PUB.coop) ? PUB.coop[m.session] : null;
+        if(s0){
+          const otherId = (I.id === s0.a) ? s0.b : s0.a;
+          const other = PUB.players.find(x => x.id === otherId) || {name:'il compagno'};
+          myCoopState = {type:'coopStart', session:m.session, game:(s0.gtype||s0.type),
+                         partner:otherId, partnerName:other.name, state:s0};
+        }
+      }
+      if(myCoopState && myCoopState.session === m.session){
+        openCoopGame();
+      }
+      break;
+    /* ═══ coopEnd: fine (o interruzione) della sessione → il modal del
+       minigioco si chiude DA SOLO su entrambi gli schermi. ═══ */
+    case 'coopEnd':
+      if(myCoopState && (!m.session || myCoopState.session === m.session)){
+        myCoopState = null;
+        closeActionModals();
+      }
+      if(m.ok){ banner('🤝 TASK DI COPPIA COMPLETATA: +1 BARRA!', 'grn', 4000); SFX.ok(); }
+      else{ banner('↫ Task di coppia interrotta'+(m.reason?': '+m.reason:'')+'.', 'amber', 4500); SFX.err(); }
+      break;
     case 'whisperMsg':{
       const pid = m.from;
       if(!CHATS[pid]) CHATS[pid] = { name:m.fromName, msgs:[], unread:0 };
@@ -402,7 +431,16 @@ function renderGame(){
   const dockKey = (me.alive?'1':'0')+'|'+(SEC.role||'')+'|'+(SYNC.ab||'')+'|'+(SYNC.deadBy||'')+'|'+(SYNC.isP?'P':'')+'|'+(SYNC.med?'M':'');
   if(dockKey !== lastDockKey){ lastDockKey = dockKey; buildDock(); }
 
-  const key = me.task+'|'+me.alive+'|'+(me.q?'q':'')+'|'+((me.task&&me.task.coopState)||'');
+  const key = me.task+'|'+me.alive+'|'+(me.q?'q':'')+'|'+((me.task&&me.task.coopState)||'')
+            /* ★ La scheda della task doppia viene RICOSTRUITA a ogni tick (~1s)
+               durante tutta la fase di scelta: countdown scorrevoli sempre
+               aggiornati e lista compagni in tempo reale (chi può / chi non
+               può e perché), grazie anche all'heartbeat del host. */
+            +((me.task && me.task.type==='coop' &&
+               (me.task.coopState==='needPick' || me.task.coopState==='needRequest'))
+              ? '|'+Math.floor(Date.now()/900) : '')
+            +((me.task && me.task.type==='coop')
+              ? '|'+JSON.stringify((PUB.coopAvail&&PUB.coopAvail[me.id])||[])+JSON.stringify((PUB.coopBusy&&PUB.coopBusy[me.id])||{}) : '');
   if(key !== lastTaskKey){ lastTaskKey = key; buildTaskCard(me); }
 
   $('#g-taskcount').textContent = me.tasks+' ✓';

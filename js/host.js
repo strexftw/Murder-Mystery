@@ -158,17 +158,29 @@ function coopTick(now){
       }
     }
   }
-  // Sessioni coop attive (aggiornamento ponte energetico)
+  // Sessioni coop attive (aggiornamento ponte energetico + controlli di sicurezza)
   for(const k in G.coopSessions){
     const s = G.coopSessions[k];
     if(!s || s.done) continue;
     const pa = byId(s.a), pb = byId(s.b);
-    if(!pa || !pb || !pa.alive || !pb.alive){ delete G.coopSessions[k]; continue; }
-    if(s.type==='ponte'){
+    /* ★ SESSIONE SCIOLTA: se un membro è morto / uscito / in quarantena,
+       la coppia non può più giocare insieme. Distruggiamo la sessione e
+       avvisiamo ENTRAMBI con coopEnd, così nessuno resta bloccato dentro
+       il minigioco (il modal si chiude da solo lato client). */
+    if(!pa || !pb || !pa.alive || !pb.alive || pa.quarantined || pb.quarantined){
+      const why = (!pa || !pb) ? 'coppia uscita dalla partita'
+                : (!pa.alive || !pb.alive) ? 'un membro della coppia è diventato spettro'
+                : 'un membro della coppia è in quarantena';
+      coopAbort(k, s, pa, pb, why);
+      continue;
+    }
+    const gtype = s.gtype || s.type; // retro-compatibilità: vecchie sessioni usavano «type»
+    if(gtype==='ponte'){
       if(now >= s.endsAt){ s.done = true; coopComplete(s); }
       else if(s.energy <= 0){
         s.done = true; s.fail = true;
         addLog('💥 PONTE ENERGETICO FALLITO: la barra si è svuotata.', ABS.sparlatore.c);
+        coopNotifyEnd(s);
         delete G.coopSessions[k];
       } else {
         s.energy = Math.max(0, s.energy - CFG.COOP_BRIDGE_DRAIN);
@@ -179,8 +191,12 @@ function coopTick(now){
      Se una sessione coop è nata ma un giocatore (per esempio l'host, che
      riceve i privati solo in locale) non ha ricevuto il messaggio coopStart,
      la sua card resta in «active» senza dati di sessione → il pulsante non
-     apre il minigioco. Qui rigeneriamo il coopStart da PUB/G ogni tick finché
-     manca: appena arriva, il client apre il minigioco anche da solo. */
+     apre il minigioco. Qui rigeneriamo il coopStart da G ogni tick finché
+     manca: appena arriva, il client apre il minigioco anche da solo.
+     ★ Il campo del gioco si chiama «game», NON «type»: «type» è il
+     discriminante del messaggio ('coopStart') e sovrascriverlo rendeva il
+     messaggio irriconoscibile / myCoopState.type='coopStart' → openCoopGame()
+     non apriva nulla. */
   for(const k in G.coopSessions){
     const s = G.coopSessions[k];
     if(!s || s.done) continue;
@@ -190,11 +206,45 @@ function coopTick(now){
       if(p.task && p.task.type==='coop' && p.task.coopState==='active' && p.id===I.id
          && (!myCoopState || myCoopState.session!==k)){
         const other = (p.id===s.a) ? pb : pa;
-        priv(p.id, {type:'coopStart', session:k, type:s.type, partner:other.id,
+        priv(p.id, {type:'coopStart', session:k, game:(s.gtype||s.type), partner:other.id,
                     partnerName:other.name, state:s});
       }
     });
   }
+  /* ═══ HEARTBEAT LISTA COMPAGNI ═══
+     Finché qualcuno è nella fase di scelta (needPick), forza un broadcast
+     a ~1s: appena un compagno finisce (o scade) la sua task singola/doppia/
+     critica diventa subito selezionabile, e i countdown scorrevoli della
+     scheda si rinfrescano in tempo reale (chi può / chi non può e perché). */
+  if(G.players.some(p => p.alive && p.task && p.task.type==='coop' &&
+                         (p.task.coopState==='needPick' || p.task.coopState==='needRequest'))){
+    broadcastNow();
+  }
+}
+
+/* ═══ CHIUSURA NOTIFICATA DI UNA SESSIONE COOP ═══
+   coopEnd raggiunge SEMPRE entrambi i membri della coppia (privBoth):
+   ok=true → completata (+1 barra); ok=false → interrotta. In questo modo
+   il modal del minigioco si chiude da solo su ENTRAMBI gli schermi e
+   nessuno resta bloccato dentro un gioco già finito. */
+function coopNotifyEnd(s, reason){
+  const k = Object.keys(G.coopSessions).find(kk => G.coopSessions[kk] === s) || null;
+  const ok = !!s.done && !s.fail;
+  privBoth([s.a, s.b], {type:'coopEnd', session:k, ok, fail:!!s.fail, reason:reason||null});
+}
+/* Distruzione sicura di una sessione (membro morto/quarantena/uscita):
+   libera i task slot dei superstiti e avvisa entrambi. */
+function coopAbort(k, s, pa, pb, why){
+  delete G.coopSessions[k];
+  privBoth([s.a, s.b], {type:'coopEnd', session:k, ok:false, reason:why});
+  if(pa && pa.task && pa.task.type==='coop' && pa.task.coopSession===k){
+    pa.task = null; pa.lastTaskAt = Date.now();
+  }
+  if(pb && pb.task && pb.task.type==='coop' && pb.task.coopSession===k){
+    pb.task = null; pb.lastTaskAt = Date.now();
+  }
+  addLog('↫ Task di coppia interrotta: '+why+'.', ABS.sparlatore.c);
+  broadcastNow();
 }
 
 /* ═══ TICK PRINCIPALE HOST ═══ */
@@ -465,15 +515,26 @@ function acceptCoopInvite(inviteId, accept){
   // eventuale richiesta «SVOLGI TASK» viene ignorata da HcoopRequest)
   partner.task = { id:coopType, type:'coop', critical:false, criticalAt:0, partner:requester.id,
                    coopState:'active', coopSession:sessId, inviteId:null, requestExpiresAt:0, sentAt:Date.now(), lastTaskAt:Date.now() };
-  priv(requester.id, {type:'coopStart', session:sessId, type:coopType, partner:partner.id, partnerName:partner.name, state:state});
-  priv(partner.id,  {type:'coopStart', session:sessId, type:coopType, partner:requester.id, partnerName:requester.name, state:state});
+  priv(requester.id, {type:'coopStart', session:sessId, game:coopType, partner:partner.id, partnerName:partner.name});
+  priv(partner.id,  {type:'coopStart', session:sessId, game:coopType, partner:requester.id, partnerName:requester.name});
   addLog('🤝 TASK DI COPPIA avviata: '+COOPNAMES[coopType]+' — '+requester.name+' e '+partner.name+' giocano insieme!', ABS.puttana.c);
+  /* ★ coopOpen: dopo l'accettazione il minigioco multiplayer si apre
+     AUTOMATICAMENTE sulla schermata di ENTRAMBI (banner + openCoopGame).
+     Ogni destinatario riceve il proprio «coopStart» prima del coopOpen,
+     quindi myCoopState è già popolato. Se la pagina è in background e il
+     modal non parte, resta il pulsante «APRI TASK DI COPPIA» nella task
+     card (e la sicurezza rigenera-coopStart in coopTick). */
+  privBoth([requester.id, partner.id], {type:'coopOpen', session:sessId, game:coopType});
+  broadcastNow();
 }
 function coopComplete(s){
   const pa = byId(s.a), pb = byId(s.b);
   if(pa){ pa.tasks++; pa.task=null; pa.lastTaskAt=Date.now(); }
   if(pb){ pb.tasks++; pb.task=null; pb.lastTaskAt=Date.now(); }
   for(const k in G.coopSessions){ if(G.coopSessions[k]===s) delete G.coopSessions[k]; }
+  /* ★ coopEnd ok:true → su ENTRAMBI gli schermi il modal del minigioco si
+     chiude da solo con banner verde «+1 BARRA». */
+  privBoth([s.a, s.b], {type:'coopEnd', session:null, ok:true, fail:false, reason:null});
   addLog('🤝 TASK DI COPPIA completata da '+pa.name+' e '+pb.name+': +1 barra per entrambi!', ABS.puttana.c);
   if(pa.role!=='assassino' && taskProg()>=G.taskTarget){ addLog('🏆 INTEGRITÀ STAZIONE COMPLETA!'); endGame('innocenti'); }
   broadcastNow();
@@ -483,7 +544,7 @@ function HcoopTap(id){
   if(!p || !p.task || p.task.type!=='coop' || !p.task.coopSession) return;
   const s = G.coopSessions[p.task.coopSession];
   if(!s || s.done) return;
-  if(s.type==='ponte'){ s.energy = Math.min(100, s.energy + CFG.COOP_TAP); broadcastNow(); }
+  if((s.gtype||s.type)==='ponte'){ s.energy = Math.min(100, s.energy + CFG.COOP_TAP); broadcastNow(); }
 }
 
 /* ═══ ✅ CORRETTO: accetta la posizione della lancetta (pos) ═══ */
@@ -491,7 +552,7 @@ function HcoopValve(id, vidx, pos){
   const p = byId(id);
   if(!p || !p.task || p.task.type!=='coop' || !p.task.coopSession) return;
   const s = G.coopSessions[p.task.coopSession];
-  if(!s || s.done || s.type!=='valvole') return;
+  if(!s || s.done || (s.gtype||s.type)!=='valvole') return;
   const v = s.valves[vidx];
   if(!v || v.done) return;
   const isA = (p.id === s.a);
@@ -515,7 +576,7 @@ function HcoopSubmitRunes(id, seq){
   const p = byId(id);
   if(!p || !p.task || p.task.type!=='coop' || !p.task.coopSession) return;
   const s = G.coopSessions[p.task.coopSession];
-  if(!s || s.done || s.type!=='codice') return;
+  if(!s || s.done || (s.gtype||s.type)!=='codice') return;
   const isA = (p.id === s.a);
   if(isA){ s.inputA=seq; s.subA=true; } else { s.inputB=seq; s.subB=true; }
   if(s.subA && s.subB){
@@ -525,6 +586,9 @@ function HcoopSubmitRunes(id, seq){
       s.done=true; s.fail=true;
       addLog('✗ CODICE INCROCIATO errato: la sequenza era '+target+'.', ABS.sparlatore.c);
       for(const k in G.coopSessions){ if(G.coopSessions[k]===s) delete G.coopSessions[k]; }
+      /* ★ coopEnd ok:false → su ENTRAMBI gli schermi il modal si chiude da
+         solo con banner ambra «interrotta»: nessuno resta bloccato. */
+      privBoth([s.a, s.b], {type:'coopEnd', session:null, ok:false, fail:true, reason:'codice errato'});
       if(byId(s.a)) byId(s.a).task = null;
       if(byId(s.b)) byId(s.b).task = null;
     }
