@@ -105,25 +105,34 @@ function onPres(){
       if(ch) broadcastNow();
     } else {
       /* ── IN PARTITA ── */
+      /* ═══ FIX BUG "HOST DIVENTA SPETTRO / NON CAPISCE COSA È SUCCESSO" ═══
+         Causa profonda: le presenze realtime sono VOLATILI (un drop di rete
+         le svuota tutte, anche dei giocatori collegati) e Supabase può
+         consegnare un sync PARZIALE/STALE (roster vuoto o senza di me) prima
+         che il track sia confermato. Il vecchio codice, a ogni sync,
+         confrontava il roster presenze con G.players e:
+           - eliminava come "disconnesso" chiunque non comparisse (persone
+             in realtà online → morti inspiegabili);
+           - metteva in SALA D'ATTESA chi era già in partita ma temporanea-
+             mente assente dalle presenze (→ "non capisci cosa è");
+           - filtrava la sala d'attesa sul roster volatile (svuotandola).
+         Ora: (1) auto-ritrack di sicurezza se la mia presenza manca;
+         (2) mai disconnectKill sul giocatore locale; (3) i giocatori della
+         partita in corso NON vengono rimossi dal roster presenze — le
+         uscite definitive le rileva il protocollo di sopravvivenza (hi +
+         heartbeat ACK in hostAct); (4) la sala d'attesa accoglie solo chi
+         è davvero NUOVO (mai visto in questa partita), così un glitch di
+         presenze non retrocede in attesa un giocatore già in partita. */
       const ids = new Set(r.map(p => p.id));
-
-      /* ═══ FIX BUG "HOST DIVENTA SPETTRO ALL'AVVIO DELLA PARTITA" ═══
-         L'id dell'host locale (I.id) DEVE essere sempre presente nel
-         roster delle presenze del canale. Se per un race di realtime
-         (track non ancora confermato al primo sync, oppure il client è
-         stato ricreato con un nuovo uid) l'host non compare nella lista
-         presenze, il codice sotto lo considererebbe "disconnesso" e lo
-         eliminerebbe → l'host si ritrova SPETTRO senza capire cosa sia
-         successo. Qui: (1) auto-ritrack di sicurezza, (2) mai
-         disconnectKill sull'host stesso, (3) auto-riammissione
-         nell'elenco giocatori se assente. */
       const meTracked = r.some(p => p.id === I.id);
       if(!meTracked){
         try{ chan.untrack(); }catch(e){}
         chan.track({ id: I.id, name: I.name, jAt: joinAt, host: true });
       }
 
-      // (2)+(3) Il locale è l'host: non può mai essere eliminato come "disconnesso"
+      // Sicurezza: l'host locale deve sempre essere nell'elenco giocatori
+      // (e mai marcato morto per errore) — altrimenti resterebbe senza
+      // identità visibile, cioè di fatto uno spettro.
       if(!G.players.some(p => p.id === I.id)){
         G.players.push(mkPlayer(I.id, I.name || 'HOST'));
         broadcastNow();
@@ -131,24 +140,23 @@ function onPres(){
       const meP = G.players.find(p => p.id === I.id);
       if(meP && !meP.alive){ meP.alive = true; meP.deadBy = null; }
 
-      // Chi si disconnette durante la partita viene eliminato come "disconnesso"
-      // (escludendo SEMPRE l'host locale, anche se momentaneamente assente dalle presenze)
-      G.players.forEach(p => {
-        if(p.alive && p.id !== I.id && !ids.has(p.id)) disconnectKill(p);
-      });
-      // ★ SALA D'ATTESA: chi entra a partita in corso NON diventa spettro.
+      // ★ SALA D'ATTESA: solo chi NON ha mai giocato questa partita entra.
+      //     I giocatori già in partita non vengono MAI retrocessi in attesa
+      //     a causa di un sync di presenza parziale o volatile.
       if(!G.waiting) G.waiting = [];
+      if(!G.seenInGame) G.seenInGame = {};
+      G.players.forEach(p => { G.seenInGame[p.id] = 1; });
       r.forEach(p => {
         const inGame    = G.players.some(x => x.id === p.id);
         const inWaiting = G.waiting.some(x => x.id === p.id);
-        if(!inGame && !inWaiting && p.id !== I.id){
+        if(!inGame && !inWaiting && !G.seenInGame[p.id] && p.id !== I.id){
           G.waiting.push({ id: p.id, name: p.name });
           priv(p.id, { type:'note', txt:'🕒 Sei in SALA D\'ATTESA: entrerai alla prossima partita.' });
         }
       });
-      // Rimuovi dalla sala d'attesa chi si è disconnesso
-      // (solo se la mia presenza è confermata, per non cancellare entry valide)
-      if(meTracked) G.waiting = G.waiting.filter(w => ids.has(w.id));
+      // Nessuna rimozione dai G.players qui: le disconnessioni definitive
+      // sono gestite da hi/heartbeat (hostAct in host.js), non dal roster
+      // volatile delle presenze.
     }
   } else if(!isHost){
     /* ── MIGRAZIONE HOST (solo se la partita è in lobby) ── */

@@ -359,6 +359,11 @@ function HcoopSubmitRunes(id, seq){
 /* ══════════════════════ AVVIAMENTO PARTITA ══════════════════════ */
 function Hstart(){
   if(!G || G.phase!=='lobby' || G.players.length<CFG.MIN || G.players.length>CFG.MAX) return;
+  // Registro dei volti noti di questa partita: durante il gioco, chi è già
+  // stato in partita non viene MAI retrocesso in sala d'attesa da un glitch
+  // delle presenze realtime (vedi onPres in network.js).
+  G.seenInGame = {};
+  G.players.forEach(p => { G.seenInGame[p.id] = 1; });
   G.word = pick(WORDS);
   G.players.forEach(p=>{ p.rulesOk=false; p.revealOk=false; });
   G.phase='rules';
