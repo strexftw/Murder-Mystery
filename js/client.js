@@ -1,772 +1,133 @@
 /* ══════════════════════════════════════════════════════════════
-   PROTOCOLLO OMBRA — js/client.js
-   Rendering lato client: lobby, regole, reveal, gioco, banner,
-   task card, dock, riunioni.
-   NOTA: le funzioni UI interattive (modali, chat, jump, end) vivono
-   in js/ui.js per evitare duplicati.
-   Dipendenze: config.js, utils.js, audio.js, state.js.
+   PROTOCOLLO OMBRA — js/config.js
+   Configurazione, costanti, abilità, parole, task, ruoli.
+   ⚠️ SB_URL / SB_KEY: chiave "anon" (pubblica per design), ma se il
+   repo è pubblico valuta di rigenerarla e proteggere il canale con RLS.
    ══════════════════════════════════════════════════════════════ */
 
-/* ═══ DISPATCHER MESSAGGI ═══ */
-function onMsg(m){
-  if(!m || !m.k) return;
-  if(m.k === 'pub'){ clockOff = m.now - Date.now(); PUB = m; onPub(); }
-  else if(m.k === 'priv'){ if(m.to && m.to !== I.id) return; onPriv(m); }
-  else if(m.k === 'act'){ if(isHost) hostAct(m); }
-}
+/* ═══ CREDENZIALI SUPABASE (OBBLIGATORIE) ═══ */
+const SB_URL = "https://xkvnwezcdvkrisqhuvhx.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhrdm53ZXpjZHZrcmlzcWh1dmh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA4NDgxNDksImV4cCI6MjEwNjQyNDE0OX0.-1QaeGq0lU8MsjtSUpLWwTRxpFzWxtxAK00BzLNC6Zg";
 
-/* ═══ CHIUDI I MODALI D'AZIONE ═══ */
-function closeActionModals(){
-  ['m-task','m-scan','m-kill','m-sab','m-ab','m-invite'].forEach(id => hide($('#'+id)));
-}
+/* ═══ PARAMETRI DI GIOCO ═══ */
+const CFG = {
+  MIN: 3, MAX: 8, MAXNAME: 8,
 
-/* ═══ RESET DEL ROUND LATO CLIENT ═══ */
-function resetClientRound(){
-  SEC = {}; SYNC = {};
-  SCANLIST = []; SCANCLUES = [];
-  CHATS = {}; activeChat = null;
-  hideChatPanel();
-  document.body.classList.remove('deadmode');
-  endPlayed = false;
-  myAlivePrev = true; myQPrev = false;
-  myCoopState = null;
-  sentW = 0; sentV = 0; sentSeanceVote = 0;
-  const br = $('#btn-ready'); if(br) br.disabled = false;
-  const bo = $('#btn-rules-ok');
-  if(bo){ bo.disabled = false; bo.textContent = '✓ HO LETTO E HO CAPITO'; }
-}
+  // Assassino
+  SAB_UNLOCK: 30000,     // sabotaggio sbloccato dopo 30s
+  FIRST_KILL: 50000,     // prima uccisione dopo 50s
+  KILL_CD: 45000,        // ricarica uccisione 45s
+  SAB_CD: 60000,         // riuso sabotaggio 60s
 
-/* ═══ GESTORE MESSAGGI PRIVATI ═══ */
-function onPriv(m){
-  switch(m.type){
-    case 'init':
-      SEC = { role:m.role, word:m.word, code:m.code };
-      SYNC = {};
-      SCANLIST = []; SCANCLUES = [];
-      CHATS = {}; activeChat = null; hideChatPanel();
-      myAlivePrev = true; myQPrev = false;
-      const br = $('#btn-ready'); if(br) br.disabled = false;
-      SFX.reveal();
-      break;
-    case 'init2':
-      SEC.role = 'detective';
-      SCANLIST = []; SCANCLUES = [];
-      banner('SEI IL NUOVO DETECTIVE', 'amber');
-      SFX.reveal();
-      break;
-    case 'puttanaPromo':
-      banner('💋 SEI STATO PROMOSSO: LA PUTTANA', 'pink');
-      SFX.reveal();
-      break;
-    case 'seanceMedium':
-      banner('🕯 SEI IL MEDIO: il pulsante SÉANCE è apparso SOLO a te', 'violet', 6000);
-      SFX.seance();
-      break;
-    case 'seanceVote':
-      showSeanceVote(m.target, m.endsAt);
-      break;
-    case 'sync':
-      SYNC = m;
-      break;
-    case 'fx':
-      if(m.fx==='jump'){ closeActionModals(); doJump(m.letter, m.by); }
-      if(m.fx==='hack') doHack();
-      break;
-    case 'found':
-      showFound(m.ab, m.old || null);
-      break;
-    case 'critAlert':
-      banner('🚨 TASK CRITICA: 30 SECONDI!', 'red', 4000);
-      SFX.crit();
-      break;
-    case 'coopInvite':
-      showCoopInvite(m);
-      break;
-    case 'coopStart':
-      myCoopState = m;
-      hide($('#m-invite'));
-      banner('🤝 TASK DI COPPIA con '+m.partnerName+'!', 'cyan', 3000);
-      SFX.coop();
-      break;
-    case 'coopOpen':
-      if(!myCoopState || myCoopState.session !== m.session){
-        const s0 = (PUB && PUB.coop) ? PUB.coop[m.session] : null;
-        if(s0){
-          const otherId = (I.id === s0.a) ? s0.b : s0.a;
-          const other = PUB.players.find(x => x.id === otherId) || {name:'il compagno'};
-          myCoopState = { type:'coopStart', session:m.session, game:(s0.gtype||s0.type),
-            partner:otherId, partnerName:other.name, state:s0 };
-        }
-      }
-      if(myCoopState && myCoopState.session === m.session){ openCoopGame(); }
-      break;
-    case 'coopEnd':
-      if(myCoopState && (!m.session || myCoopState.session === m.session)){
-        myCoopState = null;
-        closeActionModals();
-      }
-      if(m.ok){ banner('🤝 TASK DI COPPIA COMPLETATA: +1 BARRA!', 'grn', 4000); SFX.ok(); }
-      else{ banner('↫ Task di coppia interrotta'+(m.reason?': '+m.reason:'')+'.', 'amber', 4500); SFX.err(); }
-      break;
-    case 'whisperMsg':{
-      const pid = m.from;
-      if(!CHATS[pid]) CHATS[pid] = { name:m.fromName, msgs:[], unread:0 };
-      CHATS[pid].msgs.push({ from:pid, text:m.text });
-      if(activeChat===pid && isChatVisible()){ renderChatMsgs(); }
-      else{
-        CHATS[pid].unread++;
-        if(CHATS[pid].msgs.length===1) banner('🤫 '+m.fromName+' TI SUSSURRA', 'cyan', 3000);
-      }
-      SFX.msg();
-      updateFab();
-      if(isChatVisible()) renderChatTabs();
-      break;
-    }
-    case 'scanRes':{
-      const ex = SCANLIST.find(e => e.id === m.id);
-      if(ex){ ex.code=m.code; ex.tasks=m.tasks; ex.n=(ex.n||1)+1; SCANLIST.splice(SCANLIST.indexOf(ex),1); SCANLIST.push(ex); }
-      else{ SCANLIST.push({id:m.id, name:m.target, code:m.code, tasks:m.tasks, n:1}); }
-      showScanRes(m);
-      renderArchive();
-      break;
-    }
-    case 'scanFail':
-      hide($('#m-scan'));
-      banner('SCANSIONE ANNULLATA', 'amber');
-      SFX.err();
-      break;
-    case 'clue':
-      SCANCLUES.push({char:m.char, pos:m.pos});
-      banner('🕵 INDIZIO HACK: cifra "'+m.char+'" in posizione '+m.pos, 'amber');
-      SFX.reveal();
-      renderArchive();
-      break;
-    case 'note':
-      banner(m.txt, 'cyan', 5000);
-      break;
-  }
-}
+  // Detective
+  SCAN_UNLOCK: 20000,    // scan attivo dopo 20s
+  SCAN_CD: 20000,        // ricarica scan 20s
+  SCAN_MAX: 3,           // cariche max
+  SCAN_RECHARGE: 150000, // +1 carica ogni 2,5 min
+  NEWDET_SCAN: 40000,    // nuovo detective: primo scan dopo 40s
 
-/* ═══ GESTORE STATO PUBBLICO ═══ */
-function onPub(){
-  const p = PUB;
-  if(!p) return;
-  if(p.banner && p.banner.at !== seenBanner){
-    seenBanner = p.banner.at;
-    banner(p.banner.txt, p.banner.tone);
-  }
-  if(p.reveal && p.reveal.at !== seenReveal){
-    seenReveal = p.reveal.at;
-    const r = p.reveal;
-    banner(r.name+' ERA '+(r.role==='assassino' ? "L'ASSASSINO" : r.role==='detective' ? 'IL DETECTIVE' : 'INNOCENTE'),
-      r.role==='assassino' ? 'red' : r.role==='detective' ? 'amber' : 'cyan');
-    SFX.reveal();
-  }
-  $('#topbar').classList.toggle('on', p.phase !== 'lobby');
-  $('#g-room').textContent = p.code;
+  // Task
+  TASK_EVERY: 50000,     // una task ogni 50s
+  TASK_WIN_MULT: 8,      // barra stazione = 8 × giocatori
 
-  const scrMap = {lobby:'scr-lobby', rules:'scr-rules', reveal:'scr-reveal', play:'scr-game', ended:'scr-end'};
-  let target = scrMap[p.phase];
-  if(p.phase==='ended' && p.reveal && (Date.now()+clockOff)-p.reveal.at < 3300){
-    target = curScr==='scr-end' ? 'scr-game' : curScr;
-    setTimeout(()=>{ if(PUB && PUB.phase==='ended') showScreen('scr-end'); }, 3400);
-  }
-  showScreen(target);
+  // Task critica (6%)
+  CRIT_CHANCE: 0.06,
+  CRIT_TIME: 30000,      // 30s per completarla
 
-  if(p.phase==='lobby'){ resetClientRound(); renderLobby(); }
-  if(p.phase==='rules') renderRules();
-  if(p.phase==='reveal') renderReveal();
-  if(p.phase==='play'){ renderGame(); renderMeet(); }
-  if(p.phase==='ended'){
-    ['m-meet','m-scan','m-kill','m-sab','m-ab','m-task','m-invite'].forEach(id=>hide($('#'+id)));
-    hideChatPanel();
-    $('#pch-fab').classList.add('hidden');
-    document.body.classList.remove('deadmode');
-    meetKey = '';
-    renderEnd();
-  }
-}
+  // Task di coppia
+  COOP_CHANCE: 0.25,           // probabilità che una task sia DOPPIA
+  COOP_REQUEST_WINDOW: 60000,  // finestra «SVOLGI TASK · INVIA»
+  COOP_PICK_WINDOW: 45000,     // finestra scelta compagno
+  COOP_INVITE_TIME: 20000,     // finestra ACCETTA/RIFIUTA dell'invitato
+  COOP_BRIDGE_TIME: 20000,     // durata ponte energetico
+  COOP_BRIDGE_DRAIN: 3.2,      // drenaggio barra al secondo
+  COOP_TAP: 7,                 // energia per martellata
+  COOP_RUNES: 6,               // lunghezza sequenza codice incrociato
+  COOP_VALVES: 4,              // numero valvole gemelle
 
-/* ═══ CAMBIO SCHERMATA ═══ */
-function showScreen(id){
-  if(curScr === id) return;
-  curScr = id;
-  if(id !== 'scr-game'){
-    ['m-scan','m-kill','m-sab','m-ab','m-task','m-meet','m-invite'].forEach(mid=>hide($('#'+mid)));
-  }
-  $$('.scr').forEach(s => s.classList.remove('on'));
-  $('#'+id).classList.add('on');
-  if(id === 'scr-game') buildDock();
-}
+  // Sussurri / séance
+  WHISPER_ANNOUNCE_CD: 10000,  // anti-spam annuncio pubblico canale
+  SEANCE_NEED: 4,              // rituali spettro per caricare la séance
+  SEANCE_VOTE: 20000,          // tempo voto spiriti
 
-/* ═══ BANNER ═══ */
-let bannerTimer = null;
-function banner(txt, tone, dur){
-  const b = $('#banner');
-  b.className = tone || 'cyan';
-  b.querySelector('span').textContent = txt;
-  show(b);
-  SFX.alarm();
-  if(bannerTimer) clearTimeout(bannerTimer);
-  bannerTimer = setTimeout(()=>hide(b), dur || 3200);
-}
-function showBanner(txt, tone){ banner(txt, tone); }
+  // Riunioni
+  WORD_TIME: 40000, WORD_SHOW: 15000,
+  VOTE_TIME: 40000, VOTE_REVEAL: 5000,
+  MEET_CD: 120000,
 
-/* ═══ ABILITÀ TROVATA (con fuochi) ═══ */
-let foundTimer = null, foundLock = false;
-function showFound(ab, oldAb){
-  const a = ABS[ab];
-  if(!a) return;
-  $('#found-name').textContent = a.n;
-  $('#found-name').style.color = a.c;
-  $('#found-name').style.textShadow = '0 0 34px '+a.c;
-  $('#found-desc').textContent = a.d;
-  const fw = $('#fw');
-  fw.innerHTML = '';
-  const cols = [a.c,'#38e1ff','#ffb648','#ff3b5c','#3dffa0','#ffffff'];
-  for(let i=0;i<40;i++){
-    const s = document.createElement('i');
-    s.style.setProperty('--x', (8+rnd(84))+'%');
-    s.style.setProperty('--y', (8+rnd(84))+'%');
-    s.style.setProperty('--dx', (rnd(260)-130)+'px');
-    s.style.setProperty('--dy', (rnd(260)-130)+'px');
-    s.style.setProperty('--c', pick(cols));
-    s.style.animationDelay = (rnd(70)/100)+'s';
-    fw.appendChild(s);
-  }
-  const ch = $('#found-choice');
-  if(oldAb && ABS[oldAb]){
-    foundLock = true;
-    $('#found-title').textContent = "🎉 HAI TROVATO UN'ABILITÀ — MA NE HAI GIÀ UNA!";
-    ch.classList.remove('hidden');
-    $('#found-old').innerHTML = '<b style="color:'+ABS[oldAb].c+'">'+ABS[oldAb].n+'</b><br><span style="font-size:.9rem">'+ABS[oldAb].d+'</span>';
-    $('#found-keep').textContent = '✓ TENGO: '+ABS[oldAb].n;
-    $('#found-swap').textContent = '⟳ SOSTITUISCO CON: '+a.n;
-    $('#found-keep').onclick = ()=>{ hide($('#found')); foundLock=false; SFX.click(); act({t:'abChoice', pick:'keep'}); };
-    $('#found-swap').onclick = ()=>{ hide($('#found')); foundLock=false; SFX.ok(); act({t:'abChoice', pick:'swap'}); };
-    $('#found-hint').textContent = 'SCEGLI CON ATTENZIONE: MAX 1 ABILITÀ';
-    if(foundTimer) clearTimeout(foundTimer);
-  } else {
-    foundLock = false;
-    $('#found-title').textContent = '🎉 CONGRATULAZIONI · HAI TROVATO';
-    ch.classList.add('hidden');
-    $('#found-hint').textContent = 'TOCCA PER CHIUDERE';
-    if(foundTimer) clearTimeout(foundTimer);
-    foundTimer = setTimeout(()=>hide($('#found')), 4500);
-  }
-  show($('#found'));
-  SFX.found();
-}
+  // Puttana
+  PUTTANA_CD: 240000,
+  PUTTANA_TRIGGER: 5,
+  PUTTANA_TIMER: 30000,
 
-/* ═══ RENDER LOBBY ═══ */
-function renderLobby(){
-  const data = PUB || (G ? {players: G.players.map(p=>({id:p.id,name:p.name,alive:p.alive,tasks:p.tasks,task:p.task,nextAt:0}))} : null);
-  if(!data) return;
-  $('#lobby-code').textContent = ROOM.split('').join(' ');
-  const n = data.players.length;
-  $('#lobby-count').textContent = n+'/'+CFG.MAX;
-  let h = '';
-  for(let i=0;i<CFG.MAX;i++){
-    const p = data.players[i];
-    h += p
-      ? '<div class="slot fill cut"><span class="nm">'+esc(p.name)+(p.id===I.id?' ◂':'')+'</span><span class="dim" style="font-size:.7rem">OPERATORE</span></div>'
-      : '<div class="slot cut">SLOT LIBERO</div>';
-  }
-  $('#slots').innerHTML = h;
-  const can = isHost && n>=CFG.MIN && n<=CFG.MAX;
-  $('#btn-start').style.display = isHost ? '' : 'none';
-  $('#btn-start').disabled = !can;
+  // ★ NEW — Rete / sopravvivenza
+  CLIENT_PING: 5000,      // ogni 5s il client manda un "ping" all'host
+  REAPER_TIMEOUT: 25000,  // senza ping/azioni per 25s → disconnesso
 
-  // ★ SALA D'ATTESA (apostrofo escape → niente SyntaxError)
-  const inGame = PUB && PUB.players.some(x => x.id === I.id);
-  if(PUB && PUB.phase!=='lobby' && !inGame){
-    $('#lobby-wait').textContent = "🕒 Sei in SALA D'ATTESA: entrerai alla prossima partita.";
-    return;
-  }
-  $('#lobby-wait').textContent = isHost
-    ? (n<CFG.MIN ? 'Servono almeno '+CFG.MIN+' giocatori per iniziare.' : 'Pronto al lancio.')
-    : "In attesa che l'host avvii la partita…";
-}
+  // Heartbeat host
+  HEARTBEAT: 2000
+};
 
-/* ═══ RENDER REGOLE ═══ */
-function renderRules(){
-  if(!PUB) return;
-  // Safety host anti-spettro: recupera SEC.role da G se il priv "init" si è perso
-  if(isHost && G && !SEC.role){
-    const meP = G.players.find(p => p.id === I.id);
-    if(meP && meP.role){
-      SEC.role = meP.role;
-      SEC.word = meP.role==='assassino' ? null : G.word;
-      SEC.code = meP.code;
-    }
-  }
-  const ok = PUB.players.filter(p=>p.rulesOk).length;
-  $('#rules-status').textContent = 'Operatori pronti: '+ok+'/'+PUB.players.length;
-  const btn = $('#btn-rules-ok');
-  const meP = PUB.players.find(p => p.id === I.id);
-  const confirmed = !!(meP && meP.rulesOk);
-  btn.disabled = confirmed;
-  btn.textContent = confirmed ? '✓ IN ATTESA DEGLI ALTRI…' : '✓ HO LETTO E HO CAPITO';
-}
+/* ═══ COLORE ACCENTO VIOLA (spettri / séance) ═══ */
+const VIO = '#c26bff';
 
-/* ═══ RENDER REVEAL (RUOLO) ═══ */
-function renderReveal(){
-  if(!PUB) return;
-  if(isHost && G && !SEC.role){
-    const meP = G.players.find(p => p.id === I.id);
-    if(meP && meP.role){
-      SEC.role = meP.role;
-      SEC.word = meP.role==='assassino' ? null : G.word;
-      SEC.code = meP.code;
-    }
-  }
-  const meP = PUB.players.find(p => p.id === I.id);
-  const ready = !!(meP && meP.revealOk);
-  const br = $('#btn-ready');
-  if(br){
-    br.disabled = ready;
-    br.textContent = ready ? '✓ IN ATTESA DELLO SCHIERAMENTO…' : '▸ SCHIERATI';
-  }
-  const st = $('#reveal-status');
-  if(st){
-    const ok = PUB.players.filter(p=>p.revealOk).length;
-    st.textContent = 'Operatori schierati: '+ok+'/'+PUB.players.length;
-  }
-  if(!SEC.role) return;
-  const r = ROLE[SEC.role];
-  $('#role-card').className = 'rolecard cut panel '+SEC.role;
-  $('#role-name').textContent = r.l;
-  $('#role-name').style.color = r.c;
-  $('#role-desc').textContent = SEC.role==='assassino'
-    ? "Il SABOTAGGIO CODICI si sblocca dopo 30s (riuso 60s, resiste a 2 scan). UCCISIONE dopo 50s, ricarica 45s. La vittima vede una lettera casuale del tuo nome. NON conosci la parola segreta."
-    : SEC.role==='detective'
-    ? "SCAN dopo 20s: 3 cariche (+1 ogni 2,5 min), ricarica 20s. Se leggi un codice = assassino → QUARANTENA, poi verifica."
-    : "Completa le task (una ogni 50s): possono essere SINGOLE, DI COPPIA o CRITICHE (6%). Puoi trovare ABILITÀ CASUALI.";
-  $('#role-word').textContent = SEC.word || '??? — SCONOSCIUTA';
-  $('#role-word').style.color = SEC.word ? 'var(--grn)' : 'var(--red)';
-  $('#role-code').textContent = SEC.code || '—';
-}
+/* ═══ TIPI DI TASK DI COPPIA ═══ */
+const COOP_TYPES = ['ponte', 'codice', 'valvole'];
+const COOPNAMES = {
+  ponte:   'PONTE ENERGETICO',
+  codice:  'CODICE INCROCIATO',
+  valvole: 'VALVOLE GEMELLE'
+};
+const COOPDESC = {
+  ponte:   'Martellate insieme sulla barra: non deve svuotarsi!',
+  codice:  'Ognuno vede metà rune: parlatevi e inserite la sequenza completa.',
+  valvole: 'Fermate le lancette in zona: entrambi, per ogni valvola.'
+};
 
-/* ═══ RENDER GIOCO ═══ */
-function renderGame(){
-  if(!PUB) return;
-  const me = PUB.players.find(p => p.id === I.id);
-  if(!me) return;
+/* ═══ ABILITÀ CASUALI DALLE TASK ═══ */
+const ABS = {
+  spalmatore: { n:'LO SPALMATORE PAZZO', ch:8, c:'#b87333',
+    d:"UNA VOLTA: elimina un giocatore a scelta. Se era l'ASSASSINO vincete immediatamente. Se era un innocente… hai spalmato un amico, con tanto di jumpscare." },
+  puttana: { n:'LA PUTTANA', ch:0, c:'#ff6ec7',
+    d:"PROMOZIONE: resuscita un eliminato da ASSASSINO o SPALMATORE ogni 4 minuti. MAI sui votati." },
+  sparlatore: { n:'LO SPARLATORE', ch:8, c:'#c26bff',
+    d:"UNA VOLTA: svela PUBBLICAMENTE nel registro il ruolo di un giocatore." },
+  gesu: { n:'CHE GESÙ STA CON TE', ch:8, c:'#ffd700',
+    d:"PASSIVA: resusciti alla prima uccisione. ATTIVA: resusciti tu un ucciso da assassino/spalmatore." },
+  merde: { n:'SONO TORNATO MERDE', ch:8, c:'#ff8c42',
+    d:"PASSIVA: se espulso dai voti rientri. ATTIVA: resusciti un espulso dai voti." }
+};
+const AB_ORDER = ['spalmatore','sparlatore','gesu','merde'];
 
-  if(me.alive !== myAlivePrev){
-    closeActionModals();
-    if(!me.alive) hideChatPanel();
-  }
-  myAlivePrev = me.alive;
-  document.body.classList.toggle('deadmode', PUB.phase==='play' && !me.alive);
-  if(me.q !== myQPrev){ if(me.q) closeActionModals(); myQPrev = me.q; }
+/* ═══ PAROLE SEGRETE ═══ */
+const WORDS = ['FUOCO','OCEANO','SPECCHIO','FULMINE','DESERTO','FORESTA','GHIACCIO','VULCANO','COMETA','LABIRINTO','OROLOGIO','DIAMANTE','CORVO','SERPENTE','LANTERNA','BUSSOLA','TELEFONO','PIANOFORTE','FARO','MASCHERA','INVERNO','TEMPORALE','CASTELLO','RAGNO','VETRO','MONETA','SENTIERO','ECLISSI','DRAGO','FUMETTO','GIOSTRA','PIZZA','ANCORA','CACCIA','SEMAFORO','CASCATA','SCACCHI','LUNA','ARCOBALENO','VALIGIA'];
 
-  $('#g-alive').textContent = PUB.players.filter(p=>p.alive).length+'/'+PUB.players.length;
-  $('#g-name').textContent = I.name;
-  const chip = $('#chip-role');
-  if(me.alive && SEC.role){
-    chip.textContent = ROLE[SEC.role].l + (SYNC.isP ? ' · PUTTANA' : '') + (me.q ? ' · QUARANTENA' : '');
-    if(me.q){ chip.style.color='var(--red)'; chip.style.borderColor='var(--red)'; }
-    else{ chip.style.color=ROLE[SEC.role].c; chip.style.borderColor=ROLE[SEC.role].c; }
-  } else {
-    chip.textContent='SPETTRO';
-    chip.style.color='var(--vio)'; chip.style.borderColor='var(--vio)';
-  }
-  $('#g-code').textContent = SEC.code || '—';
-  const mw = $('#g-mask-wrap');
-  if(SEC.role==='assassino' && SYNC.mask){
-    mw.classList.remove('hidden');
-    $('#g-mask').textContent = SYNC.mask;
-  } else {
-    mw.classList.add('hidden');
-  }
-  updateWord();
-  renderAbList(me);
-  renderArchive();
+/* ═══ TASK SINGOLE (vivi) ═══ */
+const TASKS = [
+  { id:'circ',  name:'Cablaggio circuiti',    desc:'Collega ogni nodo al suo gemello dello stesso colore.' },
+  { id:'gen',   name:'Accensione generatore', desc:'Tieni premuto finché la carica non raggiunga il 100%.' },
+  { id:'card',  name:'Badge di accesso',      desc:'Trascina la scheda nello scanner alla giusta velocità.' },
+  { id:'seq',   name:'Codice di sicurezza',   desc:'Memorizza e ripeti la sequenza luminosa.' },
+  { id:'react', name:'Stabilizza reattore',   desc:'Colpisci le 5 scariche elettriche.' }
+];
 
-  const prog = PUB.taskProg||0, tgt = PUB.taskTarget||1;
-  $('#station-bar').style.width = Math.min(100, prog/tgt*100)+'%';
-  $('#station-txt').textContent = prog+'/'+tgt;
+/* ═══ TASK SPETTRO (morti, per la séance) ═══ */
+const GNAME = { circ:'TAVOLA OUIJA', gen:'CANDELE DEL RITO', card:'ANIME ERRANTI', seq:'RUNE DEL RITUALE', react:'SIGILLI SPEZZATI' };
+const GDESC = {
+  circ:  'Ferma la planchette 🔮 nella zona infestata 3 volte.',
+  gen:   'Tieni accese TUTTE le candele: il vento le spegne.',
+  card:  'Afferra 5 anime erranti prima che svaniscano.',
+  seq:   'Memorizza e ripeti il rituale di rune.',
+  react: 'Spezza i 4 sigilli: 3 colpi rapidi ciascuno.'
+};
+const GMAP = { circ:'ouija', gen:'candele', card:'anime', seq:'rune', react:'catene' };
 
-  const sl = $('#seance-line');
-  const se = PUB.seance;
-  if(se){
-    sl.classList.remove('hidden');
-    if(se.state==='charge')      sl.innerHTML='🕯 SÉANCE: '+se.cur+'/'+se.need+' (rituali degli spettri)';
-    else if(se.state==='ready')  sl.innerHTML='🕯 SÉANCE: <b>PRONTA</b> — il Medio è stato scelto in segreto';
-    else                         sl.innerHTML='🕯 GLI SPIRITI SI CONSULTANO SU <b>'+esc(se.target||'…')+'</b>…';
-  } else sl.classList.add('hidden');
+/* ═══ RUOLI ═══ */
+const ROLE = {
+  assassino: { l:'ASSASSINO', c:'var(--red)' },
+  detective: { l:'DETECTIVE', c:'var(--amber)' },
+  innocente: { l:'INNOCENTE', c:'var(--cyan)' }
+};
 
-  const dockKey = (me.alive?'1':'0')+'|'+(me.q?'Q':'')+'|'+(SEC.role||'')+'|'+(SYNC.ab||'')+'|'+(SYNC.deadBy||'')+'|'+(SYNC.isP?'P':'')+'|'+(SYNC.med?'M':'');
-  if(dockKey !== lastDockKey){ lastDockKey = dockKey; buildDock(); }
-
-  const key = me.task+'|'+me.alive+'|'+(me.q?'q':'')+'|'+((me.task&&me.task.coopState)||'')
-    +((me.task && me.task.type==='coop' &&
-       (me.task.coopState==='needPick' || me.task.coopState==='needRequest'))
-       ? '|'+Math.floor(Date.now()/900) : '')
-    +((me.task && me.task.type==='coop')
-       ? '|'+JSON.stringify((PUB.coopAvail&&PUB.coopAvail[me.id])||[])+JSON.stringify((PUB.coopBusy&&PUB.coopBusy[me.id])||{}) : '');
-  if(key !== lastTaskKey){ lastTaskKey = key; buildTaskCard(me); }
-
-  $('#g-taskcount').textContent = me.tasks+' ✓';
-  $('#log').innerHTML = PUB.log.map(l =>
-    '<div class="lg"'+(l.col?' style="color:'+l.col+'"':'')+'><span class="mono dim">'+
-    new Date(l.ts).toLocaleTimeString('it-IT',{hour12:false})+'</span>'+esc(l.t)+'</div>').join('');
-  updateDock();
-  updateFab();
-}
-
-/* ═══ LISTA ABILITÀ ═══ */
-function renderAbList(me){
-  const box = $('#ab-list');
-  if(!box) return;
-  const held = SYNC.ab, used = SYNC.used || [];
-  if(!held && !used.length && !SYNC.isP){ box.classList.add('hidden'); return; }
-  box.classList.remove('hidden');
-  const now = Date.now()+clockOff;
-  let h = '<div class="sysline grn">POTERI PRIVATI</div>';
-  if(SYNC.isP){
-    const st = (SYNC.put||0)>now ? 'CD '+fmt((SYNC.put||0)-now) : 'PRONTA';
-    h += '<div class="lg"><b style="color:'+ABS.puttana.c+'">LA PUTTANA</b> <span class="cyn mono" style="font-size:.65rem">PROMOZIONE · '+st+
-         '</span><br><span class="dim" style="font-size:.75rem">'+ABS.puttana.d+'</span></div>';
-  }
-  if(held){
-    let st;
-    if(held==='gesu')       st='PASSIVA PRONTA / ATTIVA';
-    else if(held==='merde') st=(SYNC.deadBy==='vote')?'ATTIVABILE ORA':'PASSIVA / ATTIVA';
-    else                    st='PRONTA';
-    h += '<div class="lg"><b style="color:'+ABS[held].c+'">'+ABS[held].n+'</b> <span class="cyn mono" style="font-size:.65rem">'+st+
-         '</span><br><span class="dim" style="font-size:.75rem">'+ABS[held].d+'</span></div>';
-  } else if(!SYNC.isP){
-    h += '<div class="lg dim">Nessuna abilità in possesso: completa task per trovarne una.</div>';
-  }
-  if(used.length) h += '<div class="lg dim" style="font-size:.7rem">Già usate: '+used.map(u=>ABS[u]?ABS[u].n:u).join(', ')+'</div>';
-  box.innerHTML = h;
-}
-
-/* ═══ ARCHIVIO SCANSIONI ═══ */
-function renderArchive(){
-  const box = $('#scan-archive');
-  if(!box) return;
-  if(SEC.role!=='detective'){ box.classList.add('hidden'); return; }
-  box.classList.remove('hidden');
-  const now = Date.now()+clockOff;
-  const chg = SYNC.chg||0;
-  let ch = '<div class="lg" style="border:0;padding:4px 0"><span class="amb mono">⚡ CARICHE: '+chg+'/'+CFG.SCAN_MAX+'</span>';
-  if(chg<CFG.SCAN_MAX) ch += ' <span class="dim" style="font-size:.7rem">· +1 tra '+fmt((SYNC.chgAt||now)-now)+'</span>';
-  ch += '</div>';
-  $('#scancharges').innerHTML = ch;
-  const q = (PUB && PUB.players) ? PUB.players.filter(p=>p.q) : [];
-  $('#scanquar').innerHTML = q.map(p=>'<div class="lg red">⛔ '+esc(p.name)+' IN QUARANTENA: scansionalo per VERIFICARLO.</div>').join('');
-  $('#scanlist').innerHTML = SCANLIST.length
-    ? SCANLIST.map((e,i)=>'<div class="lg"><span class="mono dim">'+String(i+1).padStart(2,'0')+'</span><b>'+esc(e.name)+
-        ((e.n||1)>1?' <span class="dim mono" style="font-size:.65rem">×'+e.n+'</span>':'')+
-        '</b> → <span class="cyn mono">'+esc(e.code)+'</span> <span class="dim">('+e.tasks+' task)</span></div>').join('')
-    : '<div class="lg dim">Nessuna scansione effettuata.</div>';
-  $('#scanclues').innerHTML = SCANCLUES.map(c=>'<div class="lg amb">🕵 INDIZIO HACK: cifra "<b>'+esc(c.char)+
-    '</b>" in posizione '+c.pos+' del codice assassino</div>').join('');
-}
-
-/* ═══ PAROLA SEGRETA ═══ */
-let wordHidden = false;
-function updateWord(){
-  const w = $('#g-word');
-  if(!SEC.word){ w.textContent='??? — SCONOSCIUTA'; w.style.color='var(--red)'; return; }
-  w.textContent = wordHidden ? '••••••' : SEC.word;
-  w.style.color = 'var(--grn)';
-}
-
-/* ═══ TASK CARD ═══ */
-function buildTaskCard(me){
-  const tc = $('#task-card');
-  // ── SPETTRO (morto) → task spettro per la séance ──
-  if(!me.alive){
-    let dh = '<div class="deadnote">☠ SPETTRO — completa i RITUALI per la SÉANCE</div>';
-    if(SYNC.ab==='merde' && SYNC.deadBy==='vote'){
-      const c = ABS.merde.c;
-      dh += '<button class="btn big" id="db-abmer" style="margin-top:12px;color:'+c+';border-color:'+c+'">🔥 SONO TORNATO MERDE</button>';
-    }
-    /* ★ FIX CRITICO #1: me.task è un OGGETTO → usare me.task.id come chiave */
-    if(me.task && GNAME[me.task.id]){
-      dh += '<div class="taskcard cut" style="margin-top:12px"><h3>▸ '+GNAME[me.task.id]+'</h3><p class="dim">'+GDESC[me.task.id]+
-            '</p><button class="btn" id="btn-task" style="margin-top:12px">COMPII IL RITUALE</button></div>';
-    } else {
-      dh += '<div class="taskcard cut dim" style="margin-top:12px">In attesa della prossima task spettro…</div>';
-    }
-    tc.innerHTML = dh;
-    const bm = $('#db-abmer'); if(bm) bm.onclick = ()=>{ SFX.click(); act({t:'abMerde'}); };
-    const bt = $('#btn-task'); if(bt) bt.onclick = ()=>openTask(me.task.id);
-    return;
-  }
-  // ── QUARANTENA ──
-  if(me.q){
-    tc.innerHTML = '<div class="deadnote">⛔ IN QUARANTENA — task e abilità sospese<br><span style="font-size:.7rem">in attesa di verifica del Detective</span></div>';
-    return;
-  }
-  // ── TASK DI COPPIA ──
-  if(me.task && typeof me.task==='object' && me.task.type==='coop'){
-    const cn = COOPNAMES[me.task.id] || 'TASK DI COPPIA';
-    let inner = '<div class="taskcard cut"><h3 style="color:var(--grn)">🤝 '+cn+' <span class="badge imp">DOPPIO</span></h3><p class="dim">'+(COOPDESC[me.task.id]||'')+'</p>';
-    if(me.task.coopState==='needRequest'){
-      const rem = Math.max(0, (me.task.requestExpiresAt||0) - (Date.now()+clockOff));
-      inner += '<p class="dim" style="margin-top:8px">Svolgi questa task <b>DOPPIA</b> con un compagno.<br>'+
-        '<span class="mono dim" style="font-size:.7rem">⏳ Inviala entro '+fmt(rem)+' o la task si annulla.</span></p>'+
-        '<button class="btn grn" id="btn-task" style="margin-top:12px">✓ SVOLGI TASK · INVIA</button>';
-    }
-    else if(me.task.coopState==='needPick'){
-      const rem = Math.max(0, (me.task.pickExpiresAt||0) - (Date.now()+clockOff));
-      const avail = (PUB.coopAvail && PUB.coopAvail[me.id]) || [];
-      const busy  = (PUB.coopBusy  && PUB.coopBusy[me.id])  || {};
-      const busyLabel = { 'occupato':'🔒 occupato · si libera a fine task',
-        'task critica':'🔒 task critica in corso', 'in coppia':'🔒 già in coppia',
-        'invito in corso':'🔒 invito coop in corso', 'quarantena':'⛔ quarantena', 'morto':'☠ spettro' };
-      inner += '<p class="dim" style="margin-top:8px">👥 Scegli il compagno con cui svolgere il minigioco:<br>'+
-        '<span class="mono dim" style="font-size:.7rem">⏳ Selezione disponibile per '+fmt(rem)+', poi la task si annulla.</span></p>';
-      if(avail.length){
-        inner += '<div class="vlist" style="margin-top:10px">'+avail.map(q=>'<button class="vbtn pickmate" data-id="'+q.id+'">⬡ '+esc(q.name)+'</button>').join('')+'</div>';
-      } else {
-        inner += '<p class="amb" style="margin-top:8px;font-size:.8rem">⚠ Nessun compagno libero adesso: appena qualcuno finisce la sua task potrai sceglierlo.</p>';
-      }
-      const busyIds = Object.keys(busy);
-      if(busyIds.length){
-        inner += '<div class="dim" style="margin-top:8px;font-size:.72rem;line-height:1.7">'+busyIds.map(qid=>{
-          const b = busy[qid];
-          return '· <b>'+esc(b.name)+'</b> — '+(busyLabel[b.why]||('🔒 '+b.why));
-        }).join('<br>')+'</div>';
-      }
-    }
-    else if(me.task.coopState==='inviting'){
-      const pname = (PUB.players.find(x=>x.id===me.task.partner)||{name:'un compagno'}).name;
-      inner += '<p class="dim" style="margin-top:8px">📨 Invito inviato a <b>'+esc(pname)+'</b>: in attesa di ACCETTA/RIFIUTA…<br>'+
-        '<span class="mono dim" style="font-size:.7rem">Se rifiuta o non risponde, potrai scegliere un altro compagno.</span></p>';
-    }
-    else if(me.task.coopState==='active'){
-      inner += '<p class="dim" style="margin-top:8px">🤝 In coppia con <b>'+esc((PUB.players.find(x=>x.id===me.task.partner)||{name:'il compagno'}).name)+'</b>: svolgete il minigioco insieme!</p>'+
-        '<button class="btn grn" id="btn-task" style="margin-top:12px">APRI TASK DI COPPIA</button>';
-    }
-    else {
-      inner += '<p class="dim" style="margin-top:8px">↻ Task pronta: invia e scegli il compagno.</p>'+
-        '<button class="btn grn" id="btn-task" style="margin-top:12px">✓ SVOLGI TASK · INVIA</button>';
-    }
-    inner += '</div>';
-    tc.innerHTML = inner;
-    const bt = $('#btn-task');
-    if(bt){
-      if(me.task.coopState==='active') bt.onclick = ()=>openCoopGame();
-      else bt.onclick = ()=>{ SFX.ok(); act({t:'coopRequest'}); };
-    }
-    $$('#task-card .pickmate').forEach(b=>b.onclick=()=>{
-      if(b.disabled) return;
-      b.disabled = true;
-      SFX.ok();
-      act({t:'coopPick', pid:b.dataset.id});
-    });
-    return;
-  }
-  // ── TASK SINGOLA (normale o critica) ──
-  if(me.task && typeof me.task==='object'){
-    const tid = me.task.id;
-    const def = TASKS.find(t=>t.id===tid);
-    const isCrit = me.task.critical;
-    let timerHtml = '';
-    if(isCrit){
-      const rem = Math.max(0, me.task.criticalAt - (Date.now()+clockOff));
-      timerHtml = '<div class="crit-timer">⏱ '+fmt(rem)+'</div>';
-    }
-    tc.innerHTML = '<div class="taskcard cut'+(isCrit?' critical':'')+'">'+
-      '<h3>▸ '+(def?def.name:'TASK')+' <span class="badge '+(isCrit?'imp':'sing')+'">'+(isCrit?'IMPORTANTE':'SINGOLO')+'</span></h3>'+
-      timerHtml+
-      '<p class="dim">'+(def?def.desc:'')+'</p>'+
-      '<button class="btn" id="btn-task" style="margin-top:12px">SVOLGI TASK</button></div>';
-    const bt = $('#btn-task'); if(bt) bt.onclick = ()=>openTask(tid);
-    return;
-  }
-  // ── NESSUNA TASK ──
-  tc.innerHTML = '<div class="taskcard cut dim">Nessuna task attiva.<br>Prossima assegnazione tra <b class="cyn" id="nextin">--:--</b></div>';
-}
-
-/* ═══ DOCK (pulsanti azione) ═══ */
-function dockBtn(k, l, cls, color, ring){
-  const st = color ? ' style="color:'+color+';border-color:'+color+';background:linear-gradient(180deg,'+rgba(color,.16)+','+rgba(color,.04)+')"' : '';
-  return '<button class="dbtn '+(cls||'')+'"'+st+' id="db-'+k+'">'+
-    (ring ? '<svg class="ring" viewBox="0 0 60 60"><circle cx="30" cy="30" r="26" id="killring"/></svg>' : '')+
-    '<span class="lbl">'+l+'</span><span class="sec mono"></span></button>';
-}
-function buildDock(){
-  const d = $('#dock');
-  const me = PUB && PUB.players.find(p => p.id === I.id);
-  if(me && !me.alive){
-    let dh = '<div class="deadnote">☠ SEI STATO ELIMINATO — MODALITÀ SPETTATORE</div>';
-    if(SYNC.ab==='merde' && SYNC.deadBy==='vote'){
-      const c = ABS.merde.c;
-      dh += '<button class="btn big" id="db-abmer" style="margin-top:12px;color:'+c+';border-color:'+c+'">🔥 SONO TORNATO MERDE</button>';
-    }
-    d.innerHTML = dh;
-    const bm = $('#db-abmer'); if(bm) bm.onclick = ()=>{ SFX.click(); act({t:'abMerde'}); };
-    return;
-  }
-  /* ★ FIX #8: in QUARANTENA il dock è limitato (niente kill/sab/abilità/scan) */
-  if(me && me.q){
-    d.innerHTML = dockBtn('word','RIUNIONE PAROLA') + dockBtn('vote','RIUNIONE VOTO') + dockBtn('whis','SUSSURRI');
-    wireDockBasic();
-    return;
-  }
-  let h = dockBtn('word','RIUNIONE PAROLA') + dockBtn('vote','RIUNIONE VOTO') + dockBtn('whis','SUSSURRI');
-  if(SYNC.med) h += dockBtn('seance','SÉANCE','',VIO);
-  if(SEC.role==='detective') h += dockBtn('scan','SCANSIONA','amb');
-  if(SEC.role==='assassino') h += dockBtn('sab','SABOTAGGIO','red') + dockBtn('kill','ELIMINA','red','',true);
-  const held = SYNC.ab;
-  if(held==='spalmatore') h += dockBtn('absp','SPALMATORE','',ABS.spalmatore.c);
-  if(held==='puttana')    h += dockBtn('abput','PUTTANA','',ABS.puttana.c);
-  if(held==='sparlatore') h += dockBtn('abspa','SPARLATORE','',ABS.sparlatore.c);
-  if(held==='gesu')       h += dockBtn('abgres','GESÙ: RESUSCITA','',ABS.gesu.c);
-  if(held==='merde')      h += dockBtn('abmres','MERDE: RESUSCITA','',ABS.merde.c);
-  d.innerHTML = h;
-  wireDockBasic();
-  if($('#db-seance')) $('#db-seance').onclick = ()=>{ SFX.click(); openAb('seance'); };
-  if($('#db-scan'))   $('#db-scan').onclick   = ()=>{ SFX.click(); openScan(); };
-  if($('#db-sab'))    $('#db-sab').onclick    = ()=>{ SFX.click(); openSab(); };
-  if($('#db-kill'))   $('#db-kill').onclick   = ()=>{ SFX.click(); openKill(); };
-  if($('#db-absp'))   $('#db-absp').onclick   = ()=>{ SFX.click(); openAb('spalmatore'); };
-  if($('#db-abput'))  $('#db-abput').onclick  = ()=>{ SFX.click(); openAb('puttana'); };
-  if($('#db-abspa'))  $('#db-abspa').onclick  = ()=>{ SFX.click(); openAb('sparlatore'); };
-  if($('#db-abgres')) $('#db-abgres').onclick = ()=>{ SFX.click(); openAb('gesu'); };
-  if($('#db-abmres')) $('#db-abmres').onclick = ()=>{ SFX.click(); openAb('merde'); };
-}
-function wireDockBasic(){
-  $('#db-word').onclick = ()=>{ SFX.click(); act({t:'meet', kind:'word'}); };
-  $('#db-vote').onclick = ()=>{ SFX.click(); act({t:'meet', kind:'vote'}); };
-  $('#db-whis').onclick = ()=>{ SFX.click(); openAb('whisper'); };
-}
-
-/* ═══ COOLDOWN PULSANTI ═══ */
-function setCd(key, until, label, baseOk){
-  const b = $('#db-'+key);
-  if(!b) return;
-  const now = Date.now()+clockOff, rem=(until||0)-now, s=b.querySelector('.sec');
-  b.querySelector('.lbl').textContent = label;
-  if(rem>0){ b.disabled=true; s.textContent=fmt(rem); }
-  else{ b.disabled=!baseOk; s.textContent=baseOk?'PRONTO':'—'; }
-}
-function updateDock(){
-  if(!PUB || PUB.phase!=='play') return;
-  const me = PUB.players.find(p => p.id === I.id);
-  if(!me || !me.alive) return;
-  const now = Date.now()+clockOff, free = !PUB.meeting;
-  setCd('word', SYNC.cdw, 'RIUNIONE PAROLA', free);
-  setCd('vote', SYNC.cdv, 'RIUNIONE VOTO', free);
-  const bw2 = $('#db-whis'); if(bw2) bw2.disabled = false;
-  const bse = $('#db-seance'); if(bse) bse.disabled = !free;
-  if(SEC.role==='detective'){
-    const b = $('#db-scan');
-    if(b){
-      const rem=(SYNC.scan||0)-now, chg=SYNC.chg||0, s=b.querySelector('.sec');
-      if(rem>0){ b.disabled=true; s.textContent=fmt(rem); }
-      else if(chg<=0){ b.disabled=true; s.textContent='0 ⚡'; }
-      else{ b.disabled=!free; s.textContent='⚡'+chg; }
-    }
-  }
-  if(SEC.role==='assassino'){
-    setCd('sab', SYNC.sab, 'SABOTAGGIO', free);
-    const b = $('#db-kill');
-    if(b){
-      const rem=(SYNC.kill||0)-now;
-      b.disabled = rem>0 || !free;
-      b.querySelector('.sec').textContent = rem>0 ? fmt(rem) : 'PRONTO';
-      const span = Math.max(CFG.KILL_CD, CFG.FIRST_KILL);
-      const prog = Math.max(0, Math.min(1, 1-rem/span));
-      const r = $('#killring');
-      if(r) r.style.strokeDashoffset = 163*(1-prog);
-    }
-  }
-  setCd('abput', SYNC.put, 'PUTTANA', free);
-  const bsp=$('#db-absp'); if(bsp) bsp.disabled=!free;
-  const bspa=$('#db-abspa'); if(bspa) bspa.disabled=!free;
-  const bg2=$('#db-abgres'); if(bg2) bg2.disabled=!free;
-  const bm2=$('#db-abmres'); if(bm2) bm2.disabled=!free;
-}
-
-/* ═══ RIUNIONI ═══ */
-function renderMeet(){
-  if(!PUB) return;
-  const m = PUB.meeting;
-  const me = PUB.players.find(p => p.id === I.id);
-  if(!m){ if(meetKey){ meetKey=''; hide($('#m-meet')); } return; }
-  if(me && (!me.alive && m.stage===1)){ hide($('#m-meet')); return; }
-  const key = m.kind + m.stage + m.endsAt;
-  if(key !== meetKey){ meetKey = key; buildMeet(m); }
-  const now = Date.now()+clockOff;
-  const tot = m.stage===1 ? (m.kind==='word'?CFG.WORD_TIME:CFG.VOTE_TIME) : (m.kind==='word'?CFG.WORD_SHOW:CFG.VOTE_REVEAL);
-  const bar = $('#meet-bar'); if(bar) bar.style.width = Math.max(0, Math.min(100,(m.endsAt-now)/tot*100))+'%';
-  const tm = $('#meet-timer'); if(tm) tm.textContent = fmt(m.endsAt-now);
-  const nn = $('#meet-n');
-  if(nn){
-    if(m.kind==='word') nn.textContent = m.n+'/'+m.tot+' parole';
-    else if(m.stage===1) nn.textContent = m.n+'/'+m.tot+' voti';
-  }
-  const ww = $('#word-who');
-  if(ww && m.kind==='word' && m.stage===1 && m.who){
-    ww.innerHTML = PUB.players.filter(p=>p.alive).map(p=>
-      m.who.indexOf(p.id)>=0
-        ? '<span class="wchip ok">✓ '+esc(p.name)+'</span>'
-        : '<span class="wchip pend">⏳ '+esc(p.name)+'</span>').join('');
-  }
-  const cd = $('#meet-count'); if(cd) cd.textContent = Math.max(0, Math.ceil((m.endsAt-now)/1000));
-}
-function buildMeet(m){
-  show($('#m-meet'));
-  SFX.meet();
-  const B = $('#meet-body');
-  if(m.kind==='word'){
-    if(m.stage===1){
-      B.innerHTML = '<h2 class="mt cyn">RIUNIONE PAROLA</h2><p class="sub">Indetta da <b>'+esc(m.byName)+
-        '</b> · Scrivi UNA parola collegata all\'argomento segreto.</p>'+
-        '<div id="wform" style="display:flex;gap:10px"><input class="inp" id="w-in" maxlength="24" placeholder="La tua parola…" autocomplete="off">'+
-        '<button class="btn" id="w-send">INVIA</button></div>'+
-        '<div class="wordwall" id="word-who" style="margin-top:14px"></div>'+
-        '<div class="meet-meta mono"><span id="meet-n"></span><span id="meet-timer"></span></div><div class="bar"><i id="meet-bar"></i></div>';
-      const sendW = ()=>{
-        const v = $('#w-in').value.trim();
-        if(!v) return;
-        SFX.ok();
-        act({t:'word', text:v});
-        $('#wform').outerHTML = '<div class="okbig">✓ PAROLA INVIATA — IN ATTESA DEGLI ALTRI</div>';
-        sentW = m.endsAt;
-      };
-      $('#w-send').onclick = sendW;
-      $('#w-in').onkeydown = e=>{ if(e.key==='Enter') sendW(); };
-      if(sentW===m.endsAt) $('#wform').outerHTML = '<div class="okbig">✓ PAROLA INVIATA — IN ATTESA DEGLI ALTRI</div>';
-    } else {
-      B.innerHTML = '<h2 class="mt cyn">PAROLE RIVELATE</h2><p class="sub">Ogni parola è firmata dal suo autore: chi sta bluffando?</p>'+
-        '<div class="wordwall">'+(m.words||[]).map(w=>'<span class="wchip"><b>'+esc(w.name)+':</b> '+esc(w.word)+'</span>').join('')+'</div>'+
-        '<div class="meet-meta mono"><span>Finestra di analisi</span><span id="meet-timer"></span></div><div class="bar"><i id="meet-bar"></i></div>';
-    }
-  } else {
-    if(m.stage===1){
-      const alive = PUB.players.filter(p=>p.alive && p.id!==I.id);
-      B.innerHTML = '<h2 class="mt red">VOTAZIONE DI ESPULSIONE</h2><p class="sub">Indetta da <b>'+esc(m.byName)+
-        '</b> · La maggioranza decide chi eliminare.</p><div class="vlist">'+
-        alive.map(p=>'<button class="vbtn" data-id="'+p.id+'">⬡ '+esc(p.name)+(p.q?' ⛔':'')+'</button>').join('')+
-        '<button class="vbtn skip" data-id="skip">SALTA VOTO</button></div>'+
-        '<div class="meet-meta mono"><span id="meet-n"></span><span id="meet-timer"></span></div><div class="bar red"><i id="meet-bar"></i></div>';
-      $$('#meet-body .vbtn').forEach(b=>b.onclick=()=>{
-        if(sentV===m.endsAt) return;
-        sentV = m.endsAt;
-        SFX.click();
-        act({t:'vote', tgt:b.dataset.id});
-        $$('#meet-body .vbtn').forEach(x=>x.classList.remove('pick'));
-        b.classList.add('pick');
-        const nn = $('#meet-n'); if(nn) nn.textContent='Voto inviato ✓';
-      });
-    } else {
-      B.innerHTML = '<h2 class="mt red">VERDETTO IN ARRIVO</h2><p class="sub">Rivelazione del ruolo tra…</p>'+
-        '<div class="bignum" id="meet-count">5</div>';
-    }
-  }
-}
-
-/* ═══ HEARTBEAT CLIENT (per il reaper disconnessioni) ═══
-   Manda un "ping" periodico così l'host sa che siamo vivi. */
-setInterval(()=>{
-  if(PUB && PUB.phase==='play'){ act({t:'ping'}); }
-}, CFG.CLIENT_PING);
+/* ═══ RUNE PER IL CODICE INCROCIATO ═══ */
+const RUNE_CHARS = ['ᚠ','ᚱ','ᛗ','ᛟ','ᚹ','','ᚦ',''];
