@@ -284,6 +284,19 @@ function renderLobby(){
 /* ═══ RENDER REGOLE ═══ */
 function renderRules(){
   if(!PUB) return;
+  /* ═══ FIX "HOST DIVENTA SPETTRO" (SCHERMATA REGOLE) ═══
+     Appena tutti confermano le regole, l'host assegna i ruoli e si applica
+     il proprio subito (vedi host.js → HrulesOk). Se per qualsiasi motivo
+     SEC.role risulta vuoto (es. un messaggio privato ha sovrascritto SEC),
+     qui lo ripristiniamo dall'oggetto G che l'host possiede localmente. */
+  if(isHost && G && !SEC.role){
+    const meP = G.players.find(p => p.id === I.id);
+    if(meP && meP.role){
+      SEC.role = meP.role;
+      SEC.word = meP.role==='assassino' ? null : G.word;
+      SEC.code = meP.code;
+    }
+  }
   const ok = PUB.players.filter(p=>p.rulesOk).length;
   $('#rules-status').textContent = 'Operatori pronti: '+ok+'/'+PUB.players.length;
   $('#btn-rules-ok').disabled = !!SEC._ok;

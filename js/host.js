@@ -359,6 +359,21 @@ function HcoopSubmitRunes(id, seq){
 /* ══════════════════════ AVVIAMENTO PARTITA ══════════════════════ */
 function Hstart(){
   if(!G || G.phase!=='lobby' || G.players.length<CFG.MIN || G.players.length>CFG.MAX) return;
+  /* ═══ FIX "HOST DIVENTA SPETTATORE" (PARTENZA) ═══
+     Prima di partire: ripulisci i fantasmi dal roster (chi non è più presente
+     nelle presenze, MAI il giocatore locale), rigenera i codici e riporta tutti
+     in vita. Così il conteggio "pronti" della schermata regole coincide sempre
+     con i giocatori che riceveranno il ruolo: se un nome sparisce dalla lista
+     dei pronti, l'host resta bloccato e chi è fuori vede gli altri "sparire". */
+  const present = new Set(roster().map(p => p.id));
+  G.players = G.players.filter(p => p.id === I.id || present.has(p.id));
+  if(!G.players.some(p => p.id === I.id)) G.players.unshift(mkPlayer(I.id, I.name || 'HOST'));
+  G.players.forEach(p => {
+    p.alive = true; p.deadBy = null; p.quarantined = false;
+    p.code = mkCode();
+    p.tasks = 0; p.task = null; p.ab = null; p.usedAbs = []; p.pendingAb = null;
+    p.isPuttana = false; p.rulesOk = false; p.revealOk = false;
+  });
   // Registro dei volti noti di questa partita: durante il gioco, chi è già
   // stato in partita non viene MAI retrocesso in sala d'attesa da un glitch
   // delle presenze realtime (vedi onPres in network.js).
@@ -379,6 +394,20 @@ function HrulesOk(id){
       p.role = p.id===ids[0] ? 'assassino' : p.id===ids[1] ? 'detective' : 'innocente';
       priv(p.id, {type:'init', role:p.role, word:p.role==='assassino'?null:G.word, code:p.code});
     });
+    /* ═══ SICUREZZA HOST (anti-spettro) ═══
+       L'host applica subito a sé stesso il proprio ruolo privato, senza
+       aspettare che il broadcast "priv" giri sul canale realtime e torni
+       indietro (se quel messaggio si perde, l'host resta senza SEC.role e
+       il gioco lo tratta come SPETTRO / spettatore).
+       ★ FIX PRINCIPALE: resetta anche SEC._ok, altrimenti al round successivo
+       renderRules() riempe SEC con {role:null} → chip "SPETTRO". */
+    const meP = G.players.find(x => x.id === I.id);
+    if(meP && isHost){
+      SEC = { role: meP.role, word: meP.role==='assassino' ? null : G.word,
+              code: meP.code, _ok:true };
+      SYNC = {}; SCANLIST = []; SCANCLUES = [];
+      myAlivePrev = true; myQPrev = false;
+    }
     G.phase='reveal';
   }
   broadcastNow();
