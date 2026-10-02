@@ -5,7 +5,7 @@
    ══════════════════════════════════════════════════════════════ */
 
 /* ═══ CREDENZIALI SUPABASE (OBBLIGATORIE) ═══ */
-const SB_URL = "https://xkvnwezcdvkrisqhuvhx.supabase.co/rest/v1/";
+const SB_URL = "https://xkvnwezcdvkrisqhuvhx.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhrdm53ZXpjZHZrcmlzcWh1dmh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA4NDgxNDksImV4cCI6MjEwNjQyNDE0OX0.-1QaeGq0lU8MsjtSUpLWwTRxpFzWxtxAK00BzLNC6Zg";
 
 /* ═══ PARAMETRI DI GIOCO ═══ */
