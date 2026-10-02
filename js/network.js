@@ -106,9 +106,35 @@ function onPres(){
     } else {
       /* ── IN PARTITA ── */
       const ids = new Set(r.map(p => p.id));
+
+      /* ═══ FIX BUG "HOST DIVENTA SPETTRO ALL'AVVIO DELLA PARTITA" ═══
+         L'id dell'host locale (I.id) DEVE essere sempre presente nel
+         roster delle presenze del canale. Se per un race di realtime
+         (track non ancora confermato al primo sync, oppure il client è
+         stato ricreato con un nuovo uid) l'host non compare nella lista
+         presenze, il codice sotto lo considererebbe "disconnesso" e lo
+         eliminerebbe → l'host si ritrova SPETTRO senza capire cosa sia
+         successo. Qui: (1) auto-ritrack di sicurezza, (2) mai
+         disconnectKill sull'host stesso, (3) auto-riammissione
+         nell'elenco giocatori se assente. */
+      const meTracked = r.some(p => p.id === I.id);
+      if(!meTracked){
+        try{ chan.untrack(); }catch(e){}
+        chan.track({ id: I.id, name: I.name, jAt: joinAt, host: true });
+      }
+
+      // (2)+(3) Il locale è l'host: non può mai essere eliminato come "disconnesso"
+      if(!G.players.some(p => p.id === I.id)){
+        G.players.push(mkPlayer(I.id, I.name || 'HOST'));
+        broadcastNow();
+      }
+      const meP = G.players.find(p => p.id === I.id);
+      if(meP && !meP.alive){ meP.alive = true; meP.deadBy = null; }
+
       // Chi si disconnette durante la partita viene eliminato come "disconnesso"
+      // (escludendo SEMPRE l'host locale, anche se momentaneamente assente dalle presenze)
       G.players.forEach(p => {
-        if(p.alive && !ids.has(p.id) && p.id !== I.id) disconnectKill(p);
+        if(p.alive && p.id !== I.id && !ids.has(p.id)) disconnectKill(p);
       });
       // ★ SALA D'ATTESA: chi entra a partita in corso NON diventa spettro.
       if(!G.waiting) G.waiting = [];
@@ -121,7 +147,8 @@ function onPres(){
         }
       });
       // Rimuovi dalla sala d'attesa chi si è disconnesso
-      G.waiting = G.waiting.filter(w => ids.has(w.id));
+      // (solo se la mia presenza è confermata, per non cancellare entry valide)
+      if(meTracked) G.waiting = G.waiting.filter(w => ids.has(w.id));
     }
   } else if(!isHost){
     /* ── MIGRAZIONE HOST (solo se la partita è in lobby) ── */
