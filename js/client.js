@@ -284,11 +284,11 @@ function renderLobby(){
 /* ═══ RENDER REGOLE ═══ */
 function renderRules(){
   if(!PUB) return;
-  /* ═══ FIX "HOST DIVENTA SPETTRO" (SCHERMATA REGOLE) ═══
+  /* ═══ SICUREZZA HOST (anti-spettro, ridondante con host.js→HrulesOk) ═══
      Appena tutti confermano le regole, l'host assegna i ruoli e si applica
-     il proprio subito (vedi host.js → HrulesOk). Se per qualsiasi motivo
-     SEC.role risulta vuoto (es. un messaggio privato ha sovrascritto SEC),
-     qui lo ripristiniamo dall'oggetto G che l'host possiede localmente. */
+     il proprio subito. Se per qualsiasi motivo SEC.role risulta vuoto (es.
+     un messaggio privato "init" si è perso sul canale realtime), qui lo
+     ripristiniamo dall'oggetto G che l'host possiede localmente. */
   if(isHost && G && !SEC.role){
     const meP = G.players.find(p => p.id === I.id);
     if(meP && meP.role){
@@ -299,25 +299,53 @@ function renderRules(){
   }
   const ok = PUB.players.filter(p=>p.rulesOk).length;
   $('#rules-status').textContent = 'Operatori pronti: '+ok+'/'+PUB.players.length;
-  $('#btn-rules-ok').disabled = !!SEC._ok;
-  $('#btn-rules-ok').textContent = SEC._ok ? '✓ IN ATTESA DEGLI ALTRI…' : '✓ HO LETTO E HO CAPITO';
+  // Il pulsante si disabilita SOLO quando la conferma è stata accettata
+  // dall'host (pubblicità in PUB): se il click è andato perso, resta attivo.
+  const btn = $('#btn-rules-ok');
+  const meP = PUB.players.find(p => p.id === I.id);
+  const confirmed = !!(meP && meP.rulesOk);
+  btn.disabled = confirmed;
+  btn.textContent = confirmed ? '✓ IN ATTESA DEGLI ALTRI…' : '✓ HO LETTO E HO CAPITO';
 }
 
 /* ═══ RENDER REVEAL (RUOLO) ═══ */
 function renderReveal(){
+  if(!PUB) return;
+  /* ═══ SICUREZZA HOST (anti-spettro) ═══
+     Se l'host non ha SEC.role (privato "init" perso), lo recupera da G. */
+  if(isHost && G && !SEC.role){
+    const meP = G.players.find(p => p.id === I.id);
+    if(meP && meP.role){
+      SEC.role = meP.role;
+      SEC.word = meP.role==='assassino' ? null : G.word;
+      SEC.code = meP.code;
+    }
+  }
+  const meP = PUB.players.find(p => p.id === I.id);
+  const ready = !!(meP && meP.revealOk);
+  const br = $('#btn-ready');
+  if(br){
+    br.disabled = ready;
+    br.textContent = ready ? '✓ IN ATTESA DELLO SCHIERAMENTO…' : '▸ SCHIERATI';
+  }
+  const st = $('#reveal-status');
+  if(st){
+    const ok = PUB.players.filter(p=>p.revealOk).length;
+    st.textContent = 'Operatori schierati: '+ok+'/'+PUB.players.length;
+  }
   if(!SEC.role) return;
   const r = ROLE[SEC.role];
   $('#role-card').className = 'rolecard cut panel '+SEC.role;
   $('#role-name').textContent = r.l;
   $('#role-name').style.color = r.c;
   $('#role-desc').textContent = SEC.role==='assassino'
-    ? 'Il SABOTAGGIO CODICI si sblocca dopo 30s (riuso 60s, resiste a 2 scan). UCCISIONE dopo 50s, ricarica 45s. La vittima vede una lettera casuale del tuo nome. NON conosci la parola segreta. Hai 2 SUSSURRI.'
+    ? 'Il SABOTAGGIO CODICI si sblocca dopo 30s (riuso 60s, resiste a 2 scan). UCCISIONE dopo 50s, ricarica 45s. La vittima vede una lettera casuale del tuo nome. NON conosci la parola segreta.'
     : SEC.role==='detective'
-    ? 'SCAN dopo 20s: 3 cariche (+1 ogni 2,5 min), ricarica 20s. Se leggi un codice = assassino → QUARANTENA, poi verifica. Hai 2 SUSSURRI.'
-    : 'Completa le task (una ogni 50s): possono essere SINGOLE, DI COPPIA o CRITICHE (6%). Puoi trovare ABILITÀ CASUALI. Hai 2 SUSSURRI.';
+    ? 'SCAN dopo 20s: 3 cariche (+1 ogni 2,5 min), ricarica 20s. Se leggi un codice = assassino → QUARANTENA, poi verifica.'
+    : 'Completa le task (una ogni 50s): possono essere SINGOLE, DI COPPIA o CRITICHE (6%). Puoi trovare ABILITÀ CASUALI.';
   $('#role-word').textContent = SEC.word || '??? — SCONOSCIUTA';
   $('#role-word').style.color = SEC.word ? 'var(--grn)' : 'var(--red)';
-  $('#role-code').textContent = SEC.code;
+  $('#role-code').textContent = SEC.code || '—';
 }
 
 /* ═══ RENDER GIOCO ═══ */
@@ -476,24 +504,52 @@ function buildTaskCard(me){
     const cn = COOPNAMES[me.task.id] || 'TASK DI COPPIA';
     let inner = '<div class="taskcard cut"><h3 style="color:var(--grn)">🤝 '+cn+' <span class="badge imp">DOPPIO</span></h3><p class="dim">'+(COOPDESC[me.task.id]||'')+'</p>';
     if(me.task.coopState==='needRequest'){
-      // Il giocatore che ha ricevuto la task doppia DEVE cliccare «SVOLGI TASK»
-      // e inviarla: solo allora un altro giocatore a random riceverà la
-      // notifica di svolgerla insieme con i minigiochi multiplayer.
+      // Fase 1: il giocatore clicca «SVOLGI TASK · INVIA». Da quel momento
+      // potrà SCEGLIERE il compagno dalla lista dei disponibili (fase 2).
       const rem = Math.max(0, (me.task.requestExpiresAt||0) - (Date.now()+clockOff));
       inner += '<p class="dim" style="margin-top:8px;max-width:100%">Svolgi questa task <b>DOPPIA</b> con un compagno.<br>'
-             + '<span class="mono dim" style="font-size:.7rem">⏳ Inviala entro '+fmt(rem)+' o partirà da sola la ricerca del compagno.</span></p>'
+             + '<span class="mono dim" style="font-size:.7rem">⏳ Inviala entro '+fmt(rem)+' o la task si annulla.</span></p>'
              + '<button class="btn grn" id="btn-task" style="margin-top:12px">✓ SVOLGI TASK · INVIA</button>';
     }
+    else if(me.task.coopState==='needPick'){
+      // Fase 2: SCHEDA DI SELEZIONE del compagno. I disponibili sono cliccabili;
+      // gli occupati/morti/in coppia/quarantena compaiono elencati COL MOTIVO
+      // («occupato · si libera a fine task»). Nessuna selezione automatica.
+      const rem = Math.max(0, (me.task.pickExpiresAt||0) - (Date.now()+clockOff));
+      const avail = (PUB.coopAvail && PUB.coopAvail[me.id]) || [];
+      const busy  = (PUB.coopBusy  && PUB.coopBusy[me.id])  || {};
+      const busyLabel = { 'occupato':'🔒 occupato · si libera a fine task',
+                          'task critica':'🔒 task critica in corso',
+                          'in coppia':'🔒 già in coppia',
+                          'invito in corso':'🔒 invito coop in corso',
+                          'quarantena':'⛔ quarantena', 'morto':'☠ spettro' };
+      inner += '<p class="dim" style="margin-top:8px">👥 Scegli il compagno con cui svolgere il minigioco:<br>'
+             + '<span class="mono dim" style="font-size:.7rem">⏳ Selezione disponibile per '+fmt(rem)+', poi la task si annulla.</span></p>';
+      if(avail.length){
+        inner += '<div class="vlist" style="margin-top:10px">'+avail.map(q=>'<button class="vbtn pickmate" data-id="'+q.id+'">⬡ '+esc(q.name)+'</button>').join('')+'</div>';
+      } else {
+        inner += '<p class="amb" style="margin-top:8px;font-size:.8rem">⚠ Nessun compagno libero adesso: appena qualcuno finisce la sua task potrai sceglierlo.</p>';
+      }
+      const busyIds = Object.keys(busy);
+      if(busyIds.length){
+        inner += '<div class="dim" style="margin-top:8px;font-size:.72rem;line-height:1.7">'+busyIds.map(qid=>{
+          const b = busy[qid];
+          return '· <b>'+esc(b.name)+'</b> — '+(busyLabel[b.why]||('🔒 '+b.why));
+        }).join('<br>')+'</div>';
+      }
+    }
     else if(me.task.coopState==='inviting'){
-      inner += '<p class="dim" style="margin-top:8px">⏳ Task inviata: in attesa che <b>'+esc((PUB.players.find(x=>x.id===me.task.partner)||{name:'un compagno'}).name)+'</b> accetti…</p>';
+      const pname = (PUB.players.find(x=>x.id===me.task.partner)||{name:'un compagno'}).name;
+      inner += '<p class="dim" style="margin-top:8px">📨 Invito inviato a <b>'+esc(pname)+'</b>: in attesa di ACCETTA/RIFIUTA…<br>'
+             + '<span class="mono dim" style="font-size:.7rem">Se rifiuta o non risponde, potrai scegliere un altro compagno.</span></p>';
     }
     else if(me.task.coopState==='active'){
       inner += '<p class="dim" style="margin-top:8px">🤝 In coppia con <b>'+esc((PUB.players.find(x=>x.id===me.task.partner)||{name:'il compagno'}).name)+'</b>: svolgete il minigioco insieme!</p>'
              + '<button class="btn grn" id="btn-task" style="margin-top:12px">APRI TASK DI COPPIA</button>';
     }
     else {
-      // needInvite: invito annullato (nessun compagno disponibile) o in ri-partenza
-      inner += '<p class="dim" style="margin-top:8px">↻ Task non inviata: riprova.</p>'
+      // needInvite residuale: invia e scegli comunque il compagno dalla lista
+      inner += '<p class="dim" style="margin-top:8px">↻ Task pronta: invia e scegli il compagno.</p>'
              + '<button class="btn grn" id="btn-task" style="margin-top:12px">✓ SVOLGI TASK · INVIA</button>';
     }
     inner += '</div>';
@@ -503,6 +559,13 @@ function buildTaskCard(me){
       if(me.task.coopState==='active') bt.onclick = ()=>openCoopGame();
       else bt.onclick = ()=>{ SFX.ok(); act({t:'coopRequest'}); };
     }
+    // Scelta manuale del compagno (fase needPick)
+    $$('#task-card .pickmate').forEach(b=>b.onclick=()=>{
+      if(b.disabled) return;
+      b.disabled = true;
+      SFX.ok();
+      act({t:'coopPick', pid:b.dataset.id});
+    });
     return;
   }
   // ── TASK SINGOLA (normale o critica) ──
