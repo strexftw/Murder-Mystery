@@ -22,7 +22,32 @@ function broadcastNow(){
       isP:p.isPuttana, put:p.puttanaReadyAt, deadBy:p.deadBy,
       med:(G.seanceState==='ready' && G.seanceMedium===p.id) };
     if(p.role==='assassino'){ o.kill=p.killReadyAt; o.sab=p.sabReadyAt; o.mask=G.spoof?G.spoof.code:null; }
-    if(p.role==='detective'){ o.scan=p.scanReadyAt; o.chg=p.scanCharges; o.chgAt=p.scanNextChargeAt; }
+    /* ═══ FIX DETECTIVE (HOST) ═══
+       L'host è anche un giocatore: i suoi «sync» privati gli vengono
+       recapitati da priv() in network.js. Se però la partita è stata creata
+       prima che il canale realtime fosse pronto, quel self-delivery può
+       perdersi e SYNC del detective resta vuoto → il pulsante SCANSIONA si
+       auto-blocca («0 ⚡ CARICHE ESAURITE») anche se le cariche ci sono.
+       Qui, quando il destinatario è il giocatore locale, applichiamo SUBITO
+       lo sync direttamente, senza passare dal canale. */
+    if(p.role==='detective'){
+      o.scan=p.scanReadyAt; o.chg=p.scanCharges; o.chgAt=p.scanNextChargeAt;
+      if(isHost && p.id===I.id){ try{ onMsg({k:'priv', to:p.id, ...o}); }catch(e){} }
+    }
+    /* ═══ FIX TASK DOPPA (HOST) ═══
+       Anche i messaggi coopStart / note vanno recapitati subito al
+       giocatore locale: se il canale realtime non consegna il broadcast al
+       proprio mittente, l'host che svolge una task doppia non vede mai il
+       minigioco aprirsi (né a lui né, in cascata, al compagno). */
+    if(isHost && p.id===I.id){
+      const sess = p.task && p.task.type==='coop' && p.task.coopSession ? G.coopSessions[p.task.coopSession] : null;
+      if(sess && !sess.done){
+        const other = byId(sess.a===p.id ? sess.b : sess.a);
+        onMsg({k:'priv', to:p.id, type:'coopStart', session:p.task.coopSession,
+               game:sess.type, partner:other?other.id:null,
+               partnerName:other?other.name:'', state:sess});
+      }
+    }
     priv(p.id, o);
   });
 
@@ -55,9 +80,21 @@ function broadcastNow(){
       nextAt: p.task ? 0 : p.lastTaskAt + CFG.TASK_EVERY
     })),
     coop: G.coopSessions, coopInvites: G.coopInvites,
+    /* ═══ FIX COMPAGNI VISIBILI ═══
+       Lista dei compagni disponibili per la task doppia, calcolata lato
+       host (che possiede i dati di sessione/invito) ed esportata per ogni
+       giocatore. Senza questa lista il client non può mostrare «con chi
+       puoi farla». */
+    coopAvail: {},
     ended: G.phase==='ended'
       ? G.players.map(p=>({name:p.name, role:p.role, tasks:p.tasks, alive:p.alive, isPuttana:p.isPuttana})) : null
   };
+  // Compila la mappa dei disponibili per ogni giocatore con una task doppia
+  G.players.forEach(p=>{
+    if(p.task && p.task.type==='coop'){
+      pub.coopAvail[p.id] = coopAvailablePartners(p).map(q=>({id:q.id, name:q.name}));
+    }
+  });
   send(pub);
   PUB = pub;
   onPub();
@@ -286,30 +323,44 @@ function killByStation(p){
   broadcastNow();
 }
 
-/* ═══ INVITO TASK DI COPPIA ═══ */
-function requestCoopInvite(p, now){
-  const candidates = G.players.filter(q => q.alive && !q.quarantined && q.id!==p.id && !q.task);
-  if(!candidates.length){
-    p.task = null;
-    addLog('↫ Task di coppia annullata: nessun compagno disponibile.', ABS.sparlatore.c);
-    priv(p.id, {type:'note', txt:'↫ Task di coppia annullata: nessun compagno disponibile.'});
-    return;
+/* ═══ COMPAGNI DISPONIBILI PER UNA TASK DOPPA ═══
+   Vivi, non in quarantena, senza task attiva e non già impegnati in una
+   sessione/invito coop: sono loro che compaiono nella lista di scelta. */
+function coopAvailablePartners(p){
+  const busy = new Set();
+  for(const k in G.coopSessions){
+    const s = G.coopSessions[k];
+    if(s && !s.done){ busy.add(s.a); busy.add(s.b); }
   }
-  const partner = pick(candidates);
+  for(const k in G.coopInvites){
+    const inv = G.coopInvites[k];
+    if(inv){ busy.add(inv.requester); busy.add(inv.partner); }
+  }
+  return G.players.filter(q => q.alive && !q.quarantined && q.id !== p.id &&
+                              !q.task && !busy.has(q.id));
+}
+
+/* ═══ INVITO TASK DI COPPIA (compagno SCELTO MANUALMENTE) ═══
+   Niente più abbinamenti a random: chi ha la task doppia apre la lista dei
+   compagni disponibili e invita quello che vuole. Se il scelto non risponde
+   entro COOP_INVITE_TIME, l'invito decade e si torna alla scelta (vedi
+   coopTick) — così non si crea «traffico» di inviti fantasma. */
+function sendCoopInviteTo(p, partner, now){
+  if(!partner) return false;
   const invId = p.id + '_' + now;
-  G.coopInvites[invId] = { requester:p.id, partner:partner.id, expiresAt:now+CFG.COOP_INVITE_TIME, base:p.task.id };
+  G.coopInvites[invId] = { requester:p.id, partner:partner.id, partnerName:partner.name,
+                           expiresAt:now+CFG.COOP_INVITE_TIME, base:p.task.id };
   p.task.partner = partner.id;
   p.task.coopState = 'inviting';
   p.task.inviteId = invId;
   priv(partner.id, {type:'coopInvite', from:p.id, fromName:p.name, inviteId:invId, base:p.task.id});
+  return true;
 }
 
-/* ═══ «SVOLGI TASK» SU UNA TASK DOPPA ═══
-   Il giocatore che ha ricevuto la task doppia clicca «SVOLGI TASK» e la
-   invia: solo a quel punto parte la ricerca del compagno → un altro
-   giocatore VIVO a random riceve la notifica (invito ACCETTA/RIFIUTA) per
-   svolgere la task insieme con i minigiochi multiplayer. Se nessuno accetta
-   entro COOP_INVITE_TIME, si riprova con un altro compagno casuale. */
+/* ═══ «SVOLGI TASK · INVIA» SU UNA TASK DOPPA ═══
+   Il giocatore clicca «SVOLGI TASK»: non viene abbinato a caso, ma entra
+   nella fase needPick — dalla card della task può vedere e SCEGLIERE il
+   compagno con cui fare il minigioco multiplayer. */
 function HcoopRequest(id){
   const p = byId(id), now = Date.now();
   if(!p || G.phase!=='play' || !p.alive || p.quarantined) return;
@@ -318,15 +369,28 @@ function HcoopRequest(id){
   if(p.task.coopState!=='needRequest') return;
   p.task.sentAt = now;
   p.task.requestExpiresAt = 0; // disarma la scadenza automatica della finestra
-  p.task.coopState = 'needInvite';
-  requestCoopInvite(p, now);
-  priv(p.id, {type:'note', txt:'🤝 Task inviata: in attesa che un compagno accetti…'});
+  p.task.coopState = 'needPick';
+  p.task.pickExpiresAt = now + CFG.COOP_PICK_WINDOW;
+  priv(p.id, {type:'note', txt:'🤝 Task inviata: scegli il compagno dalla lista!'});
   broadcastNow();
 }
-function advanceCoopPartner(requesterId){
-  const p = byId(requesterId);
-  if(!p || !p.task || p.task.type!=='coop') return;
-  requestCoopInvite(p, Date.now());
+
+/* ═══ SCELTA DEL COMPAGNO (dalla lista dei disponibili) ═══ */
+function HcoopPick(id, pid){
+  const p = byId(id), now = Date.now();
+  if(!p || G.phase!=='play' || !p.alive || p.quarantined) return;
+  if(!p.task || p.task.type!=='coop') return;
+  // Permetti la scelta anche dopo un invito scaduto/rifiutato (needPick);
+  // se sei già in «inviting» verso qualcuno, ignora i clic doppi.
+  if(p.task.coopState!=='needPick' && p.task.coopState!=='needRequest') return;
+  const partner = coopAvailablePartners(p).find(q => q.id === pid);
+  if(!partner){
+    priv(p.id, {type:'note', txt:'⚠ Compagno non più disponibile: scegline un altro.'});
+    return;
+  }
+  sendCoopInviteTo(p, partner, now);
+  priv(p.id, {type:'note', txt:'📨 Invito inviato a '+partner.name+'…'});
+  broadcastNow();
 }
 function acceptCoopInvite(inviteId, accept){
   const inv = G.coopInvites[inviteId];
@@ -336,7 +400,14 @@ function acceptCoopInvite(inviteId, accept){
   if(!requester || !partner || !requester.task) return;
   if(!accept){
     addLog('↫ Invito coop rifiutato da '+partner.name+'.', ABS.sparlatore.c);
-    advanceCoopPartner(requester.id);
+    // Si torna alla SCELTA manuale (niente rimbalzi a random): il
+    // richiedente può invitare un altro compagno dalla lista.
+    requester.task.coopState = 'needPick';
+    requester.task.partner = null;
+    requester.task.inviteId = null;
+    requester.task.pickExpiresAt = Date.now() + CFG.COOP_PICK_WINDOW;
+    priv(requester.id, {type:'note', txt:'↫ '+partner.name+' ha rifiutato: scegli un altro compagno.'});
+    broadcastNow();
     return;
   }
   const coopType = pick(COOP_TYPES);
@@ -925,6 +996,7 @@ function hostAct(o){
     case 'abChoice':   HabChoice(o.id, o.pick); break;
     case 'coopAccept': acceptCoopInvite(o.inviteId, o.accept); break;
     case 'coopRequest':HcoopRequest(o.id); break;
+    case 'coopPick':   HcoopPick(o.id, o.pid); break;
     case 'coopTap':    HcoopTap(o.id); break;
     case 'coopValve':  HcoopValve(o.id, o.vidx, o.pos); break;   /* ✅ corretto */
     case 'coopRunes':  HcoopSubmitRunes(o.id, o.seq); break;
