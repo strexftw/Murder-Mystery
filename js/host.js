@@ -16,6 +16,7 @@ function broadcastNow(){
   if(!chan){ setTimeout(()=>broadcastNow(), 500); return; }
   const now = Date.now();
 
+  // Sync privati (uno per giocatore)
   G.players.forEach(p => {
     const o = { type:'sync', cdw:p.cdw, cdv:p.cdv, ab:p.ab, used:p.usedAbs,
       isP:p.isPuttana, put:p.puttanaReadyAt, deadBy:p.deadBy,
@@ -25,6 +26,7 @@ function broadcastNow(){
     priv(p.id, o);
   });
 
+  // Riunione (pubblica)
   let meeting = null;
   if(G.meeting){
     const mm = G.meeting, alive = G.players.filter(p=>p.alive).length;
@@ -147,12 +149,12 @@ function coopTick(now){
       }
     }
   }
-  // Sessioni coop attive
+  // Sessioni coop attive (ponte energetico + controlli di sicurezza)
   for(const k in G.coopSessions){
     const s = G.coopSessions[k];
     if(!s || s.done) continue;
     const pa = byId(s.a), pb = byId(s.b);
-    // ★ SESSIONE SCIOLTA: membro morto/uscito/quarantenato
+    // ★ SESSIONE SCIOLTA: membro morto / uscito / quarantenato
     if(!pa || !pb || !pa.alive || !pb.alive || pa.quarantined || pb.quarantined){
       const why = (!pa || !pb) ? 'coppia uscita dalla partita'
         : (!pa.alive || !pb.alive) ? 'un membro della coppia è diventato spettro'
@@ -164,9 +166,9 @@ function coopTick(now){
     if(gtype==='ponte'){
       if(now >= s.endsAt){ s.done = true; coopComplete(s); }
       else if(s.energy <= 0){
-        /* ★ FIX CRITICO #4: prima cancellava la sessione lasciando i
-           task coop appesi ai due membri (card bloccata per sempre).
-           Ora coopAbort libera gli slot e notifica entrambi. */
+        /* ★ FIX CRITICO #4: prima cancellava la sessione lasciando i task
+           coop appesi ai due membri (card bloccata per sempre).
+           coopAbort libera gli slot e notifica entrambi. */
         s.done = true; s.fail = true;
         addLog('💥 PONTE ENERGETICO FALLITO: la barra si è svuotata.', ABS.sparlatore.c);
         coopAbort(k, s, pa, pb, 'ponte energetico esaurito');
@@ -175,7 +177,7 @@ function coopTick(now){
       }
     }
   }
-  /* ═══ SICUREZZA «APRI TASK DI COPPIA» (solo client host) ═══
+  /* ═══ SICUREZZA «APRI TASK DI COPPIA» (client host) ═══
      Se il client host non ha ricevuto coopStart, glielo rigeneriamo. */
   for(const k in G.coopSessions){
     const s = G.coopSessions[k];
@@ -227,7 +229,7 @@ function hostTick(){
   /* ★ FIX CRITICO #2 — REAPER DISCONNESSIONI:
      chi non dà segni di vita (ping client o azioni) da REAPER_TIMEOUT
      viene eliminato come disconnesso. Prima disconnectKill non era
-     chiamata da nessuno → riunioni bloccate per sempre. */
+     chiamata da nessuna parte → riunioni bloccate per sempre. */
   const cut = now - CFG.REAPER_TIMEOUT;
   G.players.forEach(p=>{
     if(p.alive && p.id !== I.id && (LASTSEEN[p.id] || 0) < cut) disconnectKill(p);
@@ -251,7 +253,7 @@ function hostTick(){
       if(p.task.coopState==='needRequest' && now >= p.task.requestExpiresAt){
         cancelTask(p);
         p.lastTaskAt = now;
-        priv(p.id, {type:'note', txt:"↫ Task doppia scaduta: non l'hai inviata."});
+        priv(p.id, {type:'note', txt:'↫ Task doppia scaduta: non l\'hai inviata.'});
         addLog('↫ '+p.name+' non ha inviato la task doppia: annullata.', ABS.sparlatore.c);
         broadcastNow();
         return;
@@ -421,7 +423,7 @@ function acceptCoopInvite(inviteId, accept){
     return;
   }
   const coopType = COOPNAMES[requester.task.id] ? requester.task.id : pick(COOP_TYPES);
-  /* ★ FIX #6: anche il richiedente mostra il nome/descrizione corretti */
+  /* ★ FIX #6: anche il richiedente mostra nome/descrizione del gioco coop */
   requester.task.id = coopType;
   const sessId = inviteId;
   const state = { gtype:coopType, a:requester.id, b:partner.id, done:false, fail:false };
@@ -509,6 +511,37 @@ function HcoopSubmitRunes(id, seq){
   broadcastNow();
 }
 
+/* ══════════════════════ GARANZIA ROSTER (fix conferme) ══════════════════════
+   Se un client manda rulesOk/revealOk ma il suo id non è ancora nel roster
+   host (sync presenze perso/ritardato, reload con nuovo id, ecc.), lo
+   registriamo al volo dalle presenze realtime: la conferma NON va persa. */
+function ensurePlayerInRoster(id){
+  let p = byId(id);
+  if(p) return p;
+  const r = (chan && typeof roster === 'function') ? roster().find(x => x.id === id) : null;
+  if(r){
+    p = mkPlayer(r.id, r.name || 'OPERATORE');
+    G.players.push(p);
+    addLog('🚪 '+p.name+' registrato nel roster al momento della conferma.');
+  } else {
+    addLog('⚠ Conferma ricevuta da un id sconosciuto e non presente: '+String(id).slice(0,8));
+  }
+  return p || null;
+}
+/* Rimuove i "giocatori fantasma" (reload / vecchi id / tab chiusi) durante
+   rules/reveal: altrimenti G.players.every(...) non si completa mai e la
+   partita non parte. Mantiene solo chi è presente O ha dato segni di vita
+   recenti (ping) O è l'host. */
+function pruneGhostPlayers(){
+  if(!chan) return;
+  const ids = new Set(roster().map(r => r.id));
+  const cut = Date.now() - 20000;
+  const before = G.players.length;
+  G.players = G.players.filter(p =>
+    p.id === I.id || ids.has(p.id) || (LASTSEEN[p.id] || 0) >= cut);
+  if(G.players.length !== before) broadcastNow();
+}
+
 /* ══════════════════════ AVVIAMENTO PARTITA ══════════════════════ */
 function Hstart(){
   if(!G || G.phase!=='lobby' || G.players.length<CFG.MIN || G.players.length>CFG.MAX) return;
@@ -523,36 +556,41 @@ function Hstart(){
   });
   G.seenInGame = {};
   G.players.forEach(p => { G.seenInGame[p.id] = 1; });
-  G.waiting = [];   // ★ la sala d'attesa del round precedente è ormai svuotata
+  G.waiting = [];   // la sala d'attesa del round precedente è ormai svuotata
   G.word = pick(WORDS);
   G.phase='rules';
   broadcastNow();
 }
 function HrulesOk(id){
-  const p = byId(id);
-  if(!p || G.phase!=='rules') return;
+  if(!G || G.phase !== 'rules') return;
+  pruneGhostPlayers();
+  const p = ensurePlayerInRoster(id);
+  if(!p) return;
   p.rulesOk = true;
-  if(G.players.every(x=>x.rulesOk)){
-    const ids = shuffle(G.players.map(p=>p.id));
-    G.players.forEach(p=>{
-      p.role = p.id===ids[0] ? 'assassino' : p.id===ids[1] ? 'detective' : 'innocente';
-      priv(p.id, {type:'init', role:p.role, word:p.role==='assassino'?null:G.word, code:p.code});
+  if(G.players.every(x => x.rulesOk)){
+    const ids = shuffle(G.players.map(p => p.id));
+    G.players.forEach(p => {
+      p.role = p.id === ids[0] ? 'assassino' : p.id === ids[1] ? 'detective' : 'innocente';
+      priv(p.id, {type:'init', role:p.role, word:p.role==='assassino' ? null : G.word, code:p.code});
     });
+    /* ═══ SICUREZZA HOST (anti-spettro): applica subito il proprio ruolo ═══ */
     const meP = G.players.find(x => x.id === I.id);
     if(meP && isHost){
-      SEC = { role: meP.role, word: meP.role==='assassino' ? null : G.word, code: meP.code };
+      SEC = { role: meP.role, word: meP.role==='assassino' ? null : G.word, code: meP.code, _ok:true };
       SYNC = {}; SCANLIST = []; SCANCLUES = [];
       myAlivePrev = true; myQPrev = false;
     }
-    G.phase='reveal';
+    G.phase = 'reveal';
   }
   broadcastNow();
 }
 function HrevealOk(id){
-  const p = byId(id);
-  if(!p || G.phase!=='reveal') return;
+  if(!G || G.phase !== 'reveal') return;
+  pruneGhostPlayers();
+  const p = ensurePlayerInRoster(id);
+  if(!p) return;
   p.revealOk = true;
-  if(G.players.every(x=>x.revealOk)) startPlay();
+  if(G.players.every(x => x.revealOk)) startPlay();
   broadcastNow();
 }
 function startPlay(){
@@ -948,4 +986,60 @@ function Hreset(){
     phase:'lobby', word:'', winner:null, reveal:null, meeting:null, spoof:null,
     banner:null, log:G.log, t0:0, whisperLog:{},
     coopSessions:{}, coopInvites:{},
-    puttanaActive:false, puttanaTimerAt:
+    puttanaActive:false, puttanaTimerAt:0, taskTarget:0,
+    seanceState:'charge', seanceCur:0, seanceContrib:[],
+    seanceMedium:null, seanceTarget:null, seanceVotes:{}, seanceEndsAt:0
+  });
+  addLog('↩ Tornati alla lobby.');
+  broadcastNow();
+}
+
+/* ══════════════════════ DISPATCHER AZIONI ══════════════════════ */
+function hostAct(o){
+  /* ★ REAPER: ogni azione/ping aggiorna l'ultima attività vista */
+  LASTSEEN[o.id] = Date.now();
+  switch(o.t){
+    case 'hi':
+      syncRosterFromPresence();
+      setTimeout(()=>broadcastNow(), 300);
+      setTimeout(()=>broadcastNow(), 1000);
+      break;
+    case 'ping':       break;   // solo keepalive (LASTSEEN già aggiornato)
+    case 'start':      Hstart(); break;
+    case 'rulesOk':    HrulesOk(o.id); break;
+    case 'revealOk':   HrevealOk(o.id); break;
+    case 'taskDone':   HtaskDone(o.id); break;
+    case 'kill':       Hkill(o.id, o.tgt); break;
+    case 'scan':       Hscan(o.id, o.tgt); break;
+    case 'sab':        Hsab(o.id, o.tgt); break;
+    case 'whisperOpen':HwhisperOpen(o.id, o.tgt); break;
+    case 'whisperMsg': HwhisperMsg(o.id, o.tgt, o.text); break;
+    case 'seanceTarget':HseanceTarget(o.id, o.tgt); break;
+    case 'seanceBallot':HseanceBallot(o.id, o.vote); break;
+    case 'abSpalm':    Hspalm(o.id, o.tgt); break;
+    case 'abPutt':     Hputt(o.id, o.tgt); break;
+    case 'abSpar':     Hspar(o.id, o.tgt); break;
+    case 'abGesuRev':  HabGesuRev(o.id, o.tgt); break;
+    case 'abMerdeRev': HabMerdeRev(o.id, o.tgt); break;
+    case 'abMerde':    Hmerde(o.id); break;
+    case 'abChoice':   HabChoice(o.id, o.pick); break;
+    case 'coopAccept': acceptCoopInvite(o.inviteId, o.accept); break;
+    case 'coopRequest':HcoopRequest(o.id); break;
+    case 'coopPick':   HcoopPick(o.id, o.pid); break;
+    case 'coopTap':    HcoopTap(o.id); break;
+    case 'coopValve':  HcoopValve(o.id, o.vidx, o.pos); break;
+    case 'coopRunes':  HcoopSubmitRunes(o.id, o.seq); break;
+    case 'meet':       Hmeet(o.id, o.kind); break;
+    case 'word':       Hword(o.id, o.text); break;
+    case 'vote':       Hvote(o.id, o.tgt); break;
+    case 'reset':      Hreset(); break;
+  }
+}
+
+/* ═══ INVIO AZIONE (usata da tutti i client) ═══ */
+function act(o){
+  o.k = 'act';
+  o.id = I.id;
+  if(isHost) hostAct(o);
+  else send(o);
+}
