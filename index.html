@@ -26,6 +26,7 @@ body{
   color:var(--ink);font-family:'Rajdhani',sans-serif;font-size:17px;overflow:hidden;
   user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;
 }
+/* ═══ MODALITÀ SPETTRO (viola) ═══ */
 body.deadmode{background:radial-gradient(1100px 700px at 85% -10%,#26093a 0%,transparent 60%),
   radial-gradient(900px 650px at -10% 110%,#1a0f33 0%,transparent 55%),#070410;}
 body.deadmode .panel{border-color:rgba(194,107,255,.45);background:rgba(20,8,34,.82)}
@@ -165,6 +166,7 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif}
 .vbtn{font-family:'Rajdhani';font-weight:600;font-size:1.05rem;letter-spacing:.08em;text-align:left;color:var(--ink);background:rgba(255,255,255,.04);border:1px solid var(--line);padding:14px 16px;cursor:pointer;transition:.15s;min-height:52px;touch-action:manipulation}
 .vbtn:hover,.vbtn:active{border-color:var(--cyan);background:rgba(56,225,255,.1)}
 .vbtn.pick{border-color:var(--red);background:rgba(255,59,92,.16)}
+.vbtn.pickmate{border-color:var(--grn);background:rgba(61,255,160,.08)}
 .vbtn.skip{color:var(--dim);border-style:dashed}
 .meet-meta{display:flex;justify-content:space-between;margin:14px 0 6px;font-size:.7rem;color:var(--dim)}
 .wordwall{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:18px 0}
@@ -175,6 +177,46 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif}
 .wchip.pend{border-color:var(--line);color:var(--dim);border-style:dashed;background:transparent}
 .wchip.pend b{color:var(--dim)}
 .bignum{font-family:'Orbitron';font-weight:900;font-size:4.5rem;text-align:center;color:var(--red);text-shadow:0 0 30px rgba(255,59,92,.6)}
+/* ═══ GRAFICA TASK DI COPPIA ═══ */
+.coopbar{height:34px;border:1px solid var(--grn);background:rgba(61,255,160,.06);overflow:hidden;position:relative;margin:14px 0}
+.coopbar>i{display:block;height:100%;background:linear-gradient(90deg,var(--grn),#b4ffd9);transition:width .1s}
+.coopbar .lbl{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Orbitron';font-size:.7rem;letter-spacing:.2em;color:var(--ink)}
+.runesrow{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:14px 0}
+.rune-cell{width:56px;height:56px;border:1px solid var(--vio);display:flex;align-items:center;justify-content:center;font-size:1.6rem;background:rgba(194,107,255,.08)}
+.rune-cell.hidden-r{color:var(--dim);border-style:dashed;background:rgba(255,255,255,.02)}
+.valves{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}
+.valve{border:1px solid var(--line);padding:8px;text-align:center}
+.valve .needle-wrap{height:90px;position:relative;background:rgba(255,255,255,.04);overflow:hidden}
+.valve .zone{position:absolute;left:0;right:0;background:rgba(61,255,160,.25);border-top:1px dashed var(--grn);border-bottom:1px dashed var(--grn)}
+.valve .needle{position:absolute;left:0;right:0;height:3px;background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+.valve button{width:100%;margin-top:6px;min-height:36px;font-size:.7rem;font-family:'Orbitron';color:var(--cyan);border:1px solid var(--cyan);background:rgba(56,225,255,.06);cursor:pointer}
+.valve.done{opacity:.5}
+/* ═══ GRAFICA TASK SPETTRO ═══ */
+.g-info{font-family:'Orbitron';font-size:.7rem;letter-spacing:.15em;color:var(--vio);text-align:center;margin:12px 0}
+.g-ouija{position:relative;height:74px;border:1px solid rgba(194,107,255,.5);margin:10px 0;overflow:hidden;background:linear-gradient(90deg,rgba(194,107,255,.06),rgba(0,0,0,.55),rgba(194,107,255,.06))}
+.oj-zone{position:absolute;top:0;bottom:0;background:rgba(255,59,92,.28);border-left:1px dashed var(--red);border-right:1px dashed var(--red);box-shadow:inset 0 0 18px rgba(255,59,92,.35)}
+.oj-mark{position:absolute;top:50%;transform:translate(-50%,-50%);font-size:1.7rem;filter:drop-shadow(0 0 12px var(--vio))}
+.g-candles{display:flex;gap:14px;justify-content:center;margin:16px 0}
+.candle{width:56px;height:88px;border:1px solid var(--line);background:rgba(255,255,255,.03);cursor:pointer;position:relative;transition:.2s}
+.candle b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:2rem;opacity:.45}
+.candle i{position:absolute;top:4px;left:50%;transform:translateX(-50%);width:12px;height:18px;border-radius:50% 50% 40% 40%;opacity:0}
+.candle.lit{border-color:var(--amber);box-shadow:0 0 24px rgba(255,182,72,.35)}
+.candle.lit b{opacity:1}
+.candle.lit i{opacity:1;background:radial-gradient(circle at 50% 70%,#fff3c4,#ffb648 60%,transparent);animation:flick .3s infinite alternate}
+@keyframes flick{from{transform:translateX(-50%) scale(1)}to{transform:translateX(-54%) scale(1.3)}}
+.g-arena{position:relative;height:250px;border:1px solid rgba(194,107,255,.45);overflow:hidden;background:radial-gradient(circle at 50% 65%,rgba(194,107,255,.1),rgba(0,0,0,.6))}
+.soul{position:absolute;font-size:1.9rem;background:none;border:none;cursor:pointer;padding:6px;filter:drop-shadow(0 0 14px var(--vio));animation:floaty 1.5s ease-in-out infinite}
+@keyframes floaty{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-9px) rotate(3deg)}}
+.g-runes{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:min(300px,100%);margin:14px auto}
+.rune{height:88px;border-radius:14px;border:2px solid var(--vio);color:var(--vio);background:rgba(194,107,255,.05);font-size:2.1rem;cursor:pointer;transition:.08s}
+.rune.lit{background:rgba(194,107,255,.42);box-shadow:0 0 28px var(--vio);color:#fff}
+.g-seals{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}
+.seal{height:92px;border:1px solid var(--line);background:rgba(255,255,255,.03);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;font-size:1.7rem}
+.seal .sc{font-family:'Orbitron';font-size:.6rem;color:var(--dim)}
+.seal.hit{border-color:var(--red);box-shadow:0 0 16px rgba(255,59,92,.45)}
+.seal.done{border-color:var(--grn);opacity:.45;cursor:default}
+.seal.done b{text-decoration:line-through}
+/* ═══ CHAT PRIVATA ═══ */
 #pchat{position:fixed;right:12px;bottom:12px;z-index:70;width:min(360px,calc(100vw - 24px));height:min(420px,70vh);display:flex;flex-direction:column;background:rgba(6,14,26,.94);border:1px solid var(--cyan);backdrop-filter:blur(8px);clip-path:polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px);box-shadow:0 0 30px rgba(56,225,255,.15)}
 .pch-tabs{display:flex;gap:4px;padding:6px;border-bottom:1px solid var(--line);overflow-x:auto;flex:none}
 .pch-tab{font-family:'Orbitron';font-size:.6rem;letter-spacing:.1em;color:var(--dim);background:rgba(255,255,255,.04);border:1px solid var(--line);padding:6px 9px;cursor:pointer;white-space:nowrap;min-height:30px}
@@ -192,6 +234,7 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif}
 .pch-input .btn{min-height:40px;padding:.4rem .9rem}
 #pch-fab{position:fixed;right:14px;bottom:14px;z-index:70;width:56px;height:56px;border-radius:50%;background:rgba(6,14,26,.94);border:1px solid var(--cyan);color:var(--cyan);font-size:1.4rem;cursor:pointer;box-shadow:0 0 20px rgba(56,225,255,.35);display:flex;align-items:center;justify-content:center}
 #pch-fab .ub{position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;font-family:'Orbitron';font-size:.55rem;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px}
+/* ═══ MINIGIOCHI CLASSICI ═══ */
 .circ{position:relative;display:flex;justify-content:space-between;min-height:280px;padding:10px 0}
 .circ svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .ccol{display:flex;flex-direction:column;gap:20px;z-index:2}
@@ -208,7 +251,7 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif}
 .sline{position:absolute;top:0;bottom:0;width:2px;background:var(--cyan);opacity:.5}
 .sl{left:40px}.sr{right:40px}
 .card7{position:absolute;top:26px;left:0;width:96px;height:58px;background:linear-gradient(135deg,#123,#1b3a56);border:1px solid var(--cyan);display:flex;align-items:center;justify-content:center;font-family:'Orbitron';font-size:.65rem;letter-spacing:.1em;color:var(--cyan);cursor:grab;touch-action:none}
-.simon{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:min(300px,100%);margin:14px auto}
+.simon{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:min(280px,100%);margin:14px auto}
 .pad{height:96px;border:1px solid var(--line);background:rgba(255,255,255,.04);cursor:pointer;transition:.1s;touch-action:manipulation;min-height:70px}
 .p0{border-color:#38e1ff}.p1{border-color:#ffb648}.p2{border-color:#ff3b5c}.p3{border-color:#3dffa0}
 .pad.lit{background:currentColor}
@@ -225,10 +268,11 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif}
 .rescard.badq .big{color:var(--red)}
 .scanfx{text-align:center;padding:14px}
 .bar.wide{margin:16px auto;max-width:340px}
+/* ═══ BANNER / OVERLAY ═══ */
 #banner{position:fixed;inset:0;z-index:80;display:none;place-items:center;pointer-events:none;text-align:center;padding:0 16px}
 #banner.on{display:grid}
 #banner span{font-family:'Orbitron';font-weight:900;font-size:clamp(1rem,4vw,2.6rem);letter-spacing:.18em;animation:popIn .3s;text-shadow:0 0 30px currentColor;background:rgba(2,6,12,.82);padding:22px 34px;border:1px solid;max-width:90vw;word-break:break-word}
-#banner.cyan span{color:var(--cyan)}#banner.red span{color:var(--red)}#banner.amber span{color:var(--amber)}#banner.pink span{color:var(--pink)}#banner.violet span{color:var(--vio)}
+#banner.cyan span{color:var(--cyan)}#banner.red span{color:var(--red)}#banner.amber span{color:var(--amber)}#banner.pink span{color:var(--pink)}#banner.violet span{color:var(--vio)}#banner.grn span{color:var(--grn)}
 #jump{position:fixed;inset:0;z-index:99;background:#000;display:none;place-items:center;overflow:hidden}
 #jump.on{display:grid;animation:shake .12s 8}
 #jump-face{width:min(70vw,420px);animation:jf .9s ease-out}
@@ -262,9 +306,7 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif}
   .title-grid{grid-template-columns:1fr}
   .slots{grid-template-columns:repeat(2,1fr)}
   #topbar{gap:10px;padding:calc(6px + var(--sat)) 12px 6px}
-  #topbar .logo{font-size:.75rem}
-  #topbar .stat{font-size:.6rem}
-  #topbar .stat b{font-size:.85rem}
+  #topbar .logo{font-size:.75rem}#topbar .stat{font-size:.6rem}#topbar .stat b{font-size:.85rem}
 }
 @media(max-width:600px){
   html{font-size:15px}body{font-size:16px}
@@ -294,6 +336,8 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif}
   .corner{display:none}.slotcard{height:100px}
   .wchip{padding:8px 12px;font-size:.8rem}
   #pchat{width:calc(100vw - 24px);height:min(360px,60vh)}
+  .valves{grid-template-columns:repeat(2,1fr)}
+  .g-candles{gap:8px}.candle{width:46px;height:74px}
 }
 @media(max-width:380px){
   html{font-size:14px}
@@ -343,7 +387,7 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif}
       <div class="sysline">NODO SICURO // SISTEMA DI DEDUZIONE SOCIALE v2.7</div>
       <h1 class="glitch" data-t="PROTOCOLLO OMBRA">PROTOCOLLO<br>OMBRA</h1>
       <div class="bootlog" id="bootlog"></div>
-      <p class="dim" style="max-width:480px;line-height:1.5">Un assassino si nasconde tra gli operatori della stazione. Task singole, task di coppia, task critiche, sussurri, séance, quarantena e abilità casuali.</p>
+      <p class="dim" style="max-width:480px;line-height:1.5">Un assassino si nasconde tra gli operatori della stazione. Task singole, di coppia e critiche, sussurri, séance, quarantena e abilità casuali.</p>
     </div>
     <div class="panel cut tcard">
       <div class="phead" style="margin:-26px -26px 10px">ACCESSO OPERATORE</div>
@@ -391,17 +435,25 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif}
       </ul>
       <h3>◆ TASK: SINGOLE, DI COPPIA, CRITICHE</h3>
       <ul>
-        <li><b>SINGOLE</b>: le completi da solo. <b>🚨 6%</b> diventano CRITICHE: 30s, se scadono sei eliminato (anche l'assassino).</li>
-        <li><b>COPPIA</b>: invito ACCETTA/RIFIUTA (20s) a un compagno casuale. Task: PONTE ENERGETICO, CODICE INCROCIATO, VALVOLE GEMELLE.</li>
+        <li><b>SINGOLE</b>: le completi da solo. <b>🚨 6%</b> diventano CRITICHE: 30s, se scadono vieni eliminato dalla stazione (vale anche per l'assassino).</li>
+        <li><b>DI COPPIA</b>: invii la task, scegli un compagno, lui accetta (20s) e giocate insieme un minigioco coop. +1 barra a testa.</li>
+        <li><b>SPETTRO</b>: i morti completano rituali horror per caricare la SÉANCE.</li>
       </ul>
       <h3>◆ VITTORIA</h3>
       <ul>
-        <li><b>Innocenti</b>: espellono l'assassino o completano la BARRA STAZIONE.</li>
+        <li><b>Innocenti</b>: espellono l'assassino (voto / verifica quarantena / spalmatore) o completano la BARRA STAZIONE (8×giocatori).</li>
         <li><b>Assassino</b>: resta con al massimo un altro giocatore in vita.</li>
       </ul>
-      <h3>◆ QUARANTENA / ASSASSINO / DETECTIVE / PUTTANA / ABILITÀ / SUSSURRI / RIUNIONI</h3>
+      <h3>◆ QUARANTENA</h3>
+      <ul><li>Scan con codice = assassino → quarantena (niente task/abilità). Verifica del Detective (legge il codice REALE): corrisponde → vittoria · pulito → rilascio.</li></ul>
+      <h3>◆ ASSASSINO / DETECTIVE / PUTTANA / ABILITÀ / SUSSURRI / RIUNIONI</h3>
       <ul>
-        <li>Leggi le regole complete nel briefing precedente. Quarantena, Puttana, abilità, sussurri e riunioni funzionano come prima.</li>
+        <li>Assassino: sabotaggio codici (30s, riuso 60s, resiste 2 scan), kill (50s, ricarica 45s), lettera alla vittima.</li>
+        <li>Detective: scan 20s, 3 cariche, archivio aggiornato, quarantena e verifica.</li>
+        <li>Puttana: promozione segreta ogni 30s a chi ha più task (innocenti vivi); resuscita ogni 4 min.</li>
+        <li>Abilità: SPALMATORE · SPARLATORE · GESÙ · MERDE (max 1, tieni/sostituisci).</li>
+        <li>Sussurri: chat privata illimitata, apertura annunciata, contenuto segreto.</li>
+        <li>Riunioni Parola e Voto ogni 2 minuti.</li>
       </ul>
     </div>
     <div style="text-align:center;margin-top:20px">
@@ -553,13 +605,11 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif}
 <div id="cfg-warn"><div class="mbox panel cut">
   <h2 class="mt red">⚠ CONFIGURAZIONE MANCANTE</h2>
   <p class="sub">Apri <b>js/config.js</b> e incolla in cima:<br>
-  1. <b>SB_URL</b> → il Project URL di Supabase<br>2. <b>SB_KEY</b> → la chiave <i>anon public</i><br>
+  1. <b>SB_URL</b> → il Project URL di Supabase<br>2. <b>SB_KEY</b> → la chiave <i>anon public</i>.<br>
   Le trovi in Supabase → Project Settings → API. Poi ricarica la pagina.</p>
 </div></div>
 
-<!-- Supabase SDK (CDN) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<!-- File del gioco: ordine di caricamento importante (config prima, main ultimo) -->
 <script src="js/config.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/audio.js"></script>

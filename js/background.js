@@ -1,43 +1,35 @@
 /* ══════════════════════════════════════════════════════════════
    PROTOCOLLO OMBRA — js/background.js
-   Sfondo stellato animato su canvas (#bg).
-   Le stelle cambiano colore quando si è in "deadmode" (spettri).
-   Dipendenze: utils.js ($), state.js (lettura body class).
+   Sfondo stellato + loop principale (contatori/refresh UI throttled).
    ══════════════════════════════════════════════════════════════ */
 
-/* ═══ RIFERIMENTO CANVAS ═══ */
 const bg = $('#bg');
 const bx = bg.getContext('2d');
-
-/* ═══ LISTA STELLE ═══ */
 let stars = [];
 
-/* Ridimensiona il canvas e rigenera le stelle */
 function bgInit(){
   bg.width  = innerWidth;
   bg.height = innerHeight;
   stars = [];
   for(let i = 0; i < 140; i++){
     stars.push({
-      x:  Math.random() * bg.width,
-      y:  Math.random() * bg.height,
-      z:  Math.random() + .2,          // velocità di deriva
-      r:  Math.random() * 1.5 + .3,    // raggio stella
-      tw: Math.random() * 6.28         // fase di scintillio
+      x: Math.random() * bg.width,
+      y: Math.random() * bg.height,
+      z: Math.random() + .2,
+      r: Math.random() * 1.5 + .3,
+      tw: Math.random() * 6.28
     });
   }
 }
 addEventListener('resize', bgInit);
 bgInit();
 
-/* Disegna un frame dello sfondo */
 function bgDraw(ts){
   bx.clearRect(0, 0, bg.width, bg.height);
-  // Le stelle diventano viola quando il giocatore è uno spettro (deadmode)
   const dead = document.body.classList.contains('deadmode');
   const col  = dead ? '#d9b8ff' : '#9fdcff';
   for(const s of stars){
-    s.y -= s.z * .06;                  // deriva lenta verso l'alto
+    s.y -= s.z * .06;
     if(s.y < 0) s.y = bg.height;
     bx.globalAlpha = .25 + .6 * Math.abs(Math.sin(ts/900 + s.tw));
     bx.fillStyle = col;
@@ -48,9 +40,9 @@ function bgDraw(ts){
   bx.globalAlpha = 1;
 }
 
-/* ═══ LOOP PRINCIPALE DI GIOCO ═══
-   Oltre allo sfondo, aggiorna contatori e contatori di ricarica.
-   (Le funzioni render/update sono definite in client.js)      */
+/* ★ FIX PERFORMANCE: refresh UI pesante max 5 volte al secondo */
+let lastUiTick = 0;
+
 function loop(ts){
   requestAnimationFrame(loop);
   bgDraw(ts);
@@ -58,22 +50,24 @@ function loop(ts){
   const now = Date.now() + clockOff;
 
   if(PUB.phase === 'play'){
-    // Orologio di partita
     $('#g-clock').textContent = fmt(now - PUB.t0);
-    // Conto alla rovescia della prossima task per il giocatore corrente
     const me = PUB.players.find(p => p.id === I.id);
     if(me && me.alive && !me.task && !me.q){
       const n = $('#nextin');
       if(n) n.textContent = fmt((me.nextAt || 0) - now);
     }
-    updateDock();
+    if(ts - lastUiTick > 200){
+      lastUiTick = ts;
+      updateDock();
+      renderMeetTimers(now);
+    }
+  } else if(PUB.meeting && ts - lastUiTick > 200){
+    lastUiTick = ts;
     renderMeetTimers(now);
   }
-  if(PUB.meeting) renderMeetTimers(now);
 }
 requestAnimationFrame(loop);
 
-/* ═══ CONTATORI DELLE RIUNIONI ═══ */
 function renderMeetTimers(now){
   const m = PUB.meeting;
   if(!m) return;

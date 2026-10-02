@@ -9,20 +9,16 @@
 function openTask(tid){
   if(!tid) return;
   const me = PUB && PUB.players.find(p => p.id === I.id);
-  // Task DOPPA in attesa di essere inviata: il pulsante «SVOLGI TASK» della
-  // card gestisce l'invio (coopRequest), non apre nessun minigioco singolo.
+  // Task DOPPIA: il pulsante della card gestisce l'invio (coopRequest);
+  // qui apriamo il minigioco solo se la coppia è già attiva.
   if(me && me.alive && me.task && typeof me.task==='object' && me.task.type==='coop'){
-    if(me.task.coopState==='needRequest' || me.task.coopState==='needInvite' || me.task.coopState==='inviting'){
-      SFX.ok(); act({t:'coopRequest'});
-      banner('🤝 Task doppia inviata: in attesa di un compagno…', 'grn', 3000);
-      return;
-    }
-    openCoopGame();
+    if(me.task.coopState==='needRequest'){ SFX.ok(); act({t:'coopRequest'}); return; }
+    if(me.task.coopState==='active'){ openCoopGame(); }
     return;
   }
   const ghost = me && !me.alive;
   $('#task-title').textContent = ghost ? (GNAME[tid]||'RITUALE') : ((TASKS.find(t=>t.id===tid)||{}).name || 'TASK');
-  $('#task-desc').textContent = ghost ? (GDESC[tid]||'') : ((TASKS.find(t=>t.id===tid)||{}).desc || '');
+  $('#task-desc').textContent  = ghost ? (GDESC[tid]||'') : ((TASKS.find(t=>t.id===tid)||{}).desc || '');
   $('#task-msg').textContent = '';
   $('#task-stage').innerHTML = '';
   show($('#m-task'));
@@ -371,27 +367,24 @@ const GGAMES = {
 function openCoopGame(){
   if(!myCoopState) return;
   const sessId = myCoopState.session;
-  // ★ Il campo del gioco è «game» (rinominato da «type»: type è il
-  // discriminante del messaggio, valeva 'coopStart' e non apriva nulla).
-  // Fallback: stato di sessione broadcastato in PUB.coop.
   const s0 = (PUB && PUB.coop) ? PUB.coop[sessId] : null;
   const type = myCoopState.game || myCoopState.gtype ||
-               (s0 ? (s0.gtype || (['ponte','codice','valvole'].includes(s0.type) ? s0.type : '')) : '');
+    (s0 ? (s0.gtype || (['ponte','codice','valvole'].includes(s0.type) ? s0.type : '')) : '');
   $('#ab-body').innerHTML = '';
   show($('#m-ab'));
   SFX.coop();
-  if(type==='ponte')   coopPonte(sessId);
-  else if(type==='codice') coopCodice(sessId);
+  if(type==='ponte')        coopPonte(sessId);
+  else if(type==='codice')  coopCodice(sessId);
   else if(type==='valvole') coopValvole(sessId);
-  else coopSync(sessId); // stato non ancora sincronizzato: riprova da solo
+  else coopSync(sessId);
 }
 
-/* ═══ SINCRONIZZAZIONE SESSIONE COOP ═══
-   Se il broadcast della sessione (PUB.coop) o il coopStart non sono ancora
-   arrivati, il minigioco mostra «Sincronizzazione…» e ritenta per ~5s,
-   invece di chiudere il modal a vuoto. */
+/* ═══ SINCRONIZZAZIONE SESSIONE COOP (retry) ═══ */
 function coopSync(sessId){
   let tries = 0;
+  const B = $('#ab-body');
+  B.innerHTML = '<h2 class="mt" style="color:var(--grn)">🤝 TASK DI COPPIA</h2>'+
+    '<p class="dim" style="margin-top:14px">⏳ Sincronizzazione con il compagno…</p>';
   const iv = setInterval(()=>{
     tries++;
     const s = (PUB && PUB.coop) ? PUB.coop[sessId] : null;
@@ -405,14 +398,11 @@ function coopSync(sessId){
       else if(gtype==='valvole') coopValvole(sessId);
       return;
     }
-    if(tries>=17){ clearInterval(iv); hide($('#m-ab')); banner('↫ Sessione coop non trovata: attendi la task card e riapri.', 'amber', 4000); }
+    if(tries>=17){ clearInterval(iv); hide($('#m-ab')); banner('↫ Sessione coop non trovata: riapri dalla task card.', 'amber', 4000); }
   }, 300);
-  const B = $('#ab-body');
-  B.innerHTML = '<h2 class="mt" style="color:var(--grn)">🤝 TASK DI COPPIA</h2>'+
-    '<p class="dim" style="margin-top:14px">⏳ Sincronizzazione con il compagno…</p>';
 }
 
-/* ── PONTE ENERGETICO: martellate insieme sulla barra ── */
+/* ── PONTE ENERGETICO ── */
 function coopPonte(sessId){
   const B=$('#ab-body');
   B.innerHTML = '<h2 class="mt" style="color:var(--grn)">⚡ PONTE ENERGETICO</h2>'+
@@ -422,7 +412,6 @@ function coopPonte(sessId){
     '<button class="btn ghost" id="cp-close" style="margin-top:12px;width:100%">CHIUDI</button>';
   $('#cp-tap').onclick=()=>{ SFX.tick(); act({t:'coopTap'}); };
   $('#cp-close').onclick=()=>hide($('#m-ab'));
-  // Aggiorna la barra leggendo lo stato broadcastato
   const iv=setInterval(()=>{
     if(!PUB || !PUB.coop || !PUB.coop[sessId] || !$('#m-ab').classList.contains('on')){ clearInterval(iv); return; }
     const s=PUB.coop[sessId];
@@ -433,14 +422,13 @@ function coopPonte(sessId){
   },200);
 }
 
-/* ── CODICE INCROCIATO: ognuno vede metà rune ── */
+/* ── CODICE INCROCIATO ── */
 function coopCodice(sessId){
   const B=$('#ab-body');
   const s=(PUB && PUB.coop && PUB.coop[sessId]) ? PUB.coop[sessId] : null;
   if(!s){ hide($('#m-ab')); return; }
   const isA=(I.id===s.a);
   const runes=s.runes||[];
-  // Mostra metà rune (la tua metà), nascondi l'altra metà
   let cells='';
   for(let i=0;i<runes.length;i++){
     const mine = isA ? (i%2===0) : (i%2===1);
@@ -459,22 +447,19 @@ function coopCodice(sessId){
     act({t:'coopRunes', seq:seq});
   };
   $('#cp-close').onclick=()=>hide($('#m-ab'));
-  // Chiudi quando la sessione è completata
   const iv=setInterval(()=>{
     if(!PUB || !PUB.coop || !PUB.coop[sessId] || !$('#m-ab').classList.contains('on')){ clearInterval(iv); return; }
-    const s2=PUB.coop[sessId];
-    if(s2.done){ clearInterval(iv); hide($('#m-ab')); }
+    if(PUB.coop[sessId].done){ clearInterval(iv); hide($('#m-ab')); }
   },300);
 }
 
-/* ── VALVOLE GEMELLE: ferma le lancette in zona ── */
+/* ── VALVOLE GEMELLE ── */
 function coopValvole(sessId){
   const B=$('#ab-body');
   const s=(PUB && PUB.coop && PUB.coop[sessId]) ? PUB.coop[sessId] : null;
   if(!s){ hide($('#m-ab')); return; }
   const isA=(I.id===s.a);
   const valves=s.valves||[];
-  // Costruisci le valvole
   let html='<h2 class="mt" style="color:var(--grn)">🔧 VALVOLE GEMELLE</h2>'+
     '<p class="sub">Ferma ogni lancetta nella zona verde. Entrambi i giocatori devono fermarla.</p>'+
     '<div class="valves">';
@@ -492,7 +477,6 @@ function coopValvole(sessId){
   B.innerHTML=html;
   $('#cp-close').onclick=()=>hide($('#m-ab'));
 
-  // Animazione delle lancette (lato client, oscillano)
   const startT=performance.now();
   function anim(){
     if(!$('#m-ab').classList.contains('on')) return;
@@ -500,7 +484,6 @@ function coopValvole(sessId){
     for(let i=0;i<valves.length;i++){
       const nd=$('#nd'+i);
       if(!nd) continue;
-      // Oscillazione: posizione tra 5 e 95
       const pos=50+45*Math.sin(elapsed*(1.2+i*0.3));
       nd.style.bottom=pos+'%';
       nd.dataset.pos=pos;
@@ -509,7 +492,6 @@ function coopValvole(sessId){
   }
   requestAnimationFrame(anim);
 
-  // Pulsanti FERMA
   for(let i=0;i<valves.length;i++){
     const btn=$('#vb'+i);
     if(btn) btn.onclick=()=>{
@@ -519,7 +501,6 @@ function coopValvole(sessId){
       act({t:'coopValve', vidx:i, pos:pos});
     };
   }
-  // Aggiorna lo stato delle valvole dal broadcast
   const iv=setInterval(()=>{
     if(!PUB || !PUB.coop || !PUB.coop[sessId] || !$('#m-ab').classList.contains('on')){ clearInterval(iv); return; }
     const s2=PUB.coop[sessId];

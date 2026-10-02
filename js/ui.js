@@ -1,13 +1,11 @@
 /* ══════════════════════════════════════════════════════════════
    PROTOCOLLO OMBRA — js/ui.js
-   Gestione UI interattiva: apertura modali d'azione (scan/kill/sab/abilità),
+   Gestione UI interattiva: modali d'azione (scan/kill/sab/abilità),
    chat privata, jumpscare, hack, fine partita, collegamento pulsanti.
+   QUI vivono (canonicali): showScanRes, showSeanceVote, showCoopInvite,
+   chat, doJump, doHack, renderEnd. (Rimosse da client.js.)
    Dipendenze: config.js, utils.js, audio.js, state.js, client.js.
    ══════════════════════════════════════════════════════════════ */
-
-/* ══════════════════════════════════════════════════
-   MODALI D'AZIONE
-   ══════════════════════════════════════════════════ */
 
 /* ── SCAN (detective) ── */
 function openScan(){
@@ -55,8 +53,7 @@ function showScanRes(m){
   } else {
     SFX.ok();
     inner = '<h2 class="mt amb">ESITO SCANSIONE</h2><div class="rescard cut">'+
-      '<div class="big">✓ CODICE PULITO</div>'+
-      '<div class="mono" style="font-size:.8rem">OPERATORE: '+esc(m.target)+'</div>'+
+      '<div class="big">✓ CODICE PULITO</div><div class="mono" style="font-size:.8rem">OPERATORE: '+esc(m.target)+'</div>'+
       '<div class="mono" style="font-size:.8rem;margin:8px 0">CODICE LETTO: <b class="oc">'+esc(m.code)+'</b></div>'+
       '<div class="mono" style="font-size:.8rem">TASK: <b>'+m.tasks+'</b></div>'+
       '<div class="mono amb" style="font-size:.8rem;margin-top:8px">⚡ CARICHE RIMASTE: '+m.chg+'</div></div>';
@@ -100,13 +97,11 @@ function openSab(){
   show($('#m-sab'));
 }
 
-/* ── ABILITÀ / SÉANCE / SUSSURRI (apri bersaglio) ── */
+/* ── ABILITÀ / SÉANCE / SUSSURRI ── */
 function openAb(kind){
   if(!PUB) return;
   const B = $('#ab-body');
-  // Sussurri → apre la lista contatti
   if(kind==='whisper'){ openWhisperList(); return; }
-  // Séance → il medio sceglie il sospetto
   if(kind==='seance'){
     const alive = PUB.players.filter(p=>p.alive && p.id!==I.id);
     B.innerHTML = '<h2 class="mt" style="color:'+VIO+'">🕯 LA SÉANCE</h2><p class="sub">Su chi interroghi gli spiriti? Tutti i morti voteranno SÌ/NO.</p>'+
@@ -117,7 +112,6 @@ function openAb(kind){
     show($('#m-ab'));
     return;
   }
-  // Resurrezioni (puttana / gesu / merde)
   if(kind==='puttana' || kind==='gesu' || kind==='merde'){
     let dead;
     if(kind==='puttana'||kind==='gesu') dead = PUB.players.filter(p=>!p.alive && (p.deadBy==='kill'||p.deadBy==='spalm'));
@@ -139,8 +133,7 @@ function openAb(kind){
     show($('#m-ab'));
     return;
   }
-  // Spalmatore / Sparlatore (scelgono un vivo)
-  const alive = PUB.players.filter(p=>p.alive && p.id!==I.id);
+  const alive = PUB.players.filter(p=>p.alive && p.id!==I.id && !p.q);
   const col = kind==='spalmatore' ? ABS.spalmatore.c : ABS.sparlatore.c;
   const title = kind==='spalmatore' ? 'LO SPALMATORE PAZZO' : 'LO SPARLATORE';
   const sub = kind==='spalmatore'
@@ -203,7 +196,6 @@ function updateFab(){
     else ub.classList.add('hidden');
   } else fab.classList.add('hidden');
 }
-/* Lista contatti per aprire un sussurro */
 function openWhisperList(){
   const B = $('#ab-body');
   const alive = PUB.players.filter(p=>p.alive && p.id!==I.id);
@@ -330,11 +322,9 @@ function renderEnd(){
 }
 
 /* ══════════════════════════════════════════════════
-   COLLEGAMENTO PULSANTI (init UI)
-   Chiamata da main.js all'avvio.
+   COLLEGAMENTO PULSANTI (initUI) — chiamata da main.js
    ══════════════════════════════════════════════════ */
 function initUI(){
-  // Titolo
   $('#btn-create').onclick = ()=>{
     if(!SB) return;
     const n = validName();
@@ -349,7 +339,7 @@ function initUI(){
       puttanaActive:false, puttanaTimerAt:0, taskTarget:0,
       seanceState:'charge', seanceCur:0, seanceContrib:[],
       seanceMedium:null, seanceTarget:null, seanceVotes:{}, seanceEndsAt:0,
-      waiting:[],
+      waiting:[], seenInGame:{},
       players:[mkPlayer(I.id, n)]
     };
     PUB = { phase:'lobby', code:ROOM, t0:0, winner:null, reveal:null, banner:null, meeting:null,
@@ -381,7 +371,7 @@ function initUI(){
   $('#btn-rules-ok').onclick = ()=>{ SFX.ok(); act({t:'rulesOk'}); };
   $('#btn-ready').onclick = ()=>{ SFX.ok(); $('#btn-ready').disabled=true; act({t:'revealOk'}); };
   $('#btn-eye').onclick = ()=>{ wordHidden=!wordHidden; updateWord(); SFX.click(); };
-  $('#btn-mute').onclick = ()=>{ MUTE=!MUTE; $('#btn-mute').textContent=MUTE?'🔇':'🔊'; if(AMB)AMB.gain.value=MUTE?0:.03; };
+  $('#btn-mute').onclick = ()=>{ MUTE=!MUTE; $('#btn-mute').textContent=MUTE?'🔇':''; if(AMB)AMB.gain.value=MUTE?0:.03; };
   $('#btn-quit').onclick = ()=>location.reload();
   $('#btn-again').onclick = ()=>{ if(isHost){ SFX.ok(); resetClientRound(); lastTaskKey=''; lastDockKey=''; act({t:'reset'}); } };
   $('#inp-code').addEventListener('keydown', e=>{ if(e.key==='Enter') $('#btn-join').click(); });

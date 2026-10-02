@@ -1,7 +1,9 @@
 /* ══════════════════════════════════════════════════════════════
    PROTOCOLLO OMBRA — js/client.js
-   Rendering lato client: lobby, regole, reveal, gioco, chat,
-   banner, task card, dock, riunioni, séance, fine partita.
+   Rendering lato client: lobby, regole, reveal, gioco, banner,
+   task card, dock, riunioni.
+   NOTA: le funzioni UI interattive (modali, chat, jump, end) vivono
+   in js/ui.js per evitare duplicati.
    Dipendenze: config.js, utils.js, audio.js, state.js.
    ══════════════════════════════════════════════════════════════ */
 
@@ -86,27 +88,18 @@ function onPriv(m){
       banner('🤝 TASK DI COPPIA con '+m.partnerName+'!', 'cyan', 3000);
       SFX.coop();
       break;
-    /* ═══ coopOpen: il minigioco multiplayer si APRE AUTOMATICAMENTE su
-       ENTRAMBI gli schermi dopo l'accettazione dell'invito. Se la pagina
-       è in background e il modal non si apre, resta il pulsante
-       «APRI TASK DI COPPIA» nella task card (e la sicurezza coopTick del
-       host rigenera il coopStart finché manca). ═══ */
     case 'coopOpen':
       if(!myCoopState || myCoopState.session !== m.session){
         const s0 = (PUB && PUB.coop) ? PUB.coop[m.session] : null;
         if(s0){
           const otherId = (I.id === s0.a) ? s0.b : s0.a;
           const other = PUB.players.find(x => x.id === otherId) || {name:'il compagno'};
-          myCoopState = {type:'coopStart', session:m.session, game:(s0.gtype||s0.type),
-                         partner:otherId, partnerName:other.name, state:s0};
+          myCoopState = { type:'coopStart', session:m.session, game:(s0.gtype||s0.type),
+            partner:otherId, partnerName:other.name, state:s0 };
         }
       }
-      if(myCoopState && myCoopState.session === m.session){
-        openCoopGame();
-      }
+      if(myCoopState && myCoopState.session === m.session){ openCoopGame(); }
       break;
-    /* ═══ coopEnd: fine (o interruzione) della sessione → il modal del
-       minigioco si chiude DA SOLO su entrambi gli schermi. ═══ */
     case 'coopEnd':
       if(myCoopState && (!m.session || myCoopState.session === m.session)){
         myCoopState = null;
@@ -165,7 +158,7 @@ function onPub(){
   if(p.reveal && p.reveal.at !== seenReveal){
     seenReveal = p.reveal.at;
     const r = p.reveal;
-    banner(r.name+' ERA '+(r.role==='assassino'?"L'ASSASSINO":r.role==='detective'?'IL DETECTIVE':'INNOCENTE'),
+    banner(r.name+' ERA '+(r.role==='assassino' ? "L'ASSASSINO" : r.role==='detective' ? 'IL DETECTIVE' : 'INNOCENTE'),
       r.role==='assassino' ? 'red' : r.role==='detective' ? 'amber' : 'cyan');
     SFX.reveal();
   }
@@ -217,7 +210,6 @@ function banner(txt, tone, dur){
   if(bannerTimer) clearTimeout(bannerTimer);
   bannerTimer = setTimeout(()=>hide(b), dur || 3200);
 }
-// alias usato in network.js
 function showBanner(txt, tone){ banner(txt, tone); }
 
 /* ═══ ABILITÀ TROVATA (con fuochi) ═══ */
@@ -245,7 +237,7 @@ function showFound(ab, oldAb){
   const ch = $('#found-choice');
   if(oldAb && ABS[oldAb]){
     foundLock = true;
-    $('#found-title').textContent = '🎉 HAI TROVATO UN\'ABILITÀ — MA NE HAI GIÀ UNA!';
+    $('#found-title').textContent = "🎉 HAI TROVATO UN'ABILITÀ — MA NE HAI GIÀ UNA!";
     ch.classList.remove('hidden');
     $('#found-old').innerHTML = '<b style="color:'+ABS[oldAb].c+'">'+ABS[oldAb].n+'</b><br><span style="font-size:.9rem">'+ABS[oldAb].d+'</span>';
     $('#found-keep').textContent = '✓ TENGO: '+ABS[oldAb].n;
@@ -264,20 +256,6 @@ function showFound(ab, oldAb){
   }
   show($('#found'));
   SFX.found();
-}
-
-/* ═══ INVITO TASK DI COPPIA ═══ */
-function showCoopInvite(m){
-  const B = $('#invite-body');
-  B.innerHTML = '<h2 class="mt" style="color:var(--grn)">🤝 INVITO TASK DI COPPIA</h2>'+
-    '<p class="sub"><b>'+esc(m.fromName)+'</b> ti invita a fare una <b>task di coppia</b>.<br>Accetti? (hai 20 secondi)</p>'+
-    '<div style="display:flex;gap:12px;justify-content:center">'+
-    '<button class="btn grn" id="inv-yes">✓ ACCETTA</button>'+
-    '<button class="btn red" id="inv-no">✗ RIFIUTA</button></div>';
-  $('#inv-yes').onclick = ()=>{ SFX.ok(); act({t:'coopAccept', inviteId:m.inviteId, accept:true}); hide($('#m-invite')); };
-  $('#inv-no').onclick  = ()=>{ SFX.err(); act({t:'coopAccept', inviteId:m.inviteId, accept:false}); hide($('#m-invite')); };
-  show($('#m-invite'));
-  SFX.coop();
 }
 
 /* ═══ RENDER LOBBY ═══ */
@@ -299,25 +277,21 @@ function renderLobby(){
   $('#btn-start').style.display = isHost ? '' : 'none';
   $('#btn-start').disabled = !can;
 
-  // ★ SALA D'ATTESA: se sei in attesa (non in partita), mostra il messaggio d'attesa
+  // ★ SALA D'ATTESA (apostrofo escape → niente SyntaxError)
   const inGame = PUB && PUB.players.some(x => x.id === I.id);
   if(PUB && PUB.phase!=='lobby' && !inGame){
-    $('#lobby-wait').textContent = '🕒 Sei in SALA D\'ATTESA: entrerai alla prossima partita.';
+    $('#lobby-wait').textContent = "🕒 Sei in SALA D'ATTESA: entrerai alla prossima partita.";
     return;
   }
   $('#lobby-wait').textContent = isHost
     ? (n<CFG.MIN ? 'Servono almeno '+CFG.MIN+' giocatori per iniziare.' : 'Pronto al lancio.')
-    : 'In attesa che l\'host avvii la partita…';
+    : "In attesa che l'host avvii la partita…";
 }
 
 /* ═══ RENDER REGOLE ═══ */
 function renderRules(){
   if(!PUB) return;
-  /* ═══ SICUREZZA HOST (anti-spettro, ridondante con host.js→HrulesOk) ═══
-     Appena tutti confermano le regole, l'host assegna i ruoli e si applica
-     il proprio subito. Se per qualsiasi motivo SEC.role risulta vuoto (es.
-     un messaggio privato "init" si è perso sul canale realtime), qui lo
-     ripristiniamo dall'oggetto G che l'host possiede localmente. */
+  // Safety host anti-spettro: recupera SEC.role da G se il priv "init" si è perso
   if(isHost && G && !SEC.role){
     const meP = G.players.find(p => p.id === I.id);
     if(meP && meP.role){
@@ -328,8 +302,6 @@ function renderRules(){
   }
   const ok = PUB.players.filter(p=>p.rulesOk).length;
   $('#rules-status').textContent = 'Operatori pronti: '+ok+'/'+PUB.players.length;
-  // Il pulsante si disabilita SOLO quando la conferma è stata accettata
-  // dall'host (pubblicità in PUB): se il click è andato perso, resta attivo.
   const btn = $('#btn-rules-ok');
   const meP = PUB.players.find(p => p.id === I.id);
   const confirmed = !!(meP && meP.rulesOk);
@@ -340,8 +312,6 @@ function renderRules(){
 /* ═══ RENDER REVEAL (RUOLO) ═══ */
 function renderReveal(){
   if(!PUB) return;
-  /* ═══ SICUREZZA HOST (anti-spettro) ═══
-     Se l'host non ha SEC.role (privato "init" perso), lo recupera da G. */
   if(isHost && G && !SEC.role){
     const meP = G.players.find(p => p.id === I.id);
     if(meP && meP.role){
@@ -368,10 +338,10 @@ function renderReveal(){
   $('#role-name').textContent = r.l;
   $('#role-name').style.color = r.c;
   $('#role-desc').textContent = SEC.role==='assassino'
-    ? 'Il SABOTAGGIO CODICI si sblocca dopo 30s (riuso 60s, resiste a 2 scan). UCCISIONE dopo 50s, ricarica 45s. La vittima vede una lettera casuale del tuo nome. NON conosci la parola segreta.'
+    ? "Il SABOTAGGIO CODICI si sblocca dopo 30s (riuso 60s, resiste a 2 scan). UCCISIONE dopo 50s, ricarica 45s. La vittima vede una lettera casuale del tuo nome. NON conosci la parola segreta."
     : SEC.role==='detective'
-    ? 'SCAN dopo 20s: 3 cariche (+1 ogni 2,5 min), ricarica 20s. Se leggi un codice = assassino → QUARANTENA, poi verifica.'
-    : 'Completa le task (una ogni 50s): possono essere SINGOLE, DI COPPIA o CRITICHE (6%). Puoi trovare ABILITÀ CASUALI.';
+    ? "SCAN dopo 20s: 3 cariche (+1 ogni 2,5 min), ricarica 20s. Se leggi un codice = assassino → QUARANTENA, poi verifica."
+    : "Completa le task (una ogni 50s): possono essere SINGOLE, DI COPPIA o CRITICHE (6%). Puoi trovare ABILITÀ CASUALI.";
   $('#role-word').textContent = SEC.word || '??? — SCONOSCIUTA';
   $('#role-word').style.color = SEC.word ? 'var(--grn)' : 'var(--red)';
   $('#role-code').textContent = SEC.code || '—';
@@ -383,7 +353,6 @@ function renderGame(){
   const me = PUB.players.find(p => p.id === I.id);
   if(!me) return;
 
-  // Alla morte, chiudi i modali e attiva la deadmode
   if(me.alive !== myAlivePrev){
     closeActionModals();
     if(!me.alive) hideChatPanel();
@@ -423,24 +392,20 @@ function renderGame(){
   const se = PUB.seance;
   if(se){
     sl.classList.remove('hidden');
-    if(se.state==='charge')          sl.innerHTML='🕯 SÉANCE: '+se.cur+'/'+se.need+' (rituali degli spettri)';
-    else if(se.state==='ready')      sl.innerHTML='🕯 SÉANCE: <b>PRONTA</b> — il Medio è stato scelto in segreto';
-    else                             sl.innerHTML='🕯 GLI SPIRITI SI CONSULTANO SU <b>'+esc(se.target||'…')+'</b>…';
+    if(se.state==='charge')      sl.innerHTML='🕯 SÉANCE: '+se.cur+'/'+se.need+' (rituali degli spettri)';
+    else if(se.state==='ready')  sl.innerHTML='🕯 SÉANCE: <b>PRONTA</b> — il Medio è stato scelto in segreto';
+    else                         sl.innerHTML='🕯 GLI SPIRITI SI CONSULTANO SU <b>'+esc(se.target||'…')+'</b>…';
   } else sl.classList.add('hidden');
 
-  const dockKey = (me.alive?'1':'0')+'|'+(SEC.role||'')+'|'+(SYNC.ab||'')+'|'+(SYNC.deadBy||'')+'|'+(SYNC.isP?'P':'')+'|'+(SYNC.med?'M':'');
+  const dockKey = (me.alive?'1':'0')+'|'+(me.q?'Q':'')+'|'+(SEC.role||'')+'|'+(SYNC.ab||'')+'|'+(SYNC.deadBy||'')+'|'+(SYNC.isP?'P':'')+'|'+(SYNC.med?'M':'');
   if(dockKey !== lastDockKey){ lastDockKey = dockKey; buildDock(); }
 
   const key = me.task+'|'+me.alive+'|'+(me.q?'q':'')+'|'+((me.task&&me.task.coopState)||'')
-            /* ★ La scheda della task doppia viene RICOSTRUITA a ogni tick (~1s)
-               durante tutta la fase di scelta: countdown scorrevoli sempre
-               aggiornati e lista compagni in tempo reale (chi può / chi non
-               può e perché), grazie anche all'heartbeat del host. */
-            +((me.task && me.task.type==='coop' &&
-               (me.task.coopState==='needPick' || me.task.coopState==='needRequest'))
-              ? '|'+Math.floor(Date.now()/900) : '')
-            +((me.task && me.task.type==='coop')
-              ? '|'+JSON.stringify((PUB.coopAvail&&PUB.coopAvail[me.id])||[])+JSON.stringify((PUB.coopBusy&&PUB.coopBusy[me.id])||{}) : '');
+    +((me.task && me.task.type==='coop' &&
+       (me.task.coopState==='needPick' || me.task.coopState==='needRequest'))
+       ? '|'+Math.floor(Date.now()/900) : '')
+    +((me.task && me.task.type==='coop')
+       ? '|'+JSON.stringify((PUB.coopAvail&&PUB.coopAvail[me.id])||[])+JSON.stringify((PUB.coopBusy&&PUB.coopBusy[me.id])||{}) : '');
   if(key !== lastTaskKey){ lastTaskKey = key; buildTaskCard(me); }
 
   $('#g-taskcount').textContent = me.tasks+' ✓';
@@ -521,15 +486,16 @@ function buildTaskCard(me){
       const c = ABS.merde.c;
       dh += '<button class="btn big" id="db-abmer" style="margin-top:12px;color:'+c+';border-color:'+c+'">🔥 SONO TORNATO MERDE</button>';
     }
-    if(me.task && GNAME[me.task]){
-      dh += '<div class="taskcard cut" style="margin-top:12px"><h3>▸ '+GNAME[me.task]+'</h3><p class="dim">'+GDESC[me.task]+
+    /* ★ FIX CRITICO #1: me.task è un OGGETTO → usare me.task.id come chiave */
+    if(me.task && GNAME[me.task.id]){
+      dh += '<div class="taskcard cut" style="margin-top:12px"><h3>▸ '+GNAME[me.task.id]+'</h3><p class="dim">'+GDESC[me.task.id]+
             '</p><button class="btn" id="btn-task" style="margin-top:12px">COMPII IL RITUALE</button></div>';
     } else {
       dh += '<div class="taskcard cut dim" style="margin-top:12px">In attesa della prossima task spettro…</div>';
     }
     tc.innerHTML = dh;
     const bm = $('#db-abmer'); if(bm) bm.onclick = ()=>{ SFX.click(); act({t:'abMerde'}); };
-    const bt = $('#btn-task'); if(bt) bt.onclick = ()=>openTask(me.task);
+    const bt = $('#btn-task'); if(bt) bt.onclick = ()=>openTask(me.task.id);
     return;
   }
   // ── QUARANTENA ──
@@ -537,32 +503,25 @@ function buildTaskCard(me){
     tc.innerHTML = '<div class="deadnote">⛔ IN QUARANTENA — task e abilità sospese<br><span style="font-size:.7rem">in attesa di verifica del Detective</span></div>';
     return;
   }
-  // ── TASK DI COPPIA (DOPPIA) ──
+  // ── TASK DI COPPIA ──
   if(me.task && typeof me.task==='object' && me.task.type==='coop'){
     const cn = COOPNAMES[me.task.id] || 'TASK DI COPPIA';
     let inner = '<div class="taskcard cut"><h3 style="color:var(--grn)">🤝 '+cn+' <span class="badge imp">DOPPIO</span></h3><p class="dim">'+(COOPDESC[me.task.id]||'')+'</p>';
     if(me.task.coopState==='needRequest'){
-      // Fase 1: il giocatore clicca «SVOLGI TASK · INVIA». Da quel momento
-      // potrà SCEGLIERE il compagno dalla lista dei disponibili (fase 2).
       const rem = Math.max(0, (me.task.requestExpiresAt||0) - (Date.now()+clockOff));
-      inner += '<p class="dim" style="margin-top:8px;max-width:100%">Svolgi questa task <b>DOPPIA</b> con un compagno.<br>'
-             + '<span class="mono dim" style="font-size:.7rem">⏳ Inviala entro '+fmt(rem)+' o la task si annulla.</span></p>'
-             + '<button class="btn grn" id="btn-task" style="margin-top:12px">✓ SVOLGI TASK · INVIA</button>';
+      inner += '<p class="dim" style="margin-top:8px">Svolgi questa task <b>DOPPIA</b> con un compagno.<br>'+
+        '<span class="mono dim" style="font-size:.7rem">⏳ Inviala entro '+fmt(rem)+' o la task si annulla.</span></p>'+
+        '<button class="btn grn" id="btn-task" style="margin-top:12px">✓ SVOLGI TASK · INVIA</button>';
     }
     else if(me.task.coopState==='needPick'){
-      // Fase 2: SCHEDA DI SELEZIONE del compagno. I disponibili sono cliccabili;
-      // gli occupati/morti/in coppia/quarantena compaiono elencati COL MOTIVO
-      // («occupato · si libera a fine task»). Nessuna selezione automatica.
       const rem = Math.max(0, (me.task.pickExpiresAt||0) - (Date.now()+clockOff));
       const avail = (PUB.coopAvail && PUB.coopAvail[me.id]) || [];
       const busy  = (PUB.coopBusy  && PUB.coopBusy[me.id])  || {};
       const busyLabel = { 'occupato':'🔒 occupato · si libera a fine task',
-                          'task critica':'🔒 task critica in corso',
-                          'in coppia':'🔒 già in coppia',
-                          'invito in corso':'🔒 invito coop in corso',
-                          'quarantena':'⛔ quarantena', 'morto':'☠ spettro' };
-      inner += '<p class="dim" style="margin-top:8px">👥 Scegli il compagno con cui svolgere il minigioco:<br>'
-             + '<span class="mono dim" style="font-size:.7rem">⏳ Selezione disponibile per '+fmt(rem)+', poi la task si annulla.</span></p>';
+        'task critica':'🔒 task critica in corso', 'in coppia':'🔒 già in coppia',
+        'invito in corso':'🔒 invito coop in corso', 'quarantena':'⛔ quarantena', 'morto':'☠ spettro' };
+      inner += '<p class="dim" style="margin-top:8px">👥 Scegli il compagno con cui svolgere il minigioco:<br>'+
+        '<span class="mono dim" style="font-size:.7rem">⏳ Selezione disponibile per '+fmt(rem)+', poi la task si annulla.</span></p>';
       if(avail.length){
         inner += '<div class="vlist" style="margin-top:10px">'+avail.map(q=>'<button class="vbtn pickmate" data-id="'+q.id+'">⬡ '+esc(q.name)+'</button>').join('')+'</div>';
       } else {
@@ -578,17 +537,16 @@ function buildTaskCard(me){
     }
     else if(me.task.coopState==='inviting'){
       const pname = (PUB.players.find(x=>x.id===me.task.partner)||{name:'un compagno'}).name;
-      inner += '<p class="dim" style="margin-top:8px">📨 Invito inviato a <b>'+esc(pname)+'</b>: in attesa di ACCETTA/RIFIUTA…<br>'
-             + '<span class="mono dim" style="font-size:.7rem">Se rifiuta o non risponde, potrai scegliere un altro compagno.</span></p>';
+      inner += '<p class="dim" style="margin-top:8px">📨 Invito inviato a <b>'+esc(pname)+'</b>: in attesa di ACCETTA/RIFIUTA…<br>'+
+        '<span class="mono dim" style="font-size:.7rem">Se rifiuta o non risponde, potrai scegliere un altro compagno.</span></p>';
     }
     else if(me.task.coopState==='active'){
-      inner += '<p class="dim" style="margin-top:8px">🤝 In coppia con <b>'+esc((PUB.players.find(x=>x.id===me.task.partner)||{name:'il compagno'}).name)+'</b>: svolgete il minigioco insieme!</p>'
-             + '<button class="btn grn" id="btn-task" style="margin-top:12px">APRI TASK DI COPPIA</button>';
+      inner += '<p class="dim" style="margin-top:8px">🤝 In coppia con <b>'+esc((PUB.players.find(x=>x.id===me.task.partner)||{name:'il compagno'}).name)+'</b>: svolgete il minigioco insieme!</p>'+
+        '<button class="btn grn" id="btn-task" style="margin-top:12px">APRI TASK DI COPPIA</button>';
     }
     else {
-      // needInvite residuale: invia e scegli comunque il compagno dalla lista
-      inner += '<p class="dim" style="margin-top:8px">↻ Task pronta: invia e scegli il compagno.</p>'
-             + '<button class="btn grn" id="btn-task" style="margin-top:12px">✓ SVOLGI TASK · INVIA</button>';
+      inner += '<p class="dim" style="margin-top:8px">↻ Task pronta: invia e scegli il compagno.</p>'+
+        '<button class="btn grn" id="btn-task" style="margin-top:12px">✓ SVOLGI TASK · INVIA</button>';
     }
     inner += '</div>';
     tc.innerHTML = inner;
@@ -597,7 +555,6 @@ function buildTaskCard(me){
       if(me.task.coopState==='active') bt.onclick = ()=>openCoopGame();
       else bt.onclick = ()=>{ SFX.ok(); act({t:'coopRequest'}); };
     }
-    // Scelta manuale del compagno (fase needPick)
     $$('#task-card .pickmate').forEach(b=>b.onclick=()=>{
       if(b.disabled) return;
       b.disabled = true;
@@ -646,6 +603,12 @@ function buildDock(){
     }
     d.innerHTML = dh;
     const bm = $('#db-abmer'); if(bm) bm.onclick = ()=>{ SFX.click(); act({t:'abMerde'}); };
+    return;
+  }
+  /* ★ FIX #8: in QUARANTENA il dock è limitato (niente kill/sab/abilità/scan) */
+  if(me && me.q){
+    d.innerHTML = dockBtn('word','RIUNIONE PAROLA') + dockBtn('vote','RIUNIONE VOTO') + dockBtn('whis','SUSSURRI');
+    wireDockBasic();
     return;
   }
   let h = dockBtn('word','RIUNIONE PAROLA') + dockBtn('vote','RIUNIONE VOTO') + dockBtn('whis','SUSSURRI');
@@ -802,176 +765,8 @@ function buildMeet(m){
   }
 }
 
-/* ═══ SÉANCE (voto spiriti) ═══ */
-function showSeanceVote(target, endsAt){
-  SFX.seance();
-  const B = $('#ab-body');
-  B.innerHTML = '<h2 class="mt" style="color:'+VIO+'">🕯 SÉANCE · VOTO DEGLI SPIRITI</h2>'+
-    '<p class="sub">Il Medio chiede: <b style="color:'+VIO+'">'+esc(target)+' È L\'ASSASSINO?</b><br>Rispondi SÌ o NO.</p>'+
-    '<div style="display:flex;gap:12px;justify-content:center">'+
-    '<button class="btn grn" id="sv-yes">SÌ</button>'+
-    '<button class="btn red" id="sv-no">NO</button></div>';
-  $('#sv-yes').onclick = ()=>{ sentSeanceVote=endsAt; SFX.click(); act({t:'seanceBallot', vote:'yes'}); hide($('#m-ab')); };
-  $('#sv-no').onclick  = ()=>{ sentSeanceVote=endsAt; SFX.click(); act({t:'seanceBallot', vote:'no'});  hide($('#m-ab')); };
-  show($('#m-ab'));
-}
-
-/* ═══ ESITO SCAN ═══ */
-function showScanRes(m){
-  show($('#m-scan'));
-  let inner;
-  if(m.q){
-    SFX.alarm();
-    inner = '<h2 class="mt red">ESITO SCANSIONE</h2><div class="rescard badq">'+
-      '<div class="big">⛔ CODICE = QUELLO DELL\'ASSASSINO</div>'+
-      '<div class="mono" style="font-size:.8rem">OPERATORE: '+esc(m.target)+' → MESSO IN QUARANTENA</div>'+
-      '<div class="mono" style="font-size:.8rem;margin:8px 0">CODICE LETTO: <b class="oc">'+esc(m.code)+'</b></div>'+
-      '<div class="mono amb" style="font-size:.8rem;margin-top:8px">⚡ CARICHE RIMASTE: '+m.chg+'</div></div>';
-  } else if(m.released){
-    SFX.ok();
-    inner = '<h2 class="mt amb">ESITO VERIFICA</h2><div class="rescard cut">'+
-      '<div class="big">✅ RILASCIATO: NON È L\'ASSASSINO</div>'+
-      '<div class="mono" style="font-size:.8rem">OPERATORE: '+esc(m.target)+'</div>'+
-      '<div class="mono amb" style="font-size:.8rem;margin-top:8px">⚡ CARICHE RIMASTE: '+m.chg+'</div></div>';
-  } else {
-    SFX.ok();
-    inner = '<h2 class="mt amb">ESITO SCANSIONE</h2><div class="rescard cut">'+
-      '<div class="big">✓ CODICE PULITO</div><div class="mono" style="font-size:.8rem">OPERATORE: '+esc(m.target)+'</div>'+
-      '<div class="mono" style="font-size:.8rem;margin:8px 0">CODICE LETTO: <b class="oc">'+esc(m.code)+'</b></div>'+
-      '<div class="mono" style="font-size:.8rem">TASK: <b>'+m.tasks+'</b></div>'+
-      '<div class="mono amb" style="font-size:.8rem;margin-top:8px">⚡ CARICHE RIMASTE: '+m.chg+'</div></div>';
-  }
-  $('#scan-body').innerHTML = inner+'<button class="btn wide" id="sc-ok">CHIUDI</button>';
-  $('#sc-ok').onclick = ()=>hide($('#m-scan'));
-}
-
-/* ═══ SUSSURRI (chat p2p) ═══ */
-function isChatVisible(){ return !$('#pchat').classList.contains('hidden'); }
-function totalUnread(){ let n=0; for(const k in CHATS) n+=CHATS[k].unread; return n; }
-function hideChatPanel(){ $('#pchat').classList.add('hidden'); updateFab(); }
-function updateFab(){
-  const me = PUB && PUB.players.find(p => p.id === I.id);
-  const fab = $('#pch-fab');
-  if(!me || !me.alive || !PUB || PUB.phase!=='play'){ fab.classList.add('hidden'); return; }
-  if(isChatVisible()){ fab.classList.add('hidden'); return; }
-  const has = Object.keys(CHATS).length>0;
-  if(has){
-    fab.classList.remove('hidden');
-    const u = totalUnread();
-    const ub = $('#pch-ub');
-    if(u>0){ ub.classList.remove('hidden'); ub.textContent=u; }
-    else ub.classList.add('hidden');
-  } else fab.classList.add('hidden');
-}
-function openChat(pid, announce){
-  const me = PUB && PUB.players.find(p => p.id === I.id);
-  if(!me || !me.alive) return;
-  const partner = PUB.players.find(p => p.id === pid);
-  if(!partner || !partner.alive || pid===I.id) return;
-  if(!CHATS[pid]) CHATS[pid] = { name:partner.name, msgs:[], unread:0 };
-  CHATS[pid].unread = 0;
-  activeChat = pid;
-  $('#pch-fab').classList.add('hidden');
-  renderChatPanel();
-  if(announce) act({t:'whisperOpen', tgt:pid});
-}
-function renderChatPanel(){
-  const p = $('#pchat');
-  p.classList.remove('hidden');
-  renderChatTabs();
-  renderChatMsgs();
-  const inp = $('#pch-in');
-  inp.value = '';
-  inp.onkeydown = e=>{ if(e.key==='Enter') sendChat(); };
-  $('#pch-send').onclick = sendChat;
-  updateFab();
-}
-function renderChatTabs(){
-  const t = $('#pch-tabs');
-  if(!t) return;
-  const ids = Object.keys(CHATS);
-  t.innerHTML = ids.map(id=>'<button class="pch-tab'+(id===activeChat?' on':'')+'" data-id="'+id+'">'+esc(CHATS[id].name)+
-    (CHATS[id].unread?' ('+CHATS[id].unread+')':'')+'</button>').join('')+
-    '<button class="pch-tab add" id="pch-add" title="Nuova chat">+</button>'+
-    '<button class="pch-tab x" id="pch-x" title="Chiudi">✕</button>';
-  $$('#pch-tabs .pch-tab[data-id]').forEach(b=>b.onclick=()=>openChat(b.dataset.id, true));
-  $('#pch-add').onclick = ()=>{ hideChatPanel(); SFX.click(); openAb('whisper'); };
-  $('#pch-x').onclick = ()=>{ hideChatPanel(); };
-}
-function renderChatMsgs(){
-  const box = $('#pch-msgs');
-  if(!box || !activeChat) return;
-  const c = CHATS[activeChat];
-  if(!c) return;
-  $('#pch-head').textContent = '🤫 CANALE SEGRETO CON '+c.name;
-  box.innerHTML = c.msgs.map(m=>'<div class="pch-msg'+(m.from===I.id?' me':'')+'"><b>'+esc(m.from===I.id?'TU':c.name)+
-    ':</b> '+esc(m.text)+'</div>').join('');
-  box.scrollTop = box.scrollHeight;
-}
-function sendChat(){
-  const inp = $('#pch-in');
-  const v = inp.value.trim();
-  if(!v || !activeChat) return;
-  inp.value = '';
-  CHATS[activeChat].msgs.push({ from:I.id, text:v });
-  renderChatMsgs();
-  SFX.click();
-  act({t:'whisperMsg', tgt:activeChat, text:v});
-}
-
-/* ═══ JUMPSCARE / HACK ═══ */
-function doJump(letter, by){
-  SFX.jump();
-  $('#jump-info').classList.add('hidden');
-  $('#jump-face').style.display = '';
-  if(by==='spalm'){
-    $('#jump-who').textContent = 'Lo Spalmatore Pazzo ti ha spalmato. Nessuna lettera, nessun onore.';
-    $('#jump-cluebox').classList.add('hidden');
-  } else if(by==='station'){
-    $('#jump-who').textContent = 'LA STAZIONE TI HA ELIMINATO: TASK CRITICA SCADUTA.';
-    $('#jump-cluebox').classList.add('hidden');
-  } else {
-    $('#jump-who').textContent = "L'assassino ti ha colpito nell'ombra.";
-    $('#jump-cluebox').classList.remove('hidden');
-  }
-  show($('#jump'));
-  setTimeout(()=>{
-    $('#jump-face').style.display = 'none';
-    $('#jl').textContent = letter || '?';
-    $('#jump-info').classList.remove('hidden');
-  }, 1400);
-}
-function doHack(){
-  SFX.hack();
-  const h = $('#hack');
-  show(h);
-  if(hackTimer) clearTimeout(hackTimer);
-  hackTimer = setTimeout(()=>hide(h), 2000);
-}
-// NOTE: "hackTimer" è dichiarato in js/ui.js (caricato dopo client.js).
-// La duplicazione con "let" causava un ReferenceError fatale a caricamento
-// ("Identifier 'hackTimer' has already been declared").
-
-/* ═══ FINE PARTITA ═══ */
-function renderEnd(){
-  if(!PUB || (!PUB.winner && !PUB.ended)) return;
-  const w = PUB.winner, ass = (PUB.ended||[]).find(p=>p.role==='assassino');
-  const t = $('#end-title');
-  t.textContent = w==='innocenti' ? 'VITTORIA INNOCENTI' : 'VITTORIA ASSASSINO';
-  t.dataset.t = t.textContent;
-  t.style.color = w==='innocenti' ? 'var(--cyan)' : 'var(--red)';
-  $('#end-sub').textContent = 'L\'assassino era: '+(ass?ass.name.toUpperCase():'—');
-  $('#end-table').innerHTML = (PUB.ended||[]).map(p=>{
-    const r = ROLE[p.role] || {l:'—', c:'var(--dim)'};
-    return '<div style="display:flex;justify-content:space-between;padding:9px 4px;border-bottom:1px solid rgba(255,255,255,.06)">'+
-      '<b>'+esc(p.name)+(p.alive?'':' <span class="dim">☠</span>')+'</b>'+
-      '<span class="mono" style="font-size:.7rem;color:'+r.c+'">'+r.l+(p.isPuttana?' · PUTTANA':'')+' · '+p.tasks+' task</span></div>';
-  }).join('');
-  $('#btn-again').style.display = isHost ? '' : 'none';
-  $('#end-wait').textContent = isHost ? '' : 'In attesa dell\'host per tornare alla lobby…';
-  if(!endPlayed){
-    endPlayed = true;
-    const iWon = (w==='innocenti' && SEC.role!=='assassino') || (w==='assassino' && SEC.role==='assassino');
-    (iWon ? SFX.win : SFX.lose)();
-  }
-}
+/* ═══ HEARTBEAT CLIENT (per il reaper disconnessioni) ═══
+   Manda un "ping" periodico così l'host sa che siamo vivi. */
+setInterval(()=>{
+  if(PUB && PUB.phase==='play'){ act({t:'ping'}); }
+}, CFG.CLIENT_PING);

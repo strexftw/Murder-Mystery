@@ -1,29 +1,16 @@
 /* ══════════════════════════════════════════════════════════════
    PROTOCOLLO OMBRA — js/audio.js
    Motore audio (Web Audio API) + effetti sonori SFX + ambience.
-   Dipendenze: nessuna (caricato dopo utils.js).
-   Le variabili AC / MUTE / AMB sono globali.
    ══════════════════════════════════════════════════════════════ */
 
-/* ═══ STATO AUDIO (globale) ═══ */
-let AC = null;     // AudioContext
-let MUTE = false;  // muto on/off
-let AMB = null;    // gain dell'ambience
+let AC = null, MUTE = false, AMB = null;
 
-/* Attiva/riprende l'AudioContext (serve un gesto utente sui browser moderni) */
 function audio(){
   if(!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
   if(AC.state === 'suspended') AC.resume();
   return AC;
 }
 
-/* ═══ TONO SINGOLO ═══
-   f     frequenza (Hz)
-   d     durata (s)
-   type  'sine'|'square'|'triangle'|'sawtooth'
-   g     gain (volume)
-   slide pitch-bend finale (Hz, opzionale)
-   delay ritardo di avvio (s)                                    */
 function tone(f, d, type = 'sine', g = .15, slide = 0, delay = 0){
   if(MUTE) return;
   try{
@@ -41,7 +28,6 @@ function tone(f, d, type = 'sine', g = .15, slide = 0, delay = 0){
   }catch(e){}
 }
 
-/* ═══ RUMORE BIANCO (filtrato) ═══ */
 function noise(d = .3, g = .25, fc = 1000, delay = 0){
   if(MUTE) return;
   try{
@@ -57,7 +43,6 @@ function noise(d = .3, g = .25, fc = 1000, delay = 0){
   }catch(e){}
 }
 
-/* ═══ EFFETTI SONORI ═══ */
 const SFX = {
   click(){ tone(700,.06,'square',.05); },
   ok(){ tone(660,.09,'sine',.12); tone(990,.14,'sine',.12,0,.09); },
@@ -66,7 +51,7 @@ const SFX = {
   msg(){ tone(980,.05,'sine',.07); tone(1320,.07,'sine',.06,0,.05); },
   alarm(){ tone(880,.16,'square',.1); tone(660,.16,'square',.1,0,.18); },
   meet(){ tone(520,.12,'square',.14); tone(780,.12,'square',.14,0,.14); tone(1040,.2,'square',.14,0,.28); },
-  scan(){ for(let i=0;i<6;i++) tone(400+i*180,.08,'sine',.07,0,i*.12); },
+  scan(){ for(let i=0;i<6;i++) tone(400 + i*180, .08, 'sine', .07, 0, i*.12); },   /* ★ FIX: i*180 */
   reveal(){ tone(300,.4,'sawtooth',.12,300); tone(600,.5,'sine',.1,200,.1); },
   jump(){ noise(.7,.5,900); tone(70,.9,'sawtooth',.4,-30); tone(1400,.3,'square',.15,-900); },
   hack(){ noise(.5,.4,2600); tone(1400,.5,'square',.18,-1200); tone(180,.7,'sawtooth',.22,60); tone(90,.9,'square',.18,-40,.1); },
@@ -78,7 +63,6 @@ const SFX = {
   lose(){ [400,340,280,190].forEach((f,i)=>tone(f,.3,'sawtooth',.12,0,i*.18)); }
 };
 
-/* ═══ AMBIENTAZIONE DI SOTTOFONDO ═══ */
 function ambience(){
   if(MUTE || AMB || !AC) return;
   const a = AC;
@@ -95,5 +79,4 @@ function ambience(){
   AMB = g;
 }
 
-/* Attiva audio + ambience al primo tocco (richiesto dai browser) */
 document.addEventListener('pointerdown', () => { audio(); ambience(); }, {passive:true});

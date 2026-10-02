@@ -16,7 +16,6 @@ function broadcastNow(){
   if(!chan){ setTimeout(()=>broadcastNow(), 500); return; }
   const now = Date.now();
 
-  // Sync privati (uno per giocatore)
   G.players.forEach(p => {
     const o = { type:'sync', cdw:p.cdw, cdv:p.cdv, ab:p.ab, used:p.usedAbs,
       isP:p.isPuttana, put:p.puttanaReadyAt, deadBy:p.deadBy,
@@ -26,7 +25,6 @@ function broadcastNow(){
     priv(p.id, o);
   });
 
-  // Riunione (pubblica)
   let meeting = null;
   if(G.meeting){
     const mm = G.meeting, alive = G.players.filter(p=>p.alive).length;
@@ -51,22 +49,15 @@ function broadcastNow(){
     players: G.players.map(p=>({
       id:p.id, name:p.name, alive:p.alive, tasks:p.tasks, task:p.task,
       deadBy:p.deadBy, q:p.quarantined, rulesOk:p.rulesOk, revealOk:p.revealOk,
-      // Task assegnata → niente countdown (la card è già visibile)
       nextAt: p.task ? 0 : p.lastTaskAt + CFG.TASK_EVERY
     })),
     coop: G.coopSessions, coopInvites: G.coopInvites,
-    /* ═══ COMPAGNI VISIBILI (task doppia) ═══
-       Lista dei compagni disponibili per la task doppia, calcolata lato
-       host (che possiede i dati di sessione/invito) ed esportata per ogni
-       giocatore. Insieme ai nomi degli INDISPONIBILI col MOTIVO
-       («occupato · si libera a fine task», «in coppia», «quarantena»…),
-       così la scheda di scelta spiega perché un compagno non è selezionabile. */
     coopAvail: {}, coopBusy: {},
     ended: G.phase==='ended'
       ? G.players.map(p=>({name:p.name, role:p.role, tasks:p.tasks, alive:p.alive, isPuttana:p.isPuttana})) : null
   };
-  // Compila la mappa dei disponibili/indisponibili per ogni giocatore
-  // con una task doppia (serve alla scheda di scelta del compagno)
+
+  // Compila la mappa disponibili/indisponibili per chi ha una task doppia
   G.players.forEach(p=>{
     if(p.task && p.task.type==='coop' && p.alive){
       pub.coopAvail[p.id] = coopAvailablePartners(p).map(q=>({id:q.id, name:q.name}));
@@ -79,6 +70,7 @@ function broadcastNow(){
       pub.coopBusy[p.id] = busy;
     }
   });
+
   send(pub);
   PUB = pub;
   onPub();
@@ -87,7 +79,7 @@ function broadcastNow(){
 /* ══════════════════════ PUTTANA ══════════════════════ */
 function puttanaTick(now){
   if(!G.puttanaActive){
-    if(G.players.some(p => p.alive && !p.quarantined && p.role==='innocente' && p.tasks>=CFG.PUTTANA_TRIGGER)){
+    if(G.players.some(p => p.alive && !p.quarantined && p.role==='innocente' && p.tasks >= CFG.PUTTANA_TRIGGER)){
       G.puttanaActive = true;
       G.puttanaTimerAt = now + CFG.PUTTANA_TIMER;
     }
@@ -140,10 +132,7 @@ function resolveSeance(){
 
 /* ══════════════════════ TASK DI COPPIA ══════════════════════ */
 function coopTick(now){
-  // Scadenza inviti coop: il compagno scelto non ha risposto entro
-  // COOP_INVITE_TIME → l'invito decade e chi ha la task doppia può
-  // scegliere di nuovo un altro compagno dalla lista (niente rimbalzi
-  // automatici a random che generavano «traffico» di sessioni fantasma).
+  // Scadenza inviti coop → si torna alla scelta manuale (needPick)
   for(const k in G.coopInvites){
     const inv = G.coopInvites[k];
     if(inv && now >= inv.expiresAt){
@@ -158,45 +147,36 @@ function coopTick(now){
       }
     }
   }
-  // Sessioni coop attive (aggiornamento ponte energetico + controlli di sicurezza)
+  // Sessioni coop attive
   for(const k in G.coopSessions){
     const s = G.coopSessions[k];
     if(!s || s.done) continue;
     const pa = byId(s.a), pb = byId(s.b);
-    /* ★ SESSIONE SCIOLTA: se un membro è morto / uscito / in quarantena,
-       la coppia non può più giocare insieme. Distruggiamo la sessione e
-       avvisiamo ENTRAMBI con coopEnd, così nessuno resta bloccato dentro
-       il minigioco (il modal si chiude da solo lato client). */
+    // ★ SESSIONE SCIOLTA: membro morto/uscito/quarantenato
     if(!pa || !pb || !pa.alive || !pb.alive || pa.quarantined || pb.quarantined){
       const why = (!pa || !pb) ? 'coppia uscita dalla partita'
-                : (!pa.alive || !pb.alive) ? 'un membro della coppia è diventato spettro'
-                : 'un membro della coppia è in quarantena';
+        : (!pa.alive || !pb.alive) ? 'un membro della coppia è diventato spettro'
+        : 'un membro della coppia è in quarantena';
       coopAbort(k, s, pa, pb, why);
       continue;
     }
-    const gtype = s.gtype || s.type; // retro-compatibilità: vecchie sessioni usavano «type»
+    const gtype = s.gtype || s.type;
     if(gtype==='ponte'){
       if(now >= s.endsAt){ s.done = true; coopComplete(s); }
       else if(s.energy <= 0){
+        /* ★ FIX CRITICO #4: prima cancellava la sessione lasciando i
+           task coop appesi ai due membri (card bloccata per sempre).
+           Ora coopAbort libera gli slot e notifica entrambi. */
         s.done = true; s.fail = true;
         addLog('💥 PONTE ENERGETICO FALLITO: la barra si è svuotata.', ABS.sparlatore.c);
-        coopNotifyEnd(s);
-        delete G.coopSessions[k];
+        coopAbort(k, s, pa, pb, 'ponte energetico esaurito');
       } else {
         s.energy = Math.max(0, s.energy - CFG.COOP_BRIDGE_DRAIN);
       }
     }
   }
-  /* ═══ SICUREZZA «APRI TASK DI COPPIA» ═══
-     Se una sessione coop è nata ma un giocatore (per esempio l'host, che
-     riceve i privati solo in locale) non ha ricevuto il messaggio coopStart,
-     la sua card resta in «active» senza dati di sessione → il pulsante non
-     apre il minigioco. Qui rigeneriamo il coopStart da G ogni tick finché
-     manca: appena arriva, il client apre il minigioco anche da solo.
-     ★ Il campo del gioco si chiama «game», NON «type»: «type» è il
-     discriminante del messaggio ('coopStart') e sovrascriverlo rendeva il
-     messaggio irriconoscibile / myCoopState.type='coopStart' → openCoopGame()
-     non apriva nulla. */
+  /* ═══ SICUREZZA «APRI TASK DI COPPIA» (solo client host) ═══
+     Se il client host non ha ricevuto coopStart, glielo rigeneriamo. */
   for(const k in G.coopSessions){
     const s = G.coopSessions[k];
     if(!s || s.done) continue;
@@ -211,29 +191,19 @@ function coopTick(now){
       }
     });
   }
-  /* ═══ HEARTBEAT LISTA COMPAGNI ═══
-     Finché qualcuno è nella fase di scelta (needPick), forza un broadcast
-     a ~1s: appena un compagno finisce (o scade) la sua task singola/doppia/
-     critica diventa subito selezionabile, e i countdown scorrevoli della
-     scheda si rinfrescano in tempo reale (chi può / chi non può e perché). */
+  /* ═══ HEARTBEAT LISTA COMPAGNI ═══ */
   if(G.players.some(p => p.alive && p.task && p.task.type==='coop' &&
-                         (p.task.coopState==='needPick' || p.task.coopState==='needRequest'))){
+     (p.task.coopState==='needPick' || p.task.coopState==='needRequest'))){
     broadcastNow();
   }
 }
 
-/* ═══ CHIUSURA NOTIFICATA DI UNA SESSIONE COOP ═══
-   coopEnd raggiunge SEMPRE entrambi i membri della coppia (privBoth):
-   ok=true → completata (+1 barra); ok=false → interrotta. In questo modo
-   il modal del minigioco si chiude da solo su ENTRAMBI gli schermi e
-   nessuno resta bloccato dentro un gioco già finito. */
 function coopNotifyEnd(s, reason){
   const k = Object.keys(G.coopSessions).find(kk => G.coopSessions[kk] === s) || null;
   const ok = !!s.done && !s.fail;
   privBoth([s.a, s.b], {type:'coopEnd', session:k, ok, fail:!!s.fail, reason:reason||null});
 }
-/* Distruzione sicura di una sessione (membro morto/quarantena/uscita):
-   libera i task slot dei superstiti e avvisa entrambi. */
+
 function coopAbort(k, s, pa, pb, why){
   delete G.coopSessions[k];
   privBoth([s.a, s.b], {type:'coopEnd', session:k, ok:false, reason:why});
@@ -250,42 +220,38 @@ function coopAbort(k, s, pa, pb, why){
 /* ═══ TICK PRINCIPALE HOST ═══ */
 function hostTick(){
   if(!isHost || !G) return;
-  // Le riunioni scadono anche fuori dalla fase 'play' (es. revealed during ended)
   if(G.meeting && G.phase !== 'lobby') meetTick(Date.now());
   if(G.phase !== 'play') return;
   const now = Date.now();
+
+  /* ★ FIX CRITICO #2 — REAPER DISCONNESSIONI:
+     chi non dà segni di vita (ping client o azioni) da REAPER_TIMEOUT
+     viene eliminato come disconnesso. Prima disconnectKill non era
+     chiamata da nessuno → riunioni bloccate per sempre. */
+  const cut = now - CFG.REAPER_TIMEOUT;
+  G.players.forEach(p=>{
+    if(p.alive && p.id !== I.id && (LASTSEEN[p.id] || 0) < cut) disconnectKill(p);
+  });
+
   puttanaTick(now);
   coopTick(now);
   if(G.seanceState==='ready') ensureMedium();
   else if(G.seanceState==='voting' && now>=G.seanceEndsAt) resolveSeance();
 
-  // Assegnazione task + scadenza task critiche (vivi) / rituali spettro (morti)
   G.players.forEach(p=>{
     if(!p.alive){
-      cancelTask(p); // estingue eventuali residui coop della vita precedente
+      cancelTask(p);
       if(p.task) return;
       if(now - p.lastTaskAt < CFG.TASK_EVERY) return;
       assignGhostTask(p, now);
       return;
     }
     if(p.quarantined) return;
-    /* ── TASK DI COPPIA: ciclo di vita ──────────────────────────────
-       1. needRequest → il giocatore che ha la task doppia deve cliccare
-          «SVOLGI TASK · INVIA». Entro COOP_REQUEST_WINDOW, altrimenti la
-          task si annulla da sola (niente invii automatici).
-       2. needPick    → scelta MANUAL del compagno: il giocatore apre la
-          lista dei compagni DISPONIBILI (vivi, senza task, non in
-          quarantena, non già impegnati in una coop) e invita chi vuole.
-          Entro COOP_PICK_WINDOW, altrimenti la task si annulla.
-       3. inviting    → il compagno scelto ha COOP_INVITE_TIME per
-          accettare/rifiutare; se non risponde l'invito decade e si torna
-          alla scelta (mai più rimbalzi a random infiniti).
-       4. active      → minigioco multiplayer insieme: +1 barra a entrambi. */
     if(p.task && p.task.type==='coop'){
       if(p.task.coopState==='needRequest' && now >= p.task.requestExpiresAt){
         cancelTask(p);
-        p.lastTaskAt = now; // riparte il countdown della prossima task
-        priv(p.id, {type:'note', txt:'↫ Task doppia scaduta: non l\'hai inviata.'});
+        p.lastTaskAt = now;
+        priv(p.id, {type:'note', txt:"↫ Task doppia scaduta: non l'hai inviata."});
         addLog('↫ '+p.name+' non ha inviato la task doppia: annullata.', ABS.sparlatore.c);
         broadcastNow();
         return;
@@ -298,7 +264,7 @@ function hostTick(){
         broadcastNow();
         return;
       }
-      if(p.task.type==='coop') return; // stati gestiti da UI / tick qui sopra
+      return;
     }
     if(p.task && p.task.critical && now >= p.task.criticalAt){ killByStation(p); return; }
     if(p.task) return;
@@ -306,7 +272,6 @@ function hostTick(){
     assignTask(p, now);
   });
 
-  // Ricarica cariche detective
   G.players.forEach(p=>{
     if(p.role==='detective' && p.alive && now >= p.scanNextChargeAt){
       p.scanNextChargeAt = now + CFG.SCAN_RECHARGE;
@@ -324,28 +289,19 @@ function assignTask(p, now){
     p.task = { id:base, type:'single', critical:true, criticalAt:now+CFG.CRIT_TIME, partner:null, coopState:null };
     addLog('🚨 '+p.name+' ha una TASK CRITICA: 30 secondi!', ABS.sparlatore.c);
     priv(p.id, {type:'critAlert'});
-  } else if(Math.random() < CFG.COOP_CHANCE &&
-            coopAvailablePartners(p).length > 0){
-    /* ═══ TASK DOPPA ═══
-       Appena il countdown scade e viene sorteggiata una task doppia, al
-       giocatore compare il pulsante «SVOLGI TASK · INVIA». Quando lo invia
-       (t:'coopRequest') si apre la SCELTA DEL COMPAGNO: vede la lista dei
-       giocatori disponibili (vivi, senza task, non in quarantena, non già
-       in coppia) e invita quello che vuole — niente più abbinamenti a
-       random che si accavallavano creando «traffico» di inviti. Se non
-       sceglie entro COOP_PICK_WINDOW la task si annulla da sola. */
+  } else if(Math.random() < CFG.COOP_CHANCE && coopAvailablePartners(p).length > 0){
     p.task = { id:base, type:'coop', critical:false, criticalAt:0, partner:null,
-               coopState:'needRequest', inviteId:null, sentAt:0, pickExpiresAt:0,
-               requestExpiresAt:now + CFG.COOP_REQUEST_WINDOW };
+      coopState:'needRequest', inviteId:null, sentAt:0, pickExpiresAt:0,
+      requestExpiresAt:now + CFG.COOP_REQUEST_WINDOW };
   } else {
     p.task = { id:base, type:'single', critical:false, criticalAt:0, partner:null, coopState:null };
   }
   p.lastTaskAt = now;
 }
 
-/* ═══ TASK SPETTRO (per i morti, alimentano la SÉANCE) ═══ */
+/* ═══ TASK SPETTRO ═══ */
 function assignGhostTask(p, now){
-  const base = pick(TASKS).id; // id in comune con GNAME/GDESC/GMAP
+  const base = pick(TASKS).id;
   p.task = { id:base, type:'ghost', critical:false, criticalAt:0, partner:null, coopState:null };
   p.lastTaskAt = now;
 }
@@ -377,9 +333,7 @@ function killByStation(p){
   broadcastNow();
 }
 
-/* ═══ COMPAGNI DISPONIBILI PER UNA TASK DOPPA ═══
-   Vivi, non in quarantena, senza task attiva e non già impegnati in una
-   sessione/invito coop: sono loro che compaiono nella lista di scelta. */
+/* ═══ COMPAGNI DISPONIBILI / MOTIVI INDISPONIBILITÀ ═══ */
 function coopAvailablePartners(p){
   const busy = new Set();
   for(const k in G.coopSessions){
@@ -391,12 +345,8 @@ function coopAvailablePartners(p){
     if(inv){ busy.add(inv.requester); busy.add(inv.partner); }
   }
   return G.players.filter(q => q.alive && !q.quarantined && q.id !== p.id &&
-                              !q.task && !busy.has(q.id));
+    !q.task && !busy.has(q.id));
 }
-
-/* ═══ MOTIVI DI INDISPONIBILITÀ (per la lista compagni nel client) ═══
-   Spiegato all'utente il PERCHÉ un giocatore non è selezionabile:
-   «occupato» si libera appena termina la sua task (singola/doppia/critica). */
 function coopBusyReason(q){
   if(!q.alive)               return 'morto';
   if(q.quarantined)          return 'quarantena';
@@ -413,51 +363,37 @@ function coopBusyReason(q){
     const inv = G.coopInvites[k];
     if(inv && (inv.requester===q.id || inv.partner===q.id)) return 'invito in corso';
   }
-  return null; // disponibile
+  return null;
 }
 
-/* ═══ INVITO TASK DI COPPIA (compagno SCELTO MANUALMENTE) ═══
-   Niente più abbinamenti a random: chi ha la task doppia apre la lista dei
-   compagni disponibili e invita quello che vuole. Se il scelto non risponde
-   entro COOP_INVITE_TIME, l'invito decade e si torna alla scelta (vedi
-   coopTick) — così non si crea «traffico» di inviti fantasma. */
+/* ═══ INVITO / RICHIESTA / SCELTA COMPAGNO ═══ */
 function sendCoopInviteTo(p, partner, now){
   if(!partner) return false;
   const invId = p.id + '_' + now;
   G.coopInvites[invId] = { requester:p.id, partner:partner.id, partnerName:partner.name,
-                           expiresAt:now+CFG.COOP_INVITE_TIME, base:p.task.id };
+    expiresAt:now+CFG.COOP_INVITE_TIME, base:p.task.id };
   p.task.partner = partner.id;
   p.task.coopState = 'inviting';
   p.task.inviteId = invId;
   priv(partner.id, {type:'coopInvite', from:p.id, fromName:p.name, inviteId:invId, base:p.task.id});
   return true;
 }
-
-/* ═══ «SVOLGI TASK · INVIA» SU UNA TASK DOPPA ═══
-   Il giocatore clicca «SVOLGI TASK»: non viene abbinato a caso, ma entra
-   nella fase needPick — dalla card della task può vedere e SCEGLIERE il
-   compagno con cui fare il minigioco multiplayer. */
 function HcoopRequest(id){
   const p = byId(id), now = Date.now();
   if(!p || G.phase!=='play' || !p.alive || p.quarantined) return;
   if(!p.task || p.task.type!=='coop') return;
-  // Anti-doppio invio: ignora se la richiesta è già partita o la sessione è attiva
   if(p.task.coopState!=='needRequest') return;
   p.task.sentAt = now;
-  p.task.requestExpiresAt = 0; // disarma la scadenza automatica della finestra
+  p.task.requestExpiresAt = 0;
   p.task.coopState = 'needPick';
   p.task.pickExpiresAt = now + CFG.COOP_PICK_WINDOW;
   priv(p.id, {type:'note', txt:'🤝 Task inviata: scegli il compagno dalla lista!'});
   broadcastNow();
 }
-
-/* ═══ SCELTA DEL COMPAGNO (dalla lista dei disponibili) ═══ */
 function HcoopPick(id, pid){
   const p = byId(id), now = Date.now();
   if(!p || G.phase!=='play' || !p.alive || p.quarantined) return;
   if(!p.task || p.task.type!=='coop') return;
-  // Permetti la scelta anche dopo un invito scaduto/rifiutato (needPick);
-  // se sei già in «inviting» verso qualcuno, ignora i clic doppi.
   if(p.task.coopState!=='needPick' && p.task.coopState!=='needRequest') return;
   const partner = coopAvailablePartners(p).find(q => q.id === pid);
   if(!partner){
@@ -476,8 +412,6 @@ function acceptCoopInvite(inviteId, accept){
   if(!requester || !partner || !requester.task) return;
   if(!accept){
     addLog('↫ Invito coop rifiutato da '+partner.name+'.', ABS.sparlatore.c);
-    // Si torna alla SCELTA manuale (niente rimbalzi a random): il
-    // richiedente può invitare un altro compagno dalla lista.
     requester.task.coopState = 'needPick';
     requester.task.partner = null;
     requester.task.inviteId = null;
@@ -487,13 +421,9 @@ function acceptCoopInvite(inviteId, accept){
     return;
   }
   const coopType = COOPNAMES[requester.task.id] ? requester.task.id : pick(COOP_TYPES);
+  /* ★ FIX #6: anche il richiedente mostra il nome/descrizione corretti */
+  requester.task.id = coopType;
   const sessId = inviteId;
-  // ⚠️ Il campo si chiama «gtype» e NON «type»: in un messaggio privato il
-  // campo «type» è già occupato dal tipo di messaggio ('coopStart'). Mettere
-  // type:'ponte' dentro la sessione E nel payload priv significava spedire
-  // {type:'ponte', ...} → onPriv non riconosceva il messaggio, il compagno
-  // (e chiunque avesse perso il privato) non riceveva mai l'apertura del
-  // minigioco multiplayer: solo chi aveva inviato la richiesta lo apriva.
   const state = { gtype:coopType, a:requester.id, b:partner.id, done:false, fail:false };
   if(coopType==='ponte'){ state.energy=60; state.endsAt=Date.now()+CFG.COOP_BRIDGE_TIME; }
   if(coopType==='codice'){
@@ -511,19 +441,11 @@ function acceptCoopInvite(inviteId, accept){
   requester.task.partner = partner.id;
   requester.task.coopState = 'active';
   requester.task.coopSession = sessId;
-  // Il compagno entra in task: blocca la ricerca di altri compagni (la sua
-  // eventuale richiesta «SVOLGI TASK» viene ignorata da HcoopRequest)
   partner.task = { id:coopType, type:'coop', critical:false, criticalAt:0, partner:requester.id,
-                   coopState:'active', coopSession:sessId, inviteId:null, requestExpiresAt:0, sentAt:Date.now(), lastTaskAt:Date.now() };
+    coopState:'active', coopSession:sessId, inviteId:null, requestExpiresAt:0, sentAt:Date.now(), lastTaskAt:Date.now() };
   priv(requester.id, {type:'coopStart', session:sessId, game:coopType, partner:partner.id, partnerName:partner.name});
   priv(partner.id,  {type:'coopStart', session:sessId, game:coopType, partner:requester.id, partnerName:requester.name});
   addLog('🤝 TASK DI COPPIA avviata: '+COOPNAMES[coopType]+' — '+requester.name+' e '+partner.name+' giocano insieme!', ABS.puttana.c);
-  /* ★ coopOpen: dopo l'accettazione il minigioco multiplayer si apre
-     AUTOMATICAMENTE sulla schermata di ENTRAMBI (banner + openCoopGame).
-     Ogni destinatario riceve il proprio «coopStart» prima del coopOpen,
-     quindi myCoopState è già popolato. Se la pagina è in background e il
-     modal non parte, resta il pulsante «APRI TASK DI COPPIA» nella task
-     card (e la sicurezza rigenera-coopStart in coopTick). */
   privBoth([requester.id, partner.id], {type:'coopOpen', session:sessId, game:coopType});
   broadcastNow();
 }
@@ -532,11 +454,9 @@ function coopComplete(s){
   if(pa){ pa.tasks++; pa.task=null; pa.lastTaskAt=Date.now(); }
   if(pb){ pb.tasks++; pb.task=null; pb.lastTaskAt=Date.now(); }
   for(const k in G.coopSessions){ if(G.coopSessions[k]===s) delete G.coopSessions[k]; }
-  /* ★ coopEnd ok:true → su ENTRAMBI gli schermi il modal del minigioco si
-     chiude da solo con banner verde «+1 BARRA». */
   privBoth([s.a, s.b], {type:'coopEnd', session:null, ok:true, fail:false, reason:null});
   addLog('🤝 TASK DI COPPIA completata da '+pa.name+' e '+pb.name+': +1 barra per entrambi!', ABS.puttana.c);
-  if(pa.role!=='assassino' && taskProg()>=G.taskTarget){ addLog('🏆 INTEGRITÀ STAZIONE COMPLETA!'); endGame('innocenti'); }
+  if(pa.role!=='assassino' && taskProg() >= G.taskTarget){ addLog('🏆 INTEGRITÀ STAZIONE COMPLETA!'); endGame('innocenti'); }
   broadcastNow();
 }
 function HcoopTap(id){
@@ -546,8 +466,6 @@ function HcoopTap(id){
   if(!s || s.done) return;
   if((s.gtype||s.type)==='ponte'){ s.energy = Math.min(100, s.energy + CFG.COOP_TAP); broadcastNow(); }
 }
-
-/* ═══ ✅ CORRETTO: accetta la posizione della lancetta (pos) ═══ */
 function HcoopValve(id, vidx, pos){
   const p = byId(id);
   if(!p || !p.task || p.task.type!=='coop' || !p.task.coopSession) return;
@@ -556,7 +474,6 @@ function HcoopValve(id, vidx, pos){
   const v = s.valves[vidx];
   if(!v || v.done) return;
   const isA = (p.id === s.a);
-  // Registra il fermo solo se non già fermato da questo giocatore
   if(isA){
     if(v.aStopped) return;
     v.aStopped = true;
@@ -566,12 +483,10 @@ function HcoopValve(id, vidx, pos){
     v.bStopped = true;
     v.bOk = (pos >= v.zone && pos <= v.zone + v.zoneH);
   }
-  // Valvola completata solo se ENTRAMBI i giocatori l'hanno fermata in zona
   if(v.aStopped && v.bStopped && v.aOk && v.bOk) v.done = true;
   if(s.valves.every(v=>v.done)){ s.done = true; coopComplete(s); }
   broadcastNow();
 }
-
 function HcoopSubmitRunes(id, seq){
   const p = byId(id);
   if(!p || !p.task || p.task.type!=='coop' || !p.task.coopSession) return;
@@ -586,8 +501,6 @@ function HcoopSubmitRunes(id, seq){
       s.done=true; s.fail=true;
       addLog('✗ CODICE INCROCIATO errato: la sequenza era '+target+'.', ABS.sparlatore.c);
       for(const k in G.coopSessions){ if(G.coopSessions[k]===s) delete G.coopSessions[k]; }
-      /* ★ coopEnd ok:false → su ENTRAMBI gli schermi il modal si chiude da
-         solo con banner ambra «interrotta»: nessuno resta bloccato. */
       privBoth([s.a, s.b], {type:'coopEnd', session:null, ok:false, fail:true, reason:'codice errato'});
       if(byId(s.a)) byId(s.a).task = null;
       if(byId(s.b)) byId(s.b).task = null;
@@ -599,12 +512,6 @@ function HcoopSubmitRunes(id, seq){
 /* ══════════════════════ AVVIAMENTO PARTITA ══════════════════════ */
 function Hstart(){
   if(!G || G.phase!=='lobby' || G.players.length<CFG.MIN || G.players.length>CFG.MAX) return;
-  /* ═══ FIX "HOST DIVENTA SPETTATORE" (PARTENZA) ═══
-     Prima di partire: ripulisci i fantasmi dal roster (chi non è più presente
-     nelle presenze, MAI il giocatore locale), rigenera i codici e riporta tutti
-     in vita. Così il conteggio "pronti" della schermata regole coincide sempre
-     con i giocatori che riceveranno il ruolo: se un nome sparisce dalla lista
-     dei pronti, l'host resta bloccato e chi è fuori vede gli altri "sparire". */
   const present = new Set(roster().map(p => p.id));
   G.players = G.players.filter(p => p.id === I.id || present.has(p.id));
   if(!G.players.some(p => p.id === I.id)) G.players.unshift(mkPlayer(I.id, I.name || 'HOST'));
@@ -614,13 +521,10 @@ function Hstart(){
     p.tasks = 0; p.task = null; p.ab = null; p.usedAbs = []; p.pendingAb = null;
     p.isPuttana = false; p.rulesOk = false; p.revealOk = false;
   });
-  // Registro dei volti noti di questa partita: durante il gioco, chi è già
-  // stato in partita non viene MAI retrocesso in sala d'attesa da un glitch
-  // delle presenze realtime (vedi onPres in network.js).
   G.seenInGame = {};
   G.players.forEach(p => { G.seenInGame[p.id] = 1; });
+  G.waiting = [];   // ★ la sala d'attesa del round precedente è ormai svuotata
   G.word = pick(WORDS);
-  G.players.forEach(p=>{ p.rulesOk=false; p.revealOk=false; });
   G.phase='rules';
   broadcastNow();
 }
@@ -634,17 +538,9 @@ function HrulesOk(id){
       p.role = p.id===ids[0] ? 'assassino' : p.id===ids[1] ? 'detective' : 'innocente';
       priv(p.id, {type:'init', role:p.role, word:p.role==='assassino'?null:G.word, code:p.code});
     });
-    /* ═══ SICUREZZA HOST (anti-spettro) ═══
-       L'host applica subito a sé stesso il proprio ruolo privato, senza
-       aspettare che il broadcast "priv" giri sul canale realtime e torni
-       indietro (se quel messaggio si perde, l'host resta senza SEC.role e
-       il gioco lo tratta come SPETTRO / spettatore).
-       ★ FIX PRINCIPALE: resetta anche SEC._ok, altrimenti al round successivo
-       renderRules() riempe SEC con {role:null} → chip "SPETTRO". */
     const meP = G.players.find(x => x.id === I.id);
     if(meP && isHost){
-      SEC = { role: meP.role, word: meP.role==='assassino' ? null : G.word,
-              code: meP.code, _ok:true };
+      SEC = { role: meP.role, word: meP.role==='assassino' ? null : G.word, code: meP.code };
       SYNC = {}; SCANLIST = []; SCANCLUES = [];
       myAlivePrev = true; myQPrev = false;
     }
@@ -676,12 +572,12 @@ function startPlay(){
   d.scanReadyAt = now + CFG.SCAN_UNLOCK;
   d.scanCharges = CFG.SCAN_MAX;
   d.scanNextChargeAt = now + CFG.SCAN_RECHARGE;
-  G.players.forEach(p=>{ p.lastTaskAt=now; p.cdw=0; p.cdv=0; });
+  G.players.forEach(p=>{ p.lastTaskAt=now; p.cdw=0; p.cdv=0; LASTSEEN[p.id]=now; });
   addLog('Sistemi della stazione attivi. Buona fortuna, operatori.');
   broadcastNow();
 }
 
-/* ══════════════════════ ABILITÀ "GESÙ" ══════════════════════ */
+/* ══════════════════════ GESÙ / KILL / SPALMATORE ══════════════════════ */
 function consumeGesu(t, src){
   if(!t || (src!=='kill' && src!=='spalm')) return false;
   if(t.ab!=='gesu') return false;
@@ -690,8 +586,6 @@ function consumeGesu(t, src){
   addLog('✝ GESÙ STA CON '+t.name+': L\'ELIMINAZIONE È STATA ANNULLATA!', ABS.gesu.c);
   return true;
 }
-
-/* ══════════════════════ UCCISIONI / SPALMATORE ══════════════════════ */
 function Hkill(id, tid){
   const a = byId(id), t = byId(tid), now = Date.now();
   if(!a || a.role!=='assassino' || !a.alive || a.quarantined || !t || !t.alive ||
@@ -830,7 +724,8 @@ function HabChoice(id, pickSel){
 /* ══════════════════════ SCAN (detective) ══════════════════════ */
 function Hscan(id, tid){
   const d = byId(id), t = byId(tid), now = Date.now();
-  if(!d || d.role!=='detective' || !d.alive || G.phase!=='play' || G.meeting){ priv(id,{type:'scanFail'}); return; }
+  /* ★ FIX #5: anche il detective in quarantena è bloccato */
+  if(!d || d.role!=='detective' || !d.alive || d.quarantined || G.phase!=='play' || G.meeting){ priv(id,{type:'scanFail'}); return; }
   if(now<d.scanReadyAt || d.scanCharges<=0 || !t || !t.alive){ priv(id,{type:'scanFail'}); return; }
   d.scanReadyAt = now + CFG.SCAN_CD;
   d.scanCharges--;
@@ -900,7 +795,6 @@ function Hsab(id, tid){
 function HtaskDone(id){
   const p = byId(id);
   if(!p || G.phase!=='play') return;
-  // ── SPETTRI: i rituali completati caricano la séance (niente task classiche) ──
   if(!p.alive){
     if(!p.task || p.task.type !== 'ghost') return;
     ghostTaskDone(p);
@@ -909,7 +803,7 @@ function HtaskDone(id){
   }
   if(p.quarantined) return;
   if(!p.task) return;
-  if(p.task.type==='coop') return; // le coop si completano in coopComplete
+  if(p.task.type==='coop') return;
   p.task = null;
   p.tasks++;
   p.lastTaskAt = Date.now();
@@ -1006,7 +900,7 @@ function applyVote(){
   broadcastNow();
 }
 
-/* ══════════════════════ PROMOZIONE DETECTIVE ══════════════════════ */
+/* ══════════════════════ PROMOZIONE DETECTIVE / VITTORIA ══════════════════════ */
 function promote(){
   const c = G.players.filter(p => p.alive && !p.quarantined && p.role==='innocente');
   if(!c.length) return;
@@ -1020,8 +914,6 @@ function promote(){
   G.banner = {txt:'IL DETECTIVE È CADUTO — UN NUOVO DETECTIVE AGISCE IN ANONIMATO', tone:'amber', at:Date.now()};
   addLog('Un nuovo detective è stato nominato.');
 }
-
-/* ══════════════════════ VITTORIA / FINE ══════════════════════ */
 function checkWin(){
   if(G.phase!=='play') return;
   if(aliveNonAss()<=1) endGame('assassino');
@@ -1056,57 +948,4 @@ function Hreset(){
     phase:'lobby', word:'', winner:null, reveal:null, meeting:null, spoof:null,
     banner:null, log:G.log, t0:0, whisperLog:{},
     coopSessions:{}, coopInvites:{},
-    puttanaActive:false, puttanaTimerAt:0, taskTarget:0,
-    seanceState:'charge', seanceCur:0, seanceContrib:[],
-    seanceMedium:null, seanceTarget:null, seanceVotes:{}, seanceEndsAt:0
-  });
-  addLog('↩ Tornati alla lobby.');
-  broadcastNow();
-}
-
-/* ══════════════════════ DISPATCHER AZIONI ══════════════════════ */
-function hostAct(o){
-  switch(o.t){
-    case 'hi':
-      syncRosterFromPresence();
-      setTimeout(()=>broadcastNow(), 300);
-      setTimeout(()=>broadcastNow(), 1000);
-      break;
-    case 'start':      Hstart(); break;
-    case 'rulesOk':    HrulesOk(o.id); break;
-    case 'revealOk':   HrevealOk(o.id); break;
-    case 'taskDone':   HtaskDone(o.id); break;
-    case 'kill':       Hkill(o.id, o.tgt); break;
-    case 'scan':       Hscan(o.id, o.tgt); break;
-    case 'sab':        Hsab(o.id, o.tgt); break;
-    case 'whisperOpen':HwhisperOpen(o.id, o.tgt); break;
-    case 'whisperMsg': HwhisperMsg(o.id, o.tgt, o.text); break;
-    case 'seanceTarget':HseanceTarget(o.id, o.tgt); break;
-    case 'seanceBallot':HseanceBallot(o.id, o.vote); break;
-    case 'abSpalm':    Hspalm(o.id, o.tgt); break;
-    case 'abPutt':     Hputt(o.id, o.tgt); break;
-    case 'abSpar':     Hspar(o.id, o.tgt); break;
-    case 'abGesuRev':  HabGesuRev(o.id, o.tgt); break;
-    case 'abMerdeRev': HabMerdeRev(o.id, o.tgt); break;
-    case 'abMerde':    Hmerde(o.id); break;
-    case 'abChoice':   HabChoice(o.id, o.pick); break;
-    case 'coopAccept': acceptCoopInvite(o.inviteId, o.accept); break;
-    case 'coopRequest':HcoopRequest(o.id); break;
-    case 'coopPick':   HcoopPick(o.id, o.pid); break;
-    case 'coopTap':    HcoopTap(o.id); break;
-    case 'coopValve':  HcoopValve(o.id, o.vidx, o.pos); break;   /* ✅ corretto */
-    case 'coopRunes':  HcoopSubmitRunes(o.id, o.seq); break;
-    case 'meet':       Hmeet(o.id, o.kind); break;
-    case 'word':       Hword(o.id, o.text); break;
-    case 'vote':       Hvote(o.id, o.tgt); break;
-    case 'reset':      Hreset(); break;
-  }
-}
-
-/* ═══ INVIO AZIONE (usata da tutti i client) ═══ */
-function act(o){
-  o.k = 'act';
-  o.id = I.id;
-  if(isHost) hostAct(o);
-  else send(o);
-}
+    puttanaActive:false, puttanaTimerAt:
