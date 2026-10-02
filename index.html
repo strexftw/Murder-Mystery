@@ -64,7 +64,7 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif}
 .btn:active:not(:disabled){transform:translateY(0)}
 .btn:disabled{opacity:.35;cursor:not-allowed}
 .btn.red{color:var(--red);border-color:var(--red);background:linear-gradient(180deg,rgba(255,59,92,.18),rgba(255,59,92,.04))}
-.btn.red:hover:not(:disabled){filter:drop-shadow(0 0 12px rgba(255,59,92,.55))}
+.btn.red:hover:not(:disabled){filter:drop-shadow(0 0 12px rgba(255,59,92,.55)}
 .btn.amb{color:var(--amber);border-color:var(--amber);background:linear-gradient(180deg,rgba(255,182,72,.18),rgba(255,182,72,.04))}
 .btn.grn{color:var(--grn);border-color:var(--grn);background:linear-gradient(180deg,rgba(61,255,160,.18),rgba(61,255,160,.04))}
 .btn.ghost{border-color:var(--line);color:var(--dim);background:transparent}
@@ -435,9 +435,9 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif}
       </ul>
       <h3>◆ TASK: SINGOLE, DI COPPIA, CRITICHE</h3>
       <ul>
-        <li><b>SINGOLE</b>: le completi da solo. <b>🚨 6%</b> diventano CRITICHE: 30s, se scadono vieni eliminato dalla stazione (vale anche per l'assassino).</li>
-        <li><b>DI COPPIA</b>: invii la task, scegli un compagno, lui accetta (20s) e giocate insieme un minigioco coop. +1 barra a testa.</li>
-        <li><b>SPETTRO</b>: i morti completano rituali horror per caricare la SÉANCE.</li>
+        <li><b>SINGOLE</b>: le completi da solo. 🚨 <b>6%</b> diventano CRITICHE: card rossa lampeggiante + 30s; se scadono vieni eliminato dalla stazione (vale anche per l'assassino → vittoria innocenti).</li>
+        <li><b>DI COPPIA (25%)</b>: premi «SVOLGI TASK · INVIA» (60s) → scegli tu il compagno dalla lista dei disponibili (45s, con motivi di indisponibilità) → lui accetta/rifiuta (20s) → minigioco insieme: PONTE ENERGETICO, CODICE INCROCIATO (parlatevi coi sussurri!), VALVOLE GEMELLE. +1 barra a testa. Rifiuto/scadenza → puoi scegliere un altro; nessuno libero → task annullata.</li>
+        <li><b>SPETTRO</b>: i morti completano rituali horror (Ouija, candele, anime, rune, sigilli) per caricare la SÉANCE.</li>
       </ul>
       <h3>◆ VITTORIA</h3>
       <ul>
@@ -445,15 +445,25 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif}
         <li><b>Assassino</b>: resta con al massimo un altro giocatore in vita.</li>
       </ul>
       <h3>◆ QUARANTENA</h3>
-      <ul><li>Scan con codice = assassino → quarantena (niente task/abilità). Verifica del Detective (legge il codice REALE): corrisponde → vittoria · pulito → rilascio.</li></ul>
-      <h3>◆ ASSASSINO / DETECTIVE / PUTTANA / ABILITÀ / SUSSURRI / RIUNIONI</h3>
+      <ul><li>Scan con codice = assassino → quarantena (niente task/abilità, dock limitato). Verifica del Detective (legge il codice REALE, ignora le maschere): corrisponde → vittoria innocenti · pulito → rilascio.</li></ul>
+      <h3>◆ ASSASSINO</h3>
       <ul>
-        <li>Assassino: sabotaggio codici (30s, riuso 60s, resiste 2 scan), kill (50s, ricarica 45s), lettera alla vittima.</li>
-        <li>Detective: scan 20s, 3 cariche, archivio aggiornato, quarantena e verifica.</li>
-        <li>Puttana: promozione segreta ogni 30s a chi ha più task (innocenti vivi); resuscita ogni 4 min.</li>
-        <li>Abilità: SPALMATORE · SPARLATORE · GESÙ · MERDE (max 1, tieni/sostituisci).</li>
-        <li>Sussurri: chat privata illimitata, apertura annunciata, contenuto segreto.</li>
-        <li>Riunioni Parola e Voto ogni 2 minuti.</li>
+        <li>SABOTAGGIO CODICI dopo 30s (riuso 60s, resiste a 2 scan): tutti tranne il Detective leggono il codice del bersaglio; sul tuo dispositivo vedi REALE + MASCHERA.</li>
+        <li>Bersaglio Detective → hackeraggio pubblico, riuso istantaneo, ma gli riveli una cifra del tuo codice.</li>
+        <li>UCCISIONE dopo 50s, ricarica 45s; la vittima vede una lettera casuale del tuo nome.</li>
+      </ul>
+      <h3>◆ DETECTIVE</h3>
+      <ul><li>Scan dopo 20s: 3 cariche (+1 ogni 2,5 min), ricarica 20s. Archivio: una riga per giocatore, aggiornata in ordine di scansione (×n).</li></ul>
+      <h3>◆ PUTTANA (promozione segreta — innocenti vivi)</h3>
+      <ul><li>5 task → timer nascosto 30s → promosso chi ha più task (pareggio random); ciclo continuo. Resuscita un ucciso da assassino/spalmatore ogni 4 min.</li></ul>
+      <h3>◆ SÉANCE DEGLI SPIRITI</h3>
+      <ul><li>4 rituali degli spettri → UN Medio (innocente vivo) riceve l'unico pulsante SÉANCE → sceglie un sospetto → i morti votano SÌ/NO in segreto → verdetto pubblico ("non tutti gli spiriti sono buoni").</li></ul>
+      <h3>◆ ABILITÀ CASUALI DALLE TASK (8% ciascuna)</h3>
+      <ul><li>SPALMATORE · SPARLATORE · GESÙ · MERDE — max 1, con scelta TIENI/SOSTITUISCI.</li></ul>
+      <h3>◆ SUSSURRI & RIUNIONI</h3>
+      <ul>
+        <li>SUSSURRI: chat privata illimitata 1-a-1 con finestre multiple; l'apertura è annunciata nel registro, il contenuto resta segreto; usabile anche durante le riunioni.</li>
+        <li>Riunione PAROLA (parole firmate sull'argomento segreto) e Riunione VOTO (espulsione + reveal ruolo dopo 5s), cooldown 2 min ciascuna.</li>
       </ul>
     </div>
     <div style="text-align:center;margin-top:20px">
