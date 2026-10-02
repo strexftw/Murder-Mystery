@@ -1,4 +1,3 @@
-/* ══════════════════════════════════════════════════════════════
    PROTOCOLLO OMBRA — js/config.js
    Configurazione, costanti, abilità, parole, task, ruoli.
    ⚠️ Incolla qui sotto SB_URL e SB_KEY di Supabase.
@@ -6,7 +5,7 @@
 
 /* ═══ CREDENZIALI SUPABASE (OBBLIGATORIE) ═══ */
 const SB_URL = "https://xkvnwezcdvkrisqhuvhx.supabase.co";
-const SB_KEY = "INCOLLA_QUI_LA_TUA_ANON_KEY";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhrdm53ZXpjZHZrcmlzcWh1dmh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA4NDgxNDksImV4cCI6MjEwNjQyNDE0OX0.-1QaeGq0lU8MsjtSUpLWwTRxpFzWxtxAK00BzLNC6Zg";
 
 /* ═══ PARAMETRI DI GIOCO ═══ */
 const CFG = {
