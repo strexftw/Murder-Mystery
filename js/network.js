@@ -105,23 +105,58 @@ function onPres(){
       if(ch) broadcastNow();
     } else {
       /* ── IN PARTITA ── */
+      /* ═══ FIX BUG "HOST DIVENTA SPETTRO / NON CAPISCE COSA È SUCCESSO" ═══
+         Causa profonda: le presenze realtime sono VOLATILI (un drop di rete
+         le svuota tutte, anche dei giocatori collegati) e Supabase può
+         consegnare un sync PARZIALE/STALE (roster vuoto o senza di me) prima
+         che il track sia confermato. Il vecchio codice, a ogni sync,
+         confrontava il roster presenze con G.players e:
+           - eliminava come "disconnesso" chiunque non comparisse (persone
+             in realtà online → morti inspiegabili);
+           - metteva in SALA D'ATTESA chi era già in partita ma temporanea-
+             mente assente dalle presenze (→ "non capisci cosa è");
+           - filtrava la sala d'attesa sul roster volatile (svuotandola).
+         Ora: (1) auto-ritrack di sicurezza se la mia presenza manca;
+         (2) mai disconnectKill sul giocatore locale; (3) i giocatori della
+         partita in corso NON vengono rimossi dal roster presenze — le
+         uscite definitive le rileva il protocollo di sopravvivenza (hi +
+         heartbeat ACK in hostAct); (4) la sala d'attesa accoglie solo chi
+         è davvero NUOVO (mai visto in questa partita), così un glitch di
+         presenze non retrocede in attesa un giocatore già in partita. */
       const ids = new Set(r.map(p => p.id));
-      // Chi si disconnette durante la partita viene eliminato come "disconnesso"
-      G.players.forEach(p => {
-        if(p.alive && !ids.has(p.id) && p.id !== I.id) disconnectKill(p);
-      });
-      // ★ SALA D'ATTESA: chi entra a partita in corso NON diventa spettro.
+      const meTracked = r.some(p => p.id === I.id);
+      if(!meTracked){
+        try{ chan.untrack(); }catch(e){}
+        chan.track({ id: I.id, name: I.name, jAt: joinAt, host: true });
+      }
+
+      // Sicurezza: l'host locale deve sempre essere nell'elenco giocatori
+      // (e mai marcato morto per errore) — altrimenti resterebbe senza
+      // identità visibile, cioè di fatto uno spettro.
+      if(!G.players.some(p => p.id === I.id)){
+        G.players.push(mkPlayer(I.id, I.name || 'HOST'));
+        broadcastNow();
+      }
+      const meP = G.players.find(p => p.id === I.id);
+      if(meP && !meP.alive){ meP.alive = true; meP.deadBy = null; }
+
+      // ★ SALA D'ATTESA: solo chi NON ha mai giocato questa partita entra.
+      //     I giocatori già in partita non vengono MAI retrocessi in attesa
+      //     a causa di un sync di presenza parziale o volatile.
       if(!G.waiting) G.waiting = [];
+      if(!G.seenInGame) G.seenInGame = {};
+      G.players.forEach(p => { G.seenInGame[p.id] = 1; });
       r.forEach(p => {
         const inGame    = G.players.some(x => x.id === p.id);
         const inWaiting = G.waiting.some(x => x.id === p.id);
-        if(!inGame && !inWaiting && p.id !== I.id){
+        if(!inGame && !inWaiting && !G.seenInGame[p.id] && p.id !== I.id){
           G.waiting.push({ id: p.id, name: p.name });
           priv(p.id, { type:'note', txt:'🕒 Sei in SALA D\'ATTESA: entrerai alla prossima partita.' });
         }
       });
-      // Rimuovi dalla sala d'attesa chi si è disconnesso
-      G.waiting = G.waiting.filter(w => ids.has(w.id));
+      // Nessuna rimozione dai G.players qui: le disconnessioni definitive
+      // sono gestite da hi/heartbeat (hostAct in host.js), non dal roster
+      // volatile delle presenze.
     }
   } else if(!isHost){
     /* ── MIGRAZIONE HOST (solo se la partita è in lobby) ── */
