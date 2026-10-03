@@ -1,5 +1,6 @@
 /* =========================================================
-   LOBBY.CSS v3 — grafica di lobby.html con SCRITTE GRANDI
+   LOBBY.CSS v3.1 — grafica di lobby.html con SCRITTE GRANDI
+   + stile .p-device: dispositivo visibile a tutti i giocatori
    ========================================================= */
 body{ display:flex; flex-direction:column; min-height:100svh; }
 
@@ -116,6 +117,13 @@ body{ display:flex; flex-direction:column; min-height:100svh; }
 .p-name{
   font-family:var(--head); font-weight:700; font-size:1.25rem; letter-spacing:.03em;
   max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+/* NUOVO: etichetta dispositivo, visibile sotto il nome di OGNI giocatore */
+.p-device{
+  font-family:var(--head); font-size:.95rem; letter-spacing:.08em;
+  color:var(--ivory-dim); background:rgba(9,27,21,.6);
+  border:1px solid var(--line-soft); border-radius:99px;
+  padding:.2rem .7rem; white-space:nowrap;
 }
 .p-you{ font-family:var(--head); font-size:.95rem; letter-spacing:.18em; color:var(--gold); }
 .badge-host{

@@ -1,7 +1,9 @@
 /* =========================================================
    LOBBY.JS — logica della lobby (lobby.html)
-   v3.5: dispositivo (💻 PC / 📱 Telefono / 📟 Tablet)
-   sotto il nome di ogni giocatore al tavolo
+   v3.6: il dispositivo (💻 PC / 📱 Telefono / 📟 Tablet) è
+   visibile a TUTTI i giocatori sotto ogni nome: il battito
+   riscrive il campo device ad ogni giro, così anche le
+   righe vecchie (device vuoto) vengono riempite da sole.
    heartbeat 0.5s · lista · chat · successione capo · Politica A
    ========================================================= */
 (function(){
@@ -70,6 +72,11 @@
   /* un giocatore è "vivo" se il suo battito è recente */
   function isFresh(p){
     return (Date.now() - Date.parse(p.last_seen)) <= OFFLINE_AFTER_MS;
+  }
+
+  /* etichetta dispositivo sempre presente, anche se il campo è vuoto */
+  function deviceText(p){
+    return p.device ? deviceLabel(p.device) : '❓ Sconosciuto';
   }
 
   init();
@@ -150,10 +157,12 @@
     if(!running) return;
     beatN++;
     try{
-      /* 1) il mio battito; se nel frattempo sono stato rimosso, rientro */
+      /* 1) il mio battito: riscrive SEMPRE anche il dispositivo,
+            così tutti vedono da cosa gioco (e le righe con device
+            vuoto si riparano da sole). Se sono stato rimosso, rientro */
       if(beatN % PRESENCE_EVERY === 1){
         const t = await db.from('players')
-          .update({ online: true, last_seen: new Date().toISOString() })
+          .update({ online: true, device: getDeviceType(), last_seen: new Date().toISOString() })
           .eq('room_id', roomId).eq('uid', uid)
           .select('id');
         if(!t.error && t.data && t.data.length === 0){
@@ -274,9 +283,10 @@
 
       const meta = document.createElement('div');
       meta.className = 'p-meta';
+      /* il dispositivo è visibile a TUTTI, sotto ogni nome */
       meta.innerHTML =
         '<span class="p-name">' + escapeHtml(p.name) + '</span>' +
-        (p.device ? '<span class="p-device">' + deviceLabel(p.device) + '</span>' : '') +
+        '<span class="p-device">' + deviceText(p) + '</span>' +
         (p.uid === uid ? '<span class="p-you">(TU)</span>' : '') +
         (p.is_host ? '<span class="badge-host">CAPO STANZA</span>' : '');
 
