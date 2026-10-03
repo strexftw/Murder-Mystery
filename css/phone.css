@@ -1,11 +1,13 @@
 /* =========================================================
-   PHONE.CSS v3 — telefono: tutto a schermo e campi SEMPRE
+   PHONE.CSS v4 — telefono: tutto a schermo e campi SEMPRE
    raggiungibili.
    - 100dvh: quando si apre la tastiera il layout si
      restringe da solo e i campi non finiscono coperti
    - la pagina non scorre; se proprio serve, scorre SOLO
      il menu dentro il suo riquadro
    - campi di testo a 16px: niente zoom automatico su iPhone
+   - v4: il menu in verticale ora riempie tutta la larghezza
+     e tutta l'altezza dello schermo
    ========================================================= */
 
 /* ============ COMUNE: la pagina non si muove ============ */
@@ -82,21 +84,48 @@ body{ display:flex; flex-direction:column; }
   .chat-form{ margin-top:.55rem; gap:.5rem; }
   .chat-form input{ padding:.65rem .8rem; }
 
-  /* ---------- menu (index.html) ---------- */
-  .table{ padding:.9rem; max-width:640px; }
+  /* ---------- menu (index.html) — a tutto schermo ---------- */
+  .table{
+    width:100%; max-width:none; margin:0;
+    box-sizing:border-box;
+    display:flex; flex-direction:column;
+    padding:.9rem;
+    padding-left:calc(.9rem + env(safe-area-inset-left));
+    padding-right:calc(.9rem + env(safe-area-inset-right));
+    padding-bottom:calc(.9rem + env(safe-area-inset-bottom));
+  }
+  .crest{ flex:none; }
   .overline{ font-size:.75rem; letter-spacing:.18em; }
   .title{ font-size:clamp(2rem,9vw,3rem); margin:.5rem 0 .4rem; }
-  .table-area{ grid-template-columns:1fr; gap:1rem; margin-top:.8rem; }
+
+  /* l'area centrale occupa tutto lo spazio rimasto:
+     regole in alto, modulo che si allarga fino in fondo.
+     (flex:1 0 auto → con la tastiera aperta non si schiaccia,
+     scorre dentro .table) */
+  .table-area{
+    flex:1 0 auto;
+    display:grid;
+    grid-template-columns:1fr;
+    grid-template-rows:auto 1fr;
+    gap:1rem; margin-top:.8rem;
+  }
+  .left{ width:100%; }
   .rules{ margin-top:0; gap:.5rem; }
   .rules li{ font-size:.95rem; padding:.6rem .8rem; }
-  .form-card{ padding:1.2rem 1.1rem; width:100%; max-width:none; }
+
+  .form-card{
+    display:flex; flex-direction:column; justify-content:space-evenly;
+    width:100%; max-width:none; box-sizing:border-box;
+    padding:1.2rem 1.1rem;
+  }
   .card-title{ font-size:1rem; margin-bottom:1rem; }
   .form-card .field{ margin-bottom:.8rem; }
   .field input{ padding:.75rem .9rem; }
   .btn{ font-size:.95rem; padding:.8rem 1.1rem; }
   #roomCode{ font-size:1.25rem; letter-spacing:.3em; }
   .divider{ margin:1rem 0; font-size:.9rem; }
-  .step-row{ font-size:.72rem; letter-spacing:.14em; }
+
+  .step-row{ flex:none; margin-top:.8rem; font-size:.72rem; letter-spacing:.14em; }
 }
 
 /* =========================================================
