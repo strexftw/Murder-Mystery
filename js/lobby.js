@@ -1,6 +1,7 @@
 /* =========================================================
    LOBBY.JS — logica della lobby (lobby.html)
-   v3.1: chi si disconnette viene RIMOSSO dal tavolo
+   v3.2: successione del capo stanza (nuovo host random
+   quando il capo se ne va; il vecchio capo rientra normale)
    heartbeat 0.5s · lista · chat · avvio (solo host)
    ========================================================= */
 (function(){
@@ -65,6 +66,11 @@
   el.roomName.textContent = stored.name || '…';
   el.codeText.textContent = stored.code || '······';
 
+  /* un giocatore è "vivo" se il suo battito è recente */
+  function isFresh(p){
+    return (Date.now() - Date.parse(p.last_seen)) <= OFFLINE_AFTER_MS;
+  }
+
   init();
 
   /* ---------------- INIT ---------------- */
@@ -123,6 +129,20 @@
     }
   }
 
+  /* ---------------- SUCCESSIONE DEL CAPO ---------------- */
+  /* proclama un nuovo capo stanza a caso tra i candidati */
+  async function promoteNewHost(candidates){
+    if(!candidates || !candidates.length) return null;
+    const pick = candidates[Math.floor(Math.random() * candidates.length)];
+    console.log('[LOBBY] nuovo capo stanza proclamato:', pick.name);
+
+    await db.from('rooms').update({ host_uid: pick.uid }).eq('id', roomId);
+    await db.from('players').update({ is_host: false }).eq('room_id', roomId);
+    await db.from('players').update({ is_host: true }).eq('id', pick.id);
+    await sysMessage(roomId, '♛ ' + escapeHtml(pick.name) + ' è ora il capo stanza.');
+    return pick;
+  }
+
   /* ---------------- HEARTBEAT (ogni 0.5s) ---------------- */
   async function beat(){
     if(!running) return;
@@ -146,17 +166,40 @@
       /* 3) lista giocatori (aggiornata ogni 0.5s) */
       const pl = await db.from('players').select('*').eq('room_id', roomId);
       if(!pl.error && pl.data){
-        const players = iAmCleaner(pl.data) ? await cleanup(pl.data) : pl.data;
+        let players = pl.data;
+        if(iAmCleaner(players)){
+          players = await cleanup(players);
+
+          /* se il capo non è più tra noi, proclamane uno nuovo a caso */
+          const hostAlive = players.some(function(p){ return p.is_host; });
+          if(!hostAlive && players.length){
+            const pick = await promoteNewHost(players);
+            if(pick){
+              players.forEach(function(q){ q.is_host = (q.uid === pick.uid); });
+            }
+          }
+        }
         renderPlayers(players);
       }
 
       /* 4) chat */
       await refreshChat();
 
-      /* 5) controllo avvio partita */
+      /* 5) stato stanza + sincronizzazione del mio ruolo di capo */
       if(beatN % PRESENCE_EVERY === 2){
-        const st = await db.from('rooms').select('status').eq('id', roomId).maybeSingle();
-        if(st.data && st.data.status === 'playing'){ startOverlay(); return; }
+        const st = await db.from('rooms')
+          .select('status, host_uid').eq('id', roomId).maybeSingle();
+        if(st.data){
+          if(st.data.status === 'playing'){ startOverlay(); return; }
+          const nowHost = (st.data.host_uid === uid);
+          if(nowHost !== isHost){
+            isHost = nowHost;
+            el.hostZone.hidden = !isHost;
+            el.waitNote.hidden = isHost;
+            console.log('[LOBBY] ruolo capo stanza aggiornato:', isHost);
+            if(isHost) showToast('♛ Sei tu il nuovo capo stanza!');
+          }
+        }
       }
     }catch(err){
       console.warn('[LOBBY] heartbeat:', err);
@@ -174,7 +217,7 @@
     if(isHost) return true;
 
     const host = players.find(function(p){ return p.is_host; });
-    const hostFresh = host && (Date.now() - Date.parse(host.last_seen) <= OFFLINE_AFTER_MS);
+    const hostFresh = host && isFresh(host);
     if(hostFresh) return false;
 
     const online = players
@@ -185,11 +228,9 @@
 
   /* chi non batte più da OFFLINE_AFTER_MS viene tolto dal tavolo */
   async function cleanup(players){
-    const now = Date.now();
     const kept = [];
     for(const p of players){
-      const stale = now - Date.parse(p.last_seen) > OFFLINE_AFTER_MS;
-      if(stale){
+      if(!isFresh(p)){
         const del = await db.from('players').delete().eq('id', p.id);
         if(del.error){
           console.warn('[LOBBY] rimozione fallita per', p.name, del.error);
@@ -341,6 +382,16 @@
   el.btnExit.addEventListener('click', async function(){
     running = false;
     try{
+      /* se sono il capo, passo lo scettro a caso prima di andarmene */
+      if(isHost){
+        const pl = await db.from('players').select('*').eq('room_id', roomId);
+        const others = (pl.data || []).filter(function(p){
+          return p.uid !== uid && isFresh(p);
+        });
+        if(others.length){
+          await promoteNewHost(others);
+        }
+      }
       await db.from('players').delete().eq('room_id', roomId).eq('uid', uid);
       await sysMessage(roomId, escapeHtml(myName) + ' ha abbandonato la stanza.');
     }catch(e){}
@@ -349,7 +400,8 @@
   });
 
   /* chiusura scheda: provo a rimuovermi subito
-     (se non fa in tempo, ci pensa la pulizia entro ~5s) */
+     (se non fa in tempo, ci pensa la pulizia entro ~5s,
+      e la successione del capo parte da lì) */
   window.addEventListener('beforeunload', function(){
     try{
       db.from('players').delete().eq('room_id', roomId).eq('uid', uid);
