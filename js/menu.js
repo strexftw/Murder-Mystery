@@ -1,7 +1,7 @@
 /* =========================================================
    MENU.JS — logica del menu (index.html)
-   v3: Politica A — spazzino delle stanze morte + nessun
-   nome precompilato + diagnostica visibile
+   v2.1: diagnostica visibile + nessun nome precompilato
+         + dispositivo salvato nel database
    ========================================================= */
 (function(){
   console.log('[MENU] menu.js caricato');
@@ -20,63 +20,36 @@
   const btnJoin       = document.getElementById('btnJoin');
   const errLine       = document.getElementById('menuError');
 
+  /* se manca anche un solo elemento della pagina, dillo a schermo */
   const missing = [
     ['playerName', nameInput], ['roomName', roomNameInput], ['roomCode', codeInput],
     ['btnCreate', btnCreate], ['btnJoin', btnJoin], ['menuError', errLine]
-  ].filter(function(x){ return !x[1]; }).map(function(x){ return x[0]; });
+  ].filter(x => !x[1]).map(x => x[0]);
   if(missing.length){
     console.error('[MENU] Elementi mancanti in index.html:', missing);
     if(errLine) errLine.textContent = '⚠ index.html incompleta: mancano ' + missing.join(', ');
     return;
   }
 
-  codeInput.addEventListener('input', function(){
+  /* niente precompilazione: ogni visita = nuovo nome da assassino */
+
+  codeInput.addEventListener('input', () => {
     codeInput.value = codeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
   });
-  codeInput.addEventListener('keydown', function(e){ if(e.key === 'Enter') joinRoom(); });
-  roomNameInput.addEventListener('keydown', function(e){ if(e.key === 'Enter') createRoom(); });
+  codeInput.addEventListener('keydown', e => { if(e.key === 'Enter') joinRoom(); });
+  roomNameInput.addEventListener('keydown', e => { if(e.key === 'Enter') createRoom(); });
   btnCreate.addEventListener('click', createRoom);
   btnJoin.addEventListener('click', joinRoom);
   console.log('[MENU] ascoltatori collegati: pronto');
 
-  /* ---------------- SPAZZINO (Politica A) ---------------- */
-  /* Al caricamento del menu: stanze senza nessun giocatore vivo
-     (e create da più di 60s) = morte → cancellate con tutta la chat. */
-  async function sweepDeadRooms(){
-    try{
-      const res = await Promise.all([
-        db.from('rooms').select('id, created_at'),
-        db.from('players').select('room_id, last_seen')
-      ]);
-      const roomsRes = res[0], playersRes = res[1];
-      if(roomsRes.error || playersRes.error) return;
-
-      const cutoff = Date.now() - OFFLINE_AFTER_MS;
-      const viviPerStanza = {};
-      (playersRes.data || []).forEach(function(p){
-        if(Date.parse(p.last_seen) > cutoff) viviPerStanza[p.room_id] = true;
-      });
-
-      const morte = (roomsRes.data || []).filter(function(r){
-        return !viviPerStanza[r.id] && (Date.now() - Date.parse(r.created_at) > 60000);
-      });
-      for(const r of morte){
-        await db.from('rooms').delete().eq('id', r.id);
-        console.log('[MENU] stanza morta eliminata:', r.id);
-      }
-      if(morte.length) console.log('[MENU] pulizie fatte:', morte.length, 'stanze eliminate');
-    }catch(e){
-      console.warn('[MENU] sweep saltato:', e);
-    }
-  }
-  sweepDeadRooms(); // parte da solo, una volta per visita al menu
-
+  /* traduce gli errori tecnici in italiano comprensibile */
   function explain(err){
     const m = (err && err.message) || String(err);
-    if(/does not exist/i.test(m))               return 'le tabelle non esistono: esegui database.sql su Supabase.';
-    if(/PGRST116|no rows/i.test(m))             return 'operazione bloccata (RLS senza policy): ricontrolla database.sql.';
+    if(/does not exist/i.test(m))             return 'le tabelle non esistono: esegui database.sql su Supabase.';
+    if(/PGRST116|no rows/i.test(m))           return 'operazione bloccata (RLS senza policy): ricontrolla database.sql.';
     if(/Failed to fetch|NetworkError/i.test(m)) return 'Supabase non raggiungibile: controlla URL in config.js e la rete.';
-    if(/JWT|API key|apikey/i.test(m))           return 'anon key sbagliata in config.js.';
+    if(/JWT|API key|apikey/i.test(m))         return 'anon key sbagliata in config.js.';
+    if(/device/i.test(m))                     return 'manca la colonna device: esegui la riga SQL alter table players.';
     return m;
   }
 
@@ -116,7 +89,7 @@
           .select().single();
         if(res.error){
           console.error('[MENU] errore insert rooms:', res.error);
-          if(res.error.code === '23505') continue;
+          if(res.error.code === '23505') continue; // codice duplicato: riprova
           throw res.error;
         }
         room = res.data;
@@ -127,6 +100,7 @@
       const p = await db.from('players').insert({
         room_id: room.id, uid, name,
         is_host: true, online: true,
+        device: getDeviceType(),
         last_seen: new Date().toISOString()
       });
       if(p.error) throw p.error;
@@ -157,31 +131,22 @@
       const res = await db.from('rooms').select('*').eq('code', code).maybeSingle();
       if(res.error) throw res.error;
       const room = res.data;
-      if(!room) return fail('Nessuna stanza con codice ' + code + '.');
+      if(!room) return fail('Nessuna stanza con codice ' + code + '. Se il codice è giusto, esegui/ricontrolla database.sql (policy RLS).');
       if(room.status !== 'lobby') return fail('In questa stanza la partita è già iniziata.');
       console.log('[MENU] stanza trovata:', room.name);
-
-      /* Politica A: stanza senza nessun giocatore vivo = stanza morta.
-         La cancelliamo e lo diciamo chiaramente. */
-      const soglia = new Date(Date.now() - OFFLINE_AFTER_MS).toISOString();
-      const vivi = await db.from('players').select('id')
-        .eq('room_id', room.id).gte('last_seen', soglia);
-      if(!vivi.error && (vivi.data || []).length === 0){
-        await db.from('rooms').delete().eq('id', room.id);
-        console.log('[MENU] stanza morta eliminata al tentativo di ingresso:', room.code);
-        return fail('Questa stanza non esiste più: tutti erano già usciti. Creane una nuova.');
-      }
 
       const me = await db.from('players')
         .select('id').eq('room_id', room.id).eq('uid', uid).maybeSingle();
       if(me.data){
         await db.from('players').update({
-          online: true, name, last_seen: new Date().toISOString()
+          online: true, name, device: getDeviceType(),
+          last_seen: new Date().toISOString()
         }).eq('id', me.data.id);
       } else {
         const p = await db.from('players').insert({
           room_id: room.id, uid, name,
           is_host: room.host_uid === uid,
+          device: getDeviceType(),
           online: true, last_seen: new Date().toISOString()
         });
         if(p.error) throw p.error;

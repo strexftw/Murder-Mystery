@@ -87,3 +87,22 @@ async function sysMessage(roomId, text){
     room_id: roomId, sender: 'SISTEMA', message: text, is_system: true
   });
 }
+
+/* --- riconoscimento dispositivo: pc / phone / tablet --- */
+function getDeviceType(){
+  const ua = navigator.userAgent || '';
+  const touch = navigator.maxTouchPoints || 0;
+  if(/iPad|Tablet|Silk|Kindle|SM-T|SM-P|GT-P|GT-N|Nexus 7|Nexus 9/i.test(ua)) return 'tablet';
+  if(/Macintosh/i.test(ua) && touch > 1) return 'tablet';          // iPad moderni
+  if(/iPhone|iPod|Windows Phone|IEMobile|Opera Mini|BlackBerry/i.test(ua)) return 'phone';
+  if(/Android.*Mobile/i.test(ua)) return 'phone';
+  if(/Android/i.test(ua)) return 'tablet';                          // Android senza "Mobile"
+  if(/Mobile/i.test(ua)) return 'phone';
+  return 'pc';
+}
+
+function deviceLabel(type){
+  if(type === 'phone')  return '📱 Telefono';
+  if(type === 'tablet') return '📟 Tablet';
+  return '💻 PC';
+}
