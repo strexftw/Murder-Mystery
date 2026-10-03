@@ -1,5 +1,5 @@
 /* =========================================================
-   LOBBY.CSS — grafica dedicata a lobby.html
+   LOBBY.CSS v3 — grafica di lobby.html con SCRITTE GRANDI
    ========================================================= */
 body{ display:flex; flex-direction:column; min-height:100svh; }
 
@@ -7,96 +7,96 @@ body{ display:flex; flex-direction:column; min-height:100svh; }
 .topbar{
   position:sticky; top:0; z-index:20;
   display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;
-  padding:.9rem clamp(1rem,3vw,2rem);
+  padding:1rem clamp(1rem,3vw,2rem);
   background:linear-gradient(180deg, rgba(7,20,15,.94), rgba(9,26,20,.86));
   backdrop-filter:blur(6px); border-bottom:1px solid var(--line);
   box-shadow:0 10px 30px rgba(0,0,0,.35);
 }
-.brand{ display:flex; align-items:center; gap:.8rem; }
+.brand{ display:flex; align-items:center; gap:.9rem; }
 .brand-mark{
-  width:42px; height:42px; flex:none; display:grid; place-items:center; border-radius:50%;
-  border:1px solid var(--gold-dark); color:var(--gold-bright); font-size:1.2rem;
+  width:48px; height:48px; flex:none; display:grid; place-items:center; border-radius:50%;
+  border:1px solid var(--gold-dark); color:var(--gold-bright); font-size:1.5rem;
   background:radial-gradient(circle at 35% 30%, rgba(217,172,78,.25), transparent 70%);
   box-shadow:0 0 18px rgba(217,172,78,.15);
 }
 .brand-title{
-  display:block; font-family:var(--head); font-size:.58rem;
-  letter-spacing:.32em; text-transform:uppercase; color:var(--ivory-dim);
+  display:block; font-family:var(--head); font-size:.95rem;
+  letter-spacing:.26em; text-transform:uppercase; color:var(--ivory-dim);
 }
-.room-name{ font-family:var(--display); font-size:1.15rem; color:var(--ivory); }
-.topbar-right{ display:flex; align-items:center; gap:.9rem; flex-wrap:wrap; }
+.room-name{ font-family:var(--display); font-size:1.7rem; color:var(--ivory); }
+.topbar-right{ display:flex; align-items:center; gap:1rem; flex-wrap:wrap; }
 
 .live{
-  display:flex; align-items:center; gap:.5rem;
-  font-family:var(--head); font-size:.6rem; letter-spacing:.26em;
+  display:flex; align-items:center; gap:.55rem;
+  font-family:var(--head); font-size:.95rem; letter-spacing:.2em;
   text-transform:uppercase; color:var(--gold);
 }
-.live-dot{ width:9px; height:9px; border-radius:50%; background:var(--gold-bright); animation:pulseGold 1.4s infinite; }
+.live-dot{ width:11px; height:11px; border-radius:50%; background:var(--gold-bright); animation:pulseGold 1.4s infinite; }
 
 .code-chip{
-  display:flex; align-items:center; gap:.7rem; cursor:pointer;
-  padding:.5rem .9rem; border-radius:6px; border:1px solid var(--gold-dark);
+  display:flex; align-items:center; gap:.8rem; cursor:pointer;
+  padding:.6rem 1.1rem; border-radius:6px; border:1px solid var(--gold-dark);
   background:linear-gradient(180deg, rgba(217,172,78,.14), rgba(217,172,78,.04));
   transition:transform .18s, box-shadow .18s, border-color .18s;
 }
 .code-chip:hover{ transform:translateY(-2px); border-color:var(--gold-bright); box-shadow:0 10px 22px rgba(0,0,0,.45); }
-.code-label{ font-family:var(--head); font-size:.56rem; letter-spacing:.26em; text-transform:uppercase; color:var(--ivory-dim); }
+.code-label{ font-family:var(--head); font-size:.9rem; letter-spacing:.22em; text-transform:uppercase; color:var(--ivory-dim); }
 #codeText{
-  font-family:var(--head); font-weight:700; font-size:1.25rem; letter-spacing:.35em;
+  font-family:var(--head); font-weight:700; font-size:1.9rem; letter-spacing:.35em;
   color:var(--gold-bright); text-shadow:0 0 14px rgba(217,172,78,.35);
 }
 .copy-hint{
-  font-family:var(--head); font-size:.56rem; letter-spacing:.2em; text-transform:uppercase;
-  color:var(--ivory-dim); border-left:1px solid var(--line); padding-left:.7rem;
+  font-family:var(--head); font-size:.9rem; letter-spacing:.18em; text-transform:uppercase;
+  color:var(--ivory-dim); border-left:1px solid var(--line); padding-left:.8rem;
 }
 .code-chip.copied{ border-color:var(--gold-bright); }
 .code-chip.copied #codeText, .code-chip.copied .copy-hint{ color:#a9e0b2; }
 
 /* ---------- griglia principale ---------- */
 .lobby-grid{
-  flex:1; width:100%; max-width:1280px; margin:0 auto; min-height:0;
-  display:grid; grid-template-columns:minmax(0,1.15fr) minmax(320px,.85fr);
-  gap:1.4rem; padding:1.5rem clamp(1rem,3vw,2rem);
+  flex:1; width:100%; max-width:1320px; margin:0 auto; min-height:0;
+  display:grid; grid-template-columns:minmax(0,1.15fr) minmax(340px,.85fr);
+  gap:1.5rem; padding:1.6rem clamp(1rem,3vw,2rem);
 }
 .panel-col{
   display:flex; flex-direction:column; min-height:0; border-radius:12px;
   background:linear-gradient(180deg, rgba(20,52,40,.9), rgba(11,30,23,.92));
-  border:1px solid var(--line); padding:1.25rem;
+  border:1px solid var(--line); padding:1.4rem;
   box-shadow:0 24px 54px rgba(0,0,0,.4), inset 0 0 0 1px rgba(255,255,255,.02);
   animation:rise .45s ease both;
 }
 .col-head{
   display:flex; align-items:center; justify-content:space-between; gap:1rem;
-  border-bottom:1px solid var(--line-soft); padding-bottom:.8rem; margin-bottom:1.1rem;
+  border-bottom:1px solid var(--line-soft); padding-bottom:.9rem; margin-bottom:1.2rem;
 }
 .col-head h2{
-  font-family:var(--head); font-weight:700; font-size:.95rem;
-  letter-spacing:.3em; text-transform:uppercase; color:var(--ivory);
+  font-family:var(--head); font-weight:700; font-size:1.45rem;
+  letter-spacing:.22em; text-transform:uppercase; color:var(--ivory);
 }
 .col-head h2::first-letter{ color:var(--crimson-hot); }
 .count{
-  font-family:var(--head); font-size:.6rem; letter-spacing:.22em; text-transform:uppercase;
+  font-family:var(--head); font-size:.95rem; letter-spacing:.16em; text-transform:uppercase;
   color:var(--gold); border:1px solid rgba(217,172,78,.35); border-radius:99px;
-  padding:.32rem .75rem; background:rgba(217,172,78,.07); white-space:nowrap;
+  padding:.4rem .9rem; background:rgba(217,172,78,.07); white-space:nowrap;
 }
 
 /* ---------- il tavolo: giocatori come carte ---------- */
 .player-list{
-  list-style:none; flex:1; min-height:140px; overflow-y:auto; align-content:start;
-  display:grid; grid-template-columns:repeat(auto-fill, minmax(150px,1fr));
-  gap:.9rem; padding:2px;
+  list-style:none; flex:1; min-height:150px; overflow-y:auto; align-content:start;
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(180px,1fr));
+  gap:1rem; padding:2px;
 }
 .player{
-  position:relative; display:flex; flex-direction:column; align-items:center; gap:.55rem;
-  text-align:center; padding:1.1rem .8rem 1rem; border-radius:10px;
+  position:relative; display:flex; flex-direction:column; align-items:center; gap:.65rem;
+  text-align:center; padding:1.3rem .9rem 1.2rem; border-radius:10px;
   background:linear-gradient(170deg, #163e2f, #0d251c);
   border:1px solid var(--line); box-shadow:0 12px 24px rgba(0,0,0,.35);
   transition:transform .2s, box-shadow .2s, opacity .3s, filter .3s;
 }
 .player:hover{ transform:translateY(-4px); box-shadow:0 18px 34px rgba(0,0,0,.5); }
-.player::before{ /* pip all'angolo, come sulle carte */
-  content:'†'; position:absolute; top:7px; left:10px;
-  font-family:var(--head); font-size:.8rem; color:rgba(217,172,78,.5);
+.player::before{
+  content:'†'; position:absolute; top:8px; left:11px;
+  font-family:var(--head); font-size:1rem; color:rgba(217,172,78,.5);
 }
 .player.host{ border-color:var(--gold); box-shadow:0 12px 26px rgba(217,172,78,.2), 0 12px 24px rgba(0,0,0,.35); }
 .player.host::before{ content:'♛'; color:var(--gold-bright); }
@@ -104,68 +104,68 @@ body{ display:flex; flex-direction:column; min-height:100svh; }
 .player.offline{ opacity:.45; filter:grayscale(.75); }
 
 .avatar{
-  width:56px; height:56px; border-radius:50%; display:grid; place-items:center;
+  width:66px; height:66px; border-radius:50%; display:grid; place-items:center;
   background:radial-gradient(circle at 35% 30%, #23543f, #123125);
   border:2px solid var(--gold-dark);
-  font-family:var(--head); font-weight:700; font-size:1.5rem; color:var(--gold-bright);
+  font-family:var(--head); font-weight:700; font-size:2rem; color:var(--gold-bright);
   box-shadow:inset 0 0 14px rgba(0,0,0,.5), 0 4px 10px rgba(0,0,0,.4);
 }
 .player.host .avatar{ border-color:var(--gold-bright); box-shadow:0 0 16px rgba(217,172,78,.35), inset 0 0 14px rgba(0,0,0,.5); }
 
-.p-meta{ display:flex; flex-direction:column; align-items:center; gap:.35rem; min-width:0; }
+.p-meta{ display:flex; flex-direction:column; align-items:center; gap:.4rem; min-width:0; }
 .p-name{
-  font-family:var(--head); font-weight:700; font-size:.95rem; letter-spacing:.04em;
+  font-family:var(--head); font-weight:700; font-size:1.25rem; letter-spacing:.03em;
   max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
-.p-you{ font-family:var(--head); font-size:.6rem; letter-spacing:.22em; color:var(--gold); }
+.p-you{ font-family:var(--head); font-size:.95rem; letter-spacing:.18em; color:var(--gold); }
 .badge-host{
-  font-family:var(--head); font-weight:700; font-size:.56rem; letter-spacing:.22em;
+  font-family:var(--head); font-weight:700; font-size:.85rem; letter-spacing:.18em;
   color:#241703; background:linear-gradient(180deg, var(--gold-bright), var(--gold));
-  padding:.22rem .55rem; border-radius:3px;
+  padding:.25rem .6rem; border-radius:3px;
 }
-.p-off{ font-family:var(--head); font-size:.58rem; letter-spacing:.2em; color:var(--ivory-dim); }
+.p-off{ font-family:var(--head); font-size:.9rem; letter-spacing:.16em; color:var(--ivory-dim); }
 
-.dot{ position:absolute; top:10px; right:10px; width:10px; height:10px; border-radius:50%; }
+.dot{ position:absolute; top:11px; right:11px; width:12px; height:12px; border-radius:50%; }
 .dot.on{ background:var(--gold-bright); animation:pulseGold 1.6s infinite; }
 .dot.off{ background:#4c5a52; }
 
-.host-zone{ margin-top:1.1rem; }
+.host-zone{ margin-top:1.2rem; }
 .wait-note{
-  margin-top:1.1rem; padding:.95rem; text-align:center; font-style:italic;
+  margin-top:1.2rem; padding:1.1rem; text-align:center; font-style:italic;
   border:1px dashed rgba(217,172,78,.3); border-radius:8px;
-  color:var(--ivory-dim); font-size:.9rem;
+  color:var(--ivory-dim); font-size:1.15rem;
 }
 .wait-note b{ color:var(--gold-bright); font-style:normal; }
 
 /* ---------- canale sicuro: chat ---------- */
 .chat-log{
-  flex:1; min-height:170px; overflow-y:auto;
-  display:flex; flex-direction:column; gap:.55rem; padding-right:.35rem;
+  flex:1; min-height:180px; overflow-y:auto;
+  display:flex; flex-direction:column; gap:.6rem; padding-right:.35rem;
 }
 .msg{
-  max-width:86%; padding:.55rem .85rem; font-size:.93rem; line-height:1.45;
+  max-width:86%; padding:.7rem 1rem; font-size:1.15rem; line-height:1.5;
   background:rgba(9,27,21,.75); border:1px solid var(--line-soft); border-radius:8px;
   animation:rise .25s ease both; overflow-wrap:anywhere;
 }
 .msg .who{
-  display:block; font-family:var(--head); font-weight:700; font-size:.6rem;
-  letter-spacing:.24em; color:var(--gold); margin-bottom:.25rem; text-transform:uppercase;
+  display:block; font-family:var(--head); font-weight:700; font-size:.95rem;
+  letter-spacing:.2em; color:var(--gold); margin-bottom:.3rem; text-transform:uppercase;
 }
 .msg.mine{ background:rgba(179,32,47,.16); border-color:rgba(224,75,82,.4); align-self:flex-end; }
 .msg.mine .who{ color:var(--crimson-hot); }
 .msg.system{
   align-self:center; max-width:96%; text-align:center;
   background:transparent; border:1px dashed rgba(217,172,78,.35); border-radius:99px;
-  padding:.42rem 1.1rem; color:var(--gold);
-  font-family:var(--head); font-size:.64rem; letter-spacing:.16em; text-transform:uppercase;
+  padding:.5rem 1.3rem; color:var(--gold);
+  font-family:var(--head); font-size:1rem; letter-spacing:.12em; text-transform:uppercase;
 }
-.chat-form{ display:flex; gap:.6rem; margin-top:.9rem; }
+.chat-form{ display:flex; gap:.7rem; margin-top:1rem; }
 .chat-form input{
   flex:1; min-width:0; background:rgba(9,27,21,.7); border:1px solid var(--line);
-  border-radius:6px; color:var(--ivory); padding:.8rem .95rem;
-  font:500 .95rem var(--body); outline:none; transition:border-color .2s, box-shadow .2s;
+  border-radius:6px; color:var(--ivory); padding:.95rem 1.1rem;
+  font:500 1.15rem var(--body); outline:none; transition:border-color .2s, box-shadow .2s;
 }
-.chat-form input::placeholder{ color:rgba(185,174,147,.5); }
+.chat-form input::placeholder{ color:rgba(201,190,163,.5); }
 .chat-form input:focus{ border-color:var(--gold); box-shadow:0 0 0 3px rgba(217,172,78,.16); }
 
 /* ---------- overlay avvio partita ---------- */
@@ -175,18 +175,18 @@ body{ display:flex; flex-direction:column; min-height:100svh; }
   animation:fadeIn .5s ease both;
 }
 .overlay[hidden]{ display:none; }
-.overlay-card{ display:grid; gap:1.3rem; justify-items:center; padding:2rem; animation:rise .55s .1s ease both; }
+.overlay-card{ display:grid; gap:1.4rem; justify-items:center; padding:2rem; animation:rise .55s .1s ease both; }
 .overlay-title{
   font-family:var(--display); font-weight:900; text-transform:uppercase;
-  font-size:clamp(2.2rem,6vw,4.2rem); line-height:1.08; color:var(--gold-bright);
+  font-size:clamp(3rem,8vw,5.5rem); line-height:1.08; color:var(--gold-bright);
   text-shadow:0 0 60px rgba(217,172,78,.3);
 }
 .overlay-title span{ color:var(--crimson-hot); text-shadow:0 0 44px rgba(224,75,82,.45); }
-.overlay-card p{ color:var(--ivory-dim); line-height:1.7; }
+.overlay-card p{ color:var(--ivory-dim); font-size:1.25rem; line-height:1.7; }
 
 /* ---------- responsive ---------- */
 @media (max-width:880px){
   .lobby-grid{ grid-template-columns:1fr; padding-top:1rem; }
-  .chat-col{ min-height:430px; }
-  .player-list{ max-height:44vh; grid-template-columns:repeat(auto-fill, minmax(135px,1fr)); }
+  .chat-col{ min-height:440px; }
+  .player-list{ max-height:44vh; grid-template-columns:repeat(auto-fill, minmax(160px,1fr)); }
 }
