@@ -1,14 +1,21 @@
 /* =========================================================
-   LOBBY.JS — file di logica della lobby (lobby.html)
-   heartbeat 0.5s · lista giocatori · chat · avvio (solo host)
+   LOBBY.JS — logica della lobby (lobby.html)
+   v3.1: chi si disconnette viene RIMOSSO dal tavolo
+   heartbeat 0.5s · lista · chat · avvio (solo host)
    ========================================================= */
 (function(){
+  console.log('[LOBBY] lobby.js caricato');
+
   if(!guardConfig()) return;
 
   const uid    = getUid();
   const myName = getPlayerName() || 'Sconosciuto';
   const stored = getCurrentRoom();
-  if(!stored){ location.replace('index.html'); return; }
+  if(!stored){
+    console.warn('[LOBBY] nessuna stanza salvata: torno al menu');
+    location.replace('index.html');
+    return;
+  }
 
   const roomId = stored.id;
 
@@ -29,20 +36,55 @@
     overlay:     document.getElementById('overlay')
   };
 
+  function loud(msg){
+    console.error('[LOBBY]', msg);
+    showToast(msg, false);
+    const d = document.createElement('div');
+    d.className = 'config-warning';
+    d.textContent = '⚠ ' + msg;
+    document.body.appendChild(d);
+  }
+
+  function explain(err){
+    const m = (err && err.message) || String(err);
+    if(/does not exist/i.test(m))               return 'tabelle mancanti: esegui database.sql.';
+    if(/Failed to fetch|NetworkError/i.test(m)) return 'Supabase non raggiungibile.';
+    if(/JWT|API key|apikey/i.test(m))           return 'anon key sbagliata in config.js.';
+    return m;
+  }
+
+  const miss = Object.keys(el).filter(function(k){ return !el[k]; });
+  if(miss.length){
+    loud('lobby.html incompleta: mancano ' + miss.join(', '));
+    return;
+  }
+
   let isHost = false, running = true, beatN = 0, lastChatId = 0;
   const seenPlayers = new Set();
 
-  /* paint immediato con i dati salvati (poi init conferma dal DB) */
   el.roomName.textContent = stored.name || '…';
   el.codeText.textContent = stored.code || '······';
 
   init();
 
+  /* ---------------- INIT ---------------- */
   async function init(){
+    console.log('[LOBBY] init, cerco la stanza:', roomId);
     try{
       const res = await db.from('rooms').select('*').eq('id', roomId).maybeSingle();
-      if(res.error || !res.data){ clearCurrentRoom(); location.replace('index.html'); return; }
+      if(res.error){
+        loud('Errore database: ' + explain(res.error) + ' (torno al menu tra 3s)');
+        setTimeout(function(){ clearCurrentRoom(); location.replace('index.html'); }, 3000);
+        return;
+      }
+      if(!res.data){
+        loud('Stanza non trovata su Supabase (torno al menu tra 3s)');
+        setTimeout(function(){ clearCurrentRoom(); location.replace('index.html'); }, 3000);
+        return;
+      }
+
       const room = res.data;
+      console.log('[LOBBY] stanza trovata:', room.code, '- sono host?', room.host_uid === uid);
 
       el.roomName.textContent = room.name;
       el.codeText.textContent = room.code;
@@ -55,25 +97,29 @@
       await ensurePresence();
       beat();
     }catch(err){
-      console.error(err);
-      showToast('Errore di connessione a Supabase', false);
+      console.error('[LOBBY] init fallita:', err);
+      loud('Errore di connessione: ' + explain(err));
     }
   }
 
-  /* se il mio giocatore non esiste più (es. rientro), lo ricreo */
+  /* se la mia riga non esiste più (rimosso mentre ero via), la ricreo */
   async function ensurePresence(){
     const me = await db.from('players')
       .select('id').eq('room_id', roomId).eq('uid', uid).maybeSingle();
+    if(me.error){ console.warn('[LOBBY] ensurePresence select:', me.error); return; }
+
     if(me.data){
       await db.from('players').update({
         online: true, name: myName, last_seen: new Date().toISOString()
       }).eq('id', me.data.id);
     } else {
-      await db.from('players').insert({
-        room_id: roomId, uid, name: myName, is_host: isHost,
+      const ins = await db.from('players').insert({
+        room_id: roomId, uid: uid, name: myName, is_host: isHost,
         online: true, last_seen: new Date().toISOString()
       });
-      await sysMessage(roomId, `${escapeHtml(myName)} è rientrato nella stanza.`);
+      if(ins.error){ console.error('[LOBBY] ensurePresence insert:', ins.error); return; }
+      await sysMessage(roomId, escapeHtml(myName) + ' è rientrato nella stanza.');
+      console.log('[LOBBY] riga giocatore ricreata');
     }
   }
 
@@ -82,78 +128,101 @@
     if(!running) return;
     beatN++;
     try{
-      /* 1) il mio battito: ogni ~2s (non serve a ogni beat, risparmia query) */
+      /* 1) il mio battito; se nel frattempo sono stato rimosso, rientro */
       if(beatN % PRESENCE_EVERY === 1){
-        await db.from('players').update({
-          online: true, last_seen: new Date().toISOString()
-        }).eq('room_id', roomId).eq('uid', uid);
+        const t = await db.from('players')
+          .update({ online: true, last_seen: new Date().toISOString() })
+          .eq('room_id', roomId).eq('uid', uid)
+          .select('id');
+        if(!t.error && t.data && t.data.length === 0){
+          console.log('[LOBBY] ero stato rimosso dal tavolo: rientro');
+          await ensurePresence();
+        }
       }
 
-      /* 2) tab nascosta: il cuore batte, ma non aggiorno la grafica */
+      /* 2) scheda nascosta: il cuore batte, la grafica no */
       if(document.hidden){ schedule(); return; }
 
-      /* 3) lista giocatori — aggiornata ogni 0.5s */
+      /* 3) lista giocatori (aggiornata ogni 0.5s) */
       const pl = await db.from('players').select('*').eq('room_id', roomId);
-      if(pl.data){
-        const players = isHost ? await hostCleanup(pl.data) : pl.data;
+      if(!pl.error && pl.data){
+        const players = iAmCleaner(pl.data) ? await cleanup(pl.data) : pl.data;
         renderPlayers(players);
       }
 
       /* 4) chat */
       await refreshChat();
 
-      /* 5) controllo avvio partita (ogni ~2s) */
+      /* 5) controllo avvio partita */
       if(beatN % PRESENCE_EVERY === 2){
         const st = await db.from('rooms').select('status').eq('id', roomId).maybeSingle();
         if(st.data && st.data.status === 'playing'){ startOverlay(); return; }
       }
-    }catch(err){ console.warn('heartbeat:', err); }
+    }catch(err){
+      console.warn('[LOBBY] heartbeat:', err);
+    }
     schedule();
   }
+
   function schedule(){ setTimeout(beat, HEARTBEAT_MS); }
 
-  /* Solo il CAPO STANZA rileva disconnessioni/ritorni:
-     così i messaggi di sistema non vengono duplicati dai vari client.
-     Chi chiude il tab senza salutare sparisce dopo OFFLINE_AFTER_MS. */
-  async function hostCleanup(players){
+  /* Chi fa le pulizie: il capo stanza; se il capo non dà segni di vita,
+     il giocatore in linea da più tempo (evita messaggi duplicati). */
+  function iAmCleaner(players){
+    const me = players.find(function(p){ return p.uid === uid; });
+    if(!me) return false;
+    if(isHost) return true;
+
+    const host = players.find(function(p){ return p.is_host; });
+    const hostFresh = host && (Date.now() - Date.parse(host.last_seen) <= OFFLINE_AFTER_MS);
+    if(hostFresh) return false;
+
+    const online = players
+      .filter(function(p){ return p.online; })
+      .sort(function(a, b){ return new Date(a.joined_at) - new Date(b.joined_at); });
+    return online.length > 0 && online[0].uid === uid;
+  }
+
+  /* chi non batte più da OFFLINE_AFTER_MS viene tolto dal tavolo */
+  async function cleanup(players){
     const now = Date.now();
+    const kept = [];
     for(const p of players){
       const stale = now - Date.parse(p.last_seen) > OFFLINE_AFTER_MS;
-      if(p.online && stale){
-        await db.from('players').update({ online: false }).eq('id', p.id);
-        await sysMessage(roomId, `${escapeHtml(p.name)} ha perso la connessione.`);
-        p.online = false;
-      } else if(!p.online && !stale){
-        await db.from('players').update({ online: true }).eq('id', p.id);
-        await sysMessage(roomId, `${escapeHtml(p.name)} è tornato in linea.`);
-        p.online = true;
+      if(stale){
+        const del = await db.from('players').delete().eq('id', p.id);
+        if(del.error){
+          console.warn('[LOBBY] rimozione fallita per', p.name, del.error);
+          kept.push(p);
+        } else {
+          await sysMessage(roomId, escapeHtml(p.name) + ' ha perso la connessione.');
+          seenPlayers.delete(p.uid);
+          console.log('[LOBBY] rimosso dal tavolo:', p.name);
+        }
+      } else {
+        kept.push(p);
       }
     }
-    return players;
+    return kept;
   }
 
   /* ---------------- LISTA GIOCATORI ---------------- */
   function renderPlayers(players){
-    players.sort((a, b) =>
-      (b.is_host - a.is_host) ||
-      (a.online === b.online
-        ? new Date(a.joined_at) - new Date(b.joined_at)
-        : (a.online ? -1 : 1))
-    );
+    const presenti = players
+      .filter(function(p){ return p.online !== false; })
+      .sort(function(a, b){
+        return (b.is_host - a.is_host) || (new Date(a.joined_at) - new Date(b.joined_at));
+      });
 
-    const online = players.filter(p => p.online).length;
-    el.playerCount.textContent = `${online} in linea · ${players.length} agenti`;
-
+    el.playerCount.textContent = presenti.length + ' agenti al tavolo';
     el.playerList.innerHTML = '';
-    for(const p of players){
+
+    for(const p of presenti){
       const isNew = !seenPlayers.has(p.uid);
       seenPlayers.add(p.uid);
 
       const li = document.createElement('li');
-      li.className = 'player'
-        + (p.is_host ? ' host' : '')
-        + (p.online ? '' : ' offline')
-        + (isNew ? ' new' : '');
+      li.className = 'player' + (p.is_host ? ' host' : '') + (isNew ? ' new' : '');
 
       const avatar = document.createElement('div');
       avatar.className = 'avatar';
@@ -162,24 +231,26 @@
       const meta = document.createElement('div');
       meta.className = 'p-meta';
       meta.innerHTML =
-        `<span class="p-name">${escapeHtml(p.name)}</span>` +
-        (p.uid === uid ? `<span class="p-you">(TU)</span>` : '') +
-        (p.is_host ? `<span class="badge-host">CAPO STANZA</span>` : '') +
-        (!p.online ? `<span class="p-off">OFFLINE</span>` : '');
+        '<span class="p-name">' + escapeHtml(p.name) + '</span>' +
+        (p.uid === uid ? '<span class="p-you">(TU)</span>' : '') +
+        (p.is_host ? '<span class="badge-host">CAPO STANZA</span>' : '');
 
       const dot = document.createElement('span');
-      dot.className = 'dot ' + (p.online ? 'on' : 'off');
+      dot.className = 'dot on';
 
-      li.append(avatar, meta, dot);
+      li.appendChild(avatar);
+      li.appendChild(meta);
+      li.appendChild(dot);
       el.playerList.appendChild(li);
     }
   }
 
-  /* ---------------- CHAT DI LOBBY ---------------- */
+  /* ---------------- CHAT ---------------- */
   async function refreshChat(){
     const res = await db.from('chat_messages').select('*')
       .eq('room_id', roomId).order('id', { ascending: true }).limit(200);
     if(res.error || !res.data) return;
+
     const msgs = res.data;
     const newest = msgs.length ? msgs[msgs.length - 1].id : 0;
     if(newest === lastChatId) return;
@@ -207,7 +278,7 @@
     if(nearBottom) el.chatLog.scrollTop = el.chatLog.scrollHeight;
   }
 
-  el.chatForm.addEventListener('submit', async e => {
+  el.chatForm.addEventListener('submit', async function(e){
     e.preventDefault();
     const text = el.chatInput.value.trim();
     if(!text) return;
@@ -215,23 +286,26 @@
     await db.from('chat_messages').insert({
       room_id: roomId, sender: myName, message: text, is_system: false
     });
-    refreshChat(); // mostra subito, senza aspettare il prossimo beat
+    refreshChat();
   });
 
-  /* ---------------- COPIA CODICE STANZA ---------------- */
-  el.codeChip.addEventListener('click', async () => {
+  /* ---------------- COPIA CODICE ---------------- */
+  el.codeChip.addEventListener('click', async function(){
     const code = el.codeText.textContent.trim();
     try{
       await navigator.clipboard.writeText(code);
-    }catch{
+    }catch(e){
       const ta = document.createElement('textarea');
-      ta.value = code; document.body.appendChild(ta);
-      ta.select(); document.execCommand('copy'); ta.remove();
+      ta.value = code;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
     }
     el.codeChip.classList.add('copied');
     el.copyHint.textContent = 'COPIATO ✓';
     showToast('Codice ' + code + ' copiato: passalo agli altri agenti');
-    setTimeout(() => {
+    setTimeout(function(){
       el.codeChip.classList.remove('copied');
       el.copyHint.textContent = 'COPIA';
     }, 1600);
@@ -239,15 +313,15 @@
 
   /* ---------------- AVVIA PARTITA (solo host) ---------------- */
   let armed = false, armTimer = null;
-  el.btnStart.addEventListener('click', async () => {
-    if(!armed){ // doppia conferma anti-click accidentale
+  el.btnStart.addEventListener('click', async function(){
+    if(!armed){
       armed = true;
       el.btnStart.textContent = 'Sicuro? Clicca di nuovo';
       el.btnStart.classList.add('armed');
-      armTimer = setTimeout(() => {
+      armTimer = setTimeout(function(){
         armed = false;
         el.btnStart.classList.remove('armed');
-        el.btnStart.textContent = '☠ Avvia partita';
+        el.btnStart.textContent = 'Avvia la partita';
       }, 3000);
       return;
     }
@@ -264,22 +338,21 @@
   }
 
   /* ---------------- ESCI ---------------- */
-  el.btnExit.addEventListener('click', async () => {
+  el.btnExit.addEventListener('click', async function(){
     running = false;
     try{
-      await db.from('players').update({ online: false })
-        .eq('room_id', roomId).eq('uid', uid);
-      await sysMessage(roomId, `${escapeHtml(myName)} ha abbandonato la stanza.`);
+      await db.from('players').delete().eq('room_id', roomId).eq('uid', uid);
+      await sysMessage(roomId, escapeHtml(myName) + ' ha abbandonato la stanza.');
     }catch(e){}
     clearCurrentRoom();
     location.href = 'index.html';
   });
 
-  /* chiusura tab: provo a segnalare l'uscita (poi ci pensa l'heartbeat) */
-  window.addEventListener('beforeunload', () => {
+  /* chiusura scheda: provo a rimuovermi subito
+     (se non fa in tempo, ci pensa la pulizia entro ~5s) */
+  window.addEventListener('beforeunload', function(){
     try{
-      db.from('players').update({ online: false })
-        .eq('room_id', roomId).eq('uid', uid);
+      db.from('players').delete().eq('room_id', roomId).eq('uid', uid);
     }catch(e){}
   });
 })();
