@@ -96,7 +96,7 @@ body{ display:flex; flex-direction:column; }
   }
   .crest{ flex:none; }
   .overline{ font-size:.75rem; letter-spacing:.18em; }
-  .title{ font-size:clamp(2rem,9vw,3rem); margin:.5rem 0 .4rem; }
+  .title{ font-size:clamp(2rem,9vw,3rem); line-height:1.1; margin:.5rem 0 .4rem; }
 
   /* l'area centrale occupa tutto lo spazio rimasto:
      regole in alto, modulo che si allarga fino in fondo.
@@ -111,19 +111,25 @@ body{ display:flex; flex-direction:column; }
   }
   .left{ width:100%; }
   .rules{ margin-top:0; gap:.5rem; }
-  .rules li{ font-size:.95rem; padding:.6rem .8rem; }
+  .rules li{ font-size:.95rem; line-height:1.3; padding:.6rem .8rem; }
 
   .form-card{
-    display:flex; flex-direction:column; justify-content:space-evenly;
+    display:flex; flex-direction:column; justify-content:center; gap:.3rem;
     width:100%; max-width:none; box-sizing:border-box;
-    padding:1.2rem 1.1rem;
+    padding:2.4rem 1.1rem 2.2rem;      /* spazio per gli angoli A† */
   }
-  .card-title{ font-size:1rem; margin-bottom:1rem; }
-  .form-card .field{ margin-bottom:.8rem; }
-  .field input{ padding:.75rem .9rem; }
-  .btn{ font-size:.95rem; padding:.8rem 1.1rem; }
+  .form-card > *{ flex:none; }          /* nessun elemento si schiaccia */
+  .corner{ font-size:.9rem; line-height:1; }
+  .corner.tl{ top:.55rem; left:.7rem; }
+  .corner.br{ bottom:.55rem; right:.7rem; }
+  .card-title{ font-size:1rem; line-height:1.25; margin:0 0 .8rem; }
+  .form-card .field{ margin-bottom:.6rem; }
+  .field label{ line-height:1.2; }
+  .field input{ padding:.75rem .9rem; line-height:1.2; }
+  .btn{ font-size:.95rem; line-height:1.2; padding:.8rem 1.1rem; }
   #roomCode{ font-size:1.25rem; letter-spacing:.3em; }
-  .divider{ margin:1rem 0; font-size:.9rem; }
+  .divider{ margin:.8rem 0; font-size:.9rem; line-height:1.2; }
+  .error-line{ min-height:1.2em; margin:.4rem 0 0; font-size:.85rem; line-height:1.3; }
 
   .step-row{ flex:none; margin-top:.8rem; font-size:.72rem; letter-spacing:.14em; }
 }
