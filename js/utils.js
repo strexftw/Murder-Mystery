@@ -3,6 +3,7 @@
    Nome e stanza corrente: sessionStorage (solo finché la
    scheda resta aperta). UID dispositivo: localStorage
    (serve solo a rientrare nella stanza se aggiorni).
+   v2: scramble/unscramble + codice di riconoscimento
    ========================================================= */
 
 /* --- identità tecnica del dispositivo (persistente, mai mostrata) --- */
@@ -37,6 +38,40 @@ function generateRoomCode(len = 6){
   let s = '';
   for(let i = 0; i < len; i++) s += CODE_ALPHABET[a[i] % CODE_ALPHABET.length];
   return s;
+}
+
+/* --- codice di riconoscimento personale: seme + 2 caratteri (es. ♥Q3) --- */
+const CODE_SUITS = ['♠','♥','♣','♦'];
+function generatePlayerCode(){
+  const r = new Uint32Array(1);
+  crypto.getRandomValues(r);
+  return CODE_SUITS[r[0] % CODE_SUITS.length] + generateRoomCode(2);
+}
+
+/* --- offuscamento segreti (ruolo / parola segreta) ---
+   XOR carattere per carattere con una chiave, poi base64.
+   NON è crittografia: serve a non mostrare i ruoli in chiaro
+   nella tabella del database. La chiave del ruolo è l'uid del
+   giocatore; quella della parola è l'id della stanza.
+   Funziona solo con testo ASCII (la lista parole lo rispetta). */
+function scramble(text, key){
+  const k = String(key || '');
+  if(!k) return btoa(text);
+  let out = '';
+  for(let i = 0; i < text.length; i++)
+    out += String.fromCharCode(text.charCodeAt(i) ^ k.charCodeAt(i % k.length));
+  return btoa(out);
+}
+function unscramble(enc, key){
+  try{
+    const raw = atob(enc);
+    const k = String(key || '');
+    if(!k) return raw;
+    let out = '';
+    for(let i = 0; i < raw.length; i++)
+      out += String.fromCharCode(raw.charCodeAt(i) ^ k.charCodeAt(i % k.length));
+    return out;
+  }catch(e){ return null; }
 }
 
 /* --- escape HTML (sicurezza) --- */
@@ -80,7 +115,7 @@ function guardConfig(){
   return false;
 }
 
-/* --- messaggio di sistema nella chat della lobby --- */
+/* --- messaggio di sistema nella chat della stanza --- */
 async function sysMessage(roomId, text){
   if (typeof db === 'undefined' || !db) return;
   await db.from('chat_messages').insert({

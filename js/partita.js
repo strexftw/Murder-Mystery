@@ -1,13 +1,15 @@
 /* =========================================================
-   LOBBY.JS — logica della lobby (lobby.html)
-   v4.0: all'avvio della partita il capo ASSEGNA i ruoli
-   (1 assassino, 1 detective, resto innocenti), i codici di
-   riconoscimento e la parola segreta, poi TUTTI passano a
-   partita.html. Il ruolo è offuscato con l'uid del giocatore.
-   heartbeat 0.5s · lista · chat · successione capo · Politica A
+   PARTITA.JS — logica della partita (partita.html)
+   v1.0: rivelazione privata del ruolo (carta che si gira),
+   codice di riconoscimento personale, parola segreta
+   (nascosta all'assassino), timer di partita, tavolo vivo,
+   chat. Heartbeat 0.5s · successione capo · Politica A.
+   I segreti nel DB sono offuscati (scramble): il ruolo si
+   decifra solo con il proprio uid, la parola solo con
+   l'id della stanza — e l'assassino non la decifra mai.
    ========================================================= */
 (function(){
-  console.log('[LOBBY] lobby.js caricato');
+  console.log('[PARTITA] partita.js caricato');
 
   if(!guardConfig()) return;
 
@@ -15,32 +17,42 @@
   const myName = getPlayerName() || 'Sconosciuto';
   const stored = getCurrentRoom();
   if(!stored){
-    console.warn('[LOBBY] nessuna stanza salvata: torno al menu');
+    console.warn('[PARTITA] nessuna stanza salvata: torno al menu');
     location.replace('index.html');
     return;
   }
-
   const roomId = stored.id;
 
   const el = {
-    roomName:    document.getElementById('roomName'),
-    codeText:    document.getElementById('codeText'),
-    codeChip:    document.getElementById('codeChip'),
-    copyHint:    document.getElementById('copyHint'),
-    btnExit:     document.getElementById('btnExit'),
-    playerList:  document.getElementById('playerList'),
-    playerCount: document.getElementById('playerCount'),
-    hostZone:    document.getElementById('hostZone'),
-    waitNote:    document.getElementById('waitNote'),
-    btnStart:    document.getElementById('btnStart'),
-    chatLog:     document.getElementById('chatLog'),
-    chatForm:    document.getElementById('chatForm'),
-    chatInput:   document.getElementById('chatInput'),
-    overlay:     document.getElementById('overlay')
+    roomName:      document.getElementById('roomName'),
+    codeText:      document.getElementById('codeText'),
+    codeChip:      document.getElementById('codeChip'),
+    copyHint:      document.getElementById('copyHint'),
+    btnExit:       document.getElementById('btnExit'),
+    timerText:     document.getElementById('timerText'),
+    roleTag:       document.getElementById('roleTag'),
+    myRole:        document.getElementById('myRole'),
+    myCode:        document.getElementById('myCode'),
+    myWordRow:     document.getElementById('myWordRow'),
+    myWord:        document.getElementById('myWord'),
+    myHint:        document.getElementById('myHint'),
+    playerList:    document.getElementById('playerList'),
+    playerCount:   document.getElementById('playerCount'),
+    chatLog:       document.getElementById('chatLog'),
+    chatForm:      document.getElementById('chatForm'),
+    chatInput:     document.getElementById('chatInput'),
+    reveal:        document.getElementById('reveal'),
+    flipCard:      document.getElementById('flipCard'),
+    revealRole:    document.getElementById('revealRole'),
+    revealDesc:    document.getElementById('revealDesc'),
+    revealCode:    document.getElementById('revealCode'),
+    revealWordRow: document.getElementById('revealWordRow'),
+    revealWord:    document.getElementById('revealWord'),
+    btnEnter:      document.getElementById('btnEnter')
   };
 
   function loud(msg){
-    console.error('[LOBBY]', msg);
+    console.error('[PARTITA]', msg);
     showToast(msg, false);
     const d = document.createElement('div');
     d.className = 'config-warning';
@@ -52,7 +64,6 @@
     const m = (err && err.message) || String(err);
     if(/does not exist/i.test(m))     return 'tabelle mancanti: esegui database.sql.';
     if(/role|secret_word|started_at|alive/i.test(m)) return 'mancano le colonne della partita: esegui il nuovo database.sql.';
-    if(/device/i.test(m))             return 'manca la colonna device: esegui la riga SQL alter table players.';
     if(/Failed to fetch|NetworkError/i.test(m)) return 'Supabase non raggiungibile.';
     if(/JWT|API key|apikey/i.test(m)) return 'anon key sbagliata in config.js.';
     return m;
@@ -60,23 +71,36 @@
 
   const miss = Object.keys(el).filter(function(k){ return !el[k]; });
   if(miss.length){
-    loud('lobby.html incompleta: mancano ' + miss.join(', '));
+    loud('partita.html incompleta: mancano ' + miss.join(', '));
     return;
   }
 
-  let isHost = false, running = true, beatN = 0, lastChatId = 0;
-  let stayAtTable = false; // true quando la partita inizia: il beforeunload non mi cancella
+  /* ---------------- RUOLI ---------------- */
+  const ROLE_INFO = {
+    assassino: {
+      tag:  'Assassino',
+      desc: 'Colpisci nell\'ombra e non farti scoprire. Gli altri conoscono una parola segreta: osserva, ascolta e fingi di conoscerla anche tu.'
+    },
+    detective: {
+      tag:  'Detective',
+      desc: 'Conosci la parola segreta. Usala per riconoscere gli innocenti e smascherare l\'assassino prima che colpisca.'
+    },
+    innocente: {
+      tag:  'Innocente',
+      desc: 'Conosci la parola segreta. Diffida di chi non sa ripeterla: l\'assassino è seduto al tuo stesso tavolo.'
+    }
+  };
+
+  let running = true, beatN = 0, lastChatId = 0;
+  let room = null;
+  let myRole = 'innocente', myCode = '—', myWord = null;
+  let isHost = false;
   const seenPlayers = new Set();
 
-  el.roomName.textContent = stored.name || '…';
-  el.codeText.textContent = stored.code || '······';
-
-  /* un giocatore è "vivo" se il suo battito è recente */
+  /* un giocatore è "vivo" (connesso) se il suo battito è recente */
   function isFresh(p){
     return (Date.now() - Date.parse(p.last_seen)) <= OFFLINE_AFTER_MS;
   }
-
-  /* etichetta dispositivo sempre presente, anche se il campo è vuoto */
   function deviceText(p){
     return p.device ? deviceLabel(p.device) : '❓ Sconosciuto';
   }
@@ -85,7 +109,7 @@
 
   /* ---------------- INIT ---------------- */
   async function init(){
-    console.log('[LOBBY] init, cerco la stanza:', roomId);
+    console.log('[PARTITA] init, stanza:', roomId);
     try{
       const res = await db.from('rooms').select('*').eq('id', roomId).maybeSingle();
       if(res.error){
@@ -98,54 +122,110 @@
         setTimeout(function(){ clearCurrentRoom(); location.replace('index.html'); }, 3000);
         return;
       }
+      room = res.data;
 
-      const room = res.data;
-      console.log('[LOBBY] stanza trovata:', room.code, '- sono host?', room.host_uid === uid);
+      /* la partita non è (più) in corso: torno dove devo stare */
+      if(room.status !== 'playing'){
+        location.replace(room.status === 'lobby' ? 'lobby.html' : 'index.html');
+        return;
+      }
+
+      const meRes = await db.from('players').select('*')
+        .eq('room_id', roomId).eq('uid', uid).maybeSingle();
+      if(meRes.error || !meRes.data){
+        console.warn('[PARTITA] non sono al tavolo: torno in lobby');
+        location.replace('lobby.html');
+        return;
+      }
+
+      isHost = room.host_uid === uid;
+
+      /* decifro SOLO i miei segreti: la chiave del ruolo è il mio uid */
+      myRole = unscramble(meRes.data.role, uid) || 'innocente';
+      if(!ROLE_INFO[myRole]) myRole = 'innocente';
+      myCode = meRes.data.code || '—';
+      /* la parola la decifro solo se NON sono l'assassino */
+      myWord = (myRole === 'assassino') ? null
+                                       : unscramble(room.secret_word || '', roomId);
+
+      console.log('[PARTITA] ruolo:', myRole, '| codice:', myCode, '| parola:', myWord ? 'sì' : 'no (assassino)');
 
       el.roomName.textContent = room.name;
       el.codeText.textContent = room.code;
-      isHost = room.host_uid === uid;
-      el.hostZone.hidden = !isHost;
-      el.waitNote.hidden = isHost;
 
-      if(room.status === 'playing'){ startOverlay(); return; }
+      fillReveal();
+      fillMyCard();
+      startTimer(room.started_at);
 
-      await ensurePresence();
+      /* mostro la carta coperta, poi si gira da sola */
+      el.reveal.hidden = false;
+      setTimeout(function(){ el.flipCard.classList.add('flipped'); }, 650);
+
       beat();
     }catch(err){
-      console.error('[LOBBY] init fallita:', err);
+      console.error('[PARTITA] init fallita:', err);
       loud('Errore di connessione: ' + explain(err));
     }
   }
 
-  /* se la mia riga non esiste più (rimosso mentre ero via), la ricreo */
-  async function ensurePresence(){
-    const me = await db.from('players')
-      .select('id').eq('room_id', roomId).eq('uid', uid).maybeSingle();
-    if(me.error){ console.warn('[LOBBY] ensurePresence select:', me.error); return; }
-
-    if(me.data){
-      await db.from('players').update({
-        online: true, name: myName, device: getDeviceType(),
-        last_seen: new Date().toISOString()
-      }).eq('id', me.data.id);
+  /* ---------------- RIVELAZIONE + LA TUA CARTA ---------------- */
+  function fillReveal(){
+    const info = ROLE_INFO[myRole];
+    el.revealRole.textContent = info.tag;
+    el.revealRole.className = 'reveal-role ' + myRole;
+    el.revealDesc.textContent = info.desc;
+    el.revealCode.textContent = myCode;
+    if(myWord){
+      el.revealWord.textContent = myWord;
+      el.revealWordRow.hidden = false;
     } else {
-      const ins = await db.from('players').insert({
-        room_id: roomId, uid: uid, name: myName, is_host: isHost,
-        device: getDeviceType(),
-        online: true, last_seen: new Date().toISOString()
-      });
-      if(ins.error){ console.error('[LOBBY] ensurePresence insert:', ins.error); return; }
-      await sysMessage(roomId, escapeHtml(myName) + ' è rientrato nella stanza.');
-      console.log('[LOBBY] riga giocatore ricreata');
+      el.revealWordRow.hidden = true;
     }
+  }
+
+  function fillMyCard(){
+    const info = ROLE_INFO[myRole];
+    el.roleTag.textContent = info.tag;
+    el.roleTag.className = 'count role-tag ' + myRole;
+    el.myRole.textContent = info.tag;
+    el.myRole.className = 'my-role ' + myRole;
+    el.myCode.textContent = myCode;
+    if(myWord){
+      el.myWord.textContent = myWord;
+      el.myWordRow.hidden = false;
+    } else {
+      el.myWordRow.hidden = true;
+    }
+    el.myHint.textContent = info.desc;
+  }
+
+  el.btnEnter.addEventListener('click', function(){
+    el.reveal.hidden = true;
+    showToast('Buona caccia, ' + myName);
+  });
+
+  /* ---------------- TIMER (uguale per tutti: parte da started_at) ---------------- */
+  function startTimer(startedAt){
+    const t0 = Date.parse(startedAt) || Date.now();
+    const pad = function(n){ return String(n).padStart(2, '0'); };
+    const tick = function(){
+      const s  = Math.max(0, Math.floor((Date.now() - t0) / 1000));
+      const h  = Math.floor(s / 3600);
+      const m  = Math.floor((s % 3600) / 60);
+      const ss = s % 60;
+      el.timerText.textContent = h
+        ? h + ':' + pad(m) + ':' + pad(ss)
+        : pad(m) + ':' + pad(ss);
+    };
+    tick();
+    setInterval(function(){ if(running) tick(); }, 1000);
   }
 
   /* ---------------- SUCCESSIONE DEL CAPO ---------------- */
   async function promoteNewHost(candidates){
     if(!candidates || !candidates.length) return null;
     const pick = candidates[Math.floor(Math.random() * candidates.length)];
-    console.log('[LOBBY] nuovo capo stanza proclamato:', pick.name);
+    console.log('[PARTITA] nuovo capo stanza proclamato:', pick.name);
 
     await db.from('rooms').update({ host_uid: pick.uid }).eq('id', roomId);
     await db.from('players').update({ is_host: false }).eq('room_id', roomId);
@@ -159,24 +239,26 @@
     if(!running) return;
     beatN++;
     try{
-      /* 1) il mio battito: riscrive SEMPRE anche il dispositivo,
-            così tutti vedono da cosa gioco (e le righe con device
-            vuoto si riparano da sole). Se sono stato rimosso, rientro */
+      /* 1) il mio battito. Se la mia riga è sparita, sono stato
+            rimosso dal tavolo: esco dalla partita */
       if(beatN % PRESENCE_EVERY === 1){
         const t = await db.from('players')
           .update({ online: true, device: getDeviceType(), last_seen: new Date().toISOString() })
           .eq('room_id', roomId).eq('uid', uid)
           .select('id');
         if(!t.error && t.data && t.data.length === 0){
-          console.log('[LOBBY] ero stato rimosso dal tavolo: rientro');
-          await ensurePresence();
+          running = false;
+          showToast('Sei stato rimosso dal tavolo', false);
+          clearCurrentRoom();
+          setTimeout(function(){ location.replace('index.html'); }, 1800);
+          return;
         }
       }
 
       /* 2) scheda nascosta: il cuore batte, la grafica no */
       if(document.hidden){ schedule(); return; }
 
-      /* 3) lista giocatori (aggiornata ogni 0.5s) */
+      /* 3) il tavolo */
       const pl = await db.from('players').select('*').eq('room_id', roomId);
       if(!pl.error && pl.data){
         let players = pl.data;
@@ -198,24 +280,28 @@
       /* 4) chat */
       await refreshChat();
 
-      /* 5) stato stanza + sincronizzazione del mio ruolo di capo */
+      /* 5) stato stanza: chiusa? tornata in lobby? cambio capo? */
       if(beatN % PRESENCE_EVERY === 2){
         const st = await db.from('rooms')
           .select('status, host_uid').eq('id', roomId).maybeSingle();
         if(st.data){
-          if(st.data.status === 'playing'){ startOverlay(); return; }
+          if(st.data.status !== 'playing'){ location.replace('lobby.html'); return; }
           const nowHost = (st.data.host_uid === uid);
           if(nowHost !== isHost){
             isHost = nowHost;
-            el.hostZone.hidden = !isHost;
-            el.waitNote.hidden = isHost;
-            console.log('[LOBBY] ruolo capo stanza aggiornato:', isHost);
             if(isHost) showToast('♛ Sei tu il nuovo capo stanza!');
           }
+        } else {
+          /* stanza cancellata (l'ultimo uscito ha spento la luce) */
+          running = false;
+          showToast('La stanza è stata chiusa', false);
+          clearCurrentRoom();
+          setTimeout(function(){ location.replace('index.html'); }, 1800);
+          return;
         }
       }
     }catch(err){
-      console.warn('[LOBBY] heartbeat:', err);
+      console.warn('[PARTITA] heartbeat:', err);
     }
     schedule();
   }
@@ -233,7 +319,6 @@
     const hostFresh = host && isFresh(host);
     if(hostFresh) return false;
 
-    /* solo i giocatori VIVI (battito recente) possono pulire */
     const vivi = players
       .filter(function(p){ return p.online && isFresh(p); })
       .sort(function(a, b){ return new Date(a.joined_at) - new Date(b.joined_at); });
@@ -247,12 +332,12 @@
       if(!isFresh(p)){
         const del = await db.from('players').delete().eq('id', p.id);
         if(del.error){
-          console.warn('[LOBBY] rimozione fallita per', p.name, del.error);
+          console.warn('[PARTITA] rimozione fallita per', p.name, del.error);
           kept.push(p);
         } else {
           await sysMessage(roomId, escapeHtml(p.name) + ' ha perso la connessione.');
           seenPlayers.delete(p.uid);
-          console.log('[LOBBY] rimosso dal tavolo:', p.name);
+          console.log('[PARTITA] rimosso dal tavolo:', p.name);
         }
       } else {
         kept.push(p);
@@ -261,39 +346,43 @@
     return kept;
   }
 
-  /* ---------------- LISTA GIOCATORI ---------------- */
+  /* ---------------- IL TAVOLO (nessun ruolo visibile!) ---------------- */
   function renderPlayers(players){
     const presenti = players
       .filter(function(p){ return p.online !== false; })
       .sort(function(a, b){
-        return (b.is_host - a.is_host) || (new Date(a.joined_at) - new Date(b.joined_at));
+        return ((b.alive !== false) - (a.alive !== false))     // prima i vivi
+            || (b.is_host - a.is_host)                          // poi il capo
+            || (new Date(a.joined_at) - new Date(b.joined_at)); // poi per ingresso
       });
 
-    el.playerCount.textContent = presenti.length + ' agenti al tavolo';
+    const inGioco = presenti.filter(function(p){ return p.alive !== false; }).length;
+    el.playerCount.textContent = inGioco + ' agenti in gioco';
     el.playerList.innerHTML = '';
 
     for(const p of presenti){
       const isNew = !seenPlayers.has(p.uid);
       seenPlayers.add(p.uid);
+      const dead = (p.alive === false);
 
       const li = document.createElement('li');
-      li.className = 'player' + (p.is_host ? ' host' : '') + (isNew ? ' new' : '');
+      li.className = 'player' + (p.is_host ? ' host' : '') + (isNew ? ' new' : '') + (dead ? ' eliminated' : '');
 
       const avatar = document.createElement('div');
       avatar.className = 'avatar';
-      avatar.textContent = p.name.charAt(0).toUpperCase();
+      avatar.textContent = dead ? '†' : p.name.charAt(0).toUpperCase();
 
       const meta = document.createElement('div');
       meta.className = 'p-meta';
-      /* il dispositivo è visibile a TUTTI, sotto ogni nome */
       meta.innerHTML =
         '<span class="p-name">' + escapeHtml(p.name) + '</span>' +
         '<span class="p-device">' + deviceText(p) + '</span>' +
         (p.uid === uid ? '<span class="p-you">(TU)</span>' : '') +
+        (dead ? '<span class="badge-dead">ELIMINATO</span>' : '') +
         (p.is_host ? '<span class="badge-host">CAPO STANZA</span>' : '');
 
       const dot = document.createElement('span');
-      dot.className = 'dot on';
+      dot.className = 'dot ' + (dead ? 'off' : 'on');
 
       li.appendChild(avatar);
       li.appendChild(meta);
@@ -361,112 +450,12 @@
     }
     el.codeChip.classList.add('copied');
     el.copyHint.textContent = 'COPIATO ✓';
-    showToast('Codice ' + code + ' copiato: passalo agli altri agenti');
+    showToast('Codice ' + code + ' copiato');
     setTimeout(function(){
       el.codeChip.classList.remove('copied');
       el.copyHint.textContent = 'COPIA';
     }, 1600);
   });
-
-  /* ---------------- AVVIA PARTITA (solo host) ---------------- */
-  let armed = false, armTimer = null;
-  el.btnStart.addEventListener('click', async function(){
-    if(!armed){
-      armed = true;
-      el.btnStart.textContent = 'Sicuro? Clicca di nuovo';
-      el.btnStart.classList.add('armed');
-      armTimer = setTimeout(function(){
-        armed = false;
-        el.btnStart.classList.remove('armed');
-        el.btnStart.textContent = 'Avvia la partita';
-      }, 3000);
-      return;
-    }
-    clearTimeout(armTimer);
-    armed = false;
-    el.btnStart.disabled = true;
-    el.btnStart.classList.remove('armed');
-    el.btnStart.textContent = '… assegnazione ruoli';
-    await startGame();
-  });
-
-  function resetStartButton(){
-    el.btnStart.disabled = false;
-    el.btnStart.classList.remove('armed');
-    el.btnStart.textContent = 'Avvia la partita';
-  }
-
-  /* ================= ASSEGNAZIONE (solo il capo la esegue) =================
-     1) mescola i giocatori vivi (Fisher-Yates con crypto)
-     2) 1° = assassino, 2° = detective, resto = innocenti
-     3) ogni giocatore riceve un codice di riconoscimento unico (es. ♥Q3)
-     4) il ruolo è salvato OFFUSCATO con l'uid del giocatore
-     5) la parola segreta è salvata offuscata con l'id della stanza
-     6) rooms.status = 'playing' + started_at → tutti passano a partita.html */
-  async function startGame(){
-    try{
-      const res = await db.from('players').select('*').eq('room_id', roomId);
-      if(res.error) throw res.error;
-
-      const vivi = (res.data || []).filter(function(p){ return p.online && isFresh(p); });
-      if(vivi.length < 3){
-        showToast('Servono almeno 3 agenti al tavolo per giocare', false);
-        resetStartButton();
-        return;
-      }
-
-      /* 1) mescola */
-      const mescolati = vivi.slice();
-      const rnd = new Uint32Array(mescolati.length);
-      crypto.getRandomValues(rnd);
-      for(let i = mescolati.length - 1; i > 0; i--){
-        const j = rnd[i] % (i + 1);
-        const tmp = mescolati[i]; mescolati[i] = mescolati[j]; mescolati[j] = tmp;
-      }
-
-      /* 2-3-4) ruoli + codici unici */
-      const usati = new Set();
-      for(let i = 0; i < mescolati.length; i++){
-        const ruolo = (i === 0) ? 'assassino' : (i === 1) ? 'detective' : 'innocente';
-        let code;
-        do { code = generatePlayerCode(); } while(usati.has(code));
-        usati.add(code);
-
-        const up = await db.from('players').update({
-          role:  scramble(ruolo, mescolati[i].uid),
-          code:  code,
-          alive: true
-        }).eq('id', mescolati[i].id);
-        if(up.error) throw up.error;
-        console.log('[LOBBY]', mescolati[i].name, '→ ruolo assegnato, codice', code);
-      }
-
-      /* 5-6) parola segreta + via */
-      const word = pickSecretWord();
-      const rm = await db.from('rooms').update({
-        status:      'playing',
-        started_at:  new Date().toISOString(),
-        secret_word: scramble(word, roomId)
-      }).eq('id', roomId);
-      if(rm.error) throw rm.error;
-
-      await sysMessage(roomId, '☠ La partita sta per iniziare…');
-      console.log('[LOBBY] partita avviata con', mescolati.length, 'giocatori');
-      startOverlay();
-    }catch(err){
-      console.error('[LOBBY] avvio fallito:', err);
-      showToast('Avvio fallito: ' + explain(err), false);
-      resetStartButton();
-    }
-  }
-
-  /* overlay + passaggio a partita.html per TUTTI */
-  function startOverlay(){
-    running = false;
-    stayAtTable = true; // il beforeunload non deve cancellarmi: resto al tavolo
-    el.overlay.hidden = false;
-    setTimeout(function(){ location.href = 'partita.html'; }, 2400);
-  }
 
   /* ---------------- ESCI (Politica A) ---------------- */
   el.btnExit.addEventListener('click', async function(){
@@ -478,31 +467,22 @@
       });
 
       if(altriVivi.length === 0){
-        /* sono l'ultimo: spengo la luce.
-           Cancello la stanza: il cascade porta via giocatori e chat. */
-        console.log('[LOBBY] ero l\'ultimo giocatore: elimino la stanza');
+        /* sono l'ultimo: spengo la luce */
+        console.log('[PARTITA] ero l\'ultimo giocatore: elimino la stanza');
         await db.from('rooms').delete().eq('id', roomId);
       } else {
-        /* ci sono altri: passo lo scettro se sono il capo, poi saluto */
         if(isHost){
           await promoteNewHost(altriVivi);
         }
         await db.from('players').delete().eq('room_id', roomId).eq('uid', uid);
-        await sysMessage(roomId, escapeHtml(myName) + ' ha abbandonato la stanza.');
+        await sysMessage(roomId, escapeHtml(myName) + ' ha abbandonato la partita.');
       }
     }catch(e){}
     clearCurrentRoom();
     location.href = 'index.html';
   });
 
-  /* chiusura scheda: provo a rimuovermi subito
-     (se non fa in tempo, ci pensa la pulizia entro ~5s).
-     Quando la partita è avviata (stayAtTable) NON rimuovo:
-     il redirect a partita.html non è un abbandono. */
-  window.addEventListener('beforeunload', function(){
-    if(stayAtTable) return;
-    try{
-      db.from('players').delete().eq('room_id', roomId).eq('uid', uid);
-    }catch(e){}
-  });
+  /* chiusura scheda durante la partita: NON cancello la mia riga qui
+     (la richiesta non farebbe in tempo comunque); ci pensa la pulizia
+     degli altri giocatori entro ~5s. */
 })();
