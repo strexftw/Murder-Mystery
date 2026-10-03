@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Il Gioco dell'Assassino — Prendi posto</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗡️</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400..900&family=Karla:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/menu.css">
+</head>
+<body>
+
+<!-- semi che fluttuano sul tavolo -->
+<div class="suits" aria-hidden="true">
+  <span class="s s1">♠</span><span class="s s2">♥</span>
+  <span class="s s3">♣</span><span class="s s4">♦</span>
+</div>
+
+<main class="table">
+
+  <header class="crest">
+    <p class="overline">✦ &nbsp;Party game di identità segrete&nbsp; ✦</p>
+    <h1 class="title">Il Gioco<br>dell'<span class="blood">Assassino</span></h1>
+    <div class="orn">❖</div>
+  </header>
+
+  <section class="table-area">
+
+    <!-- colonna sinistra: ventaglio di carte + regole -->
+    <div class="left">
+      <div class="fan" aria-hidden="true">
+        <div class="card-back c1"></div>
+        <div class="card-back c2"></div>
+        <div class="card-back c3"></div>
+        <div class="card-face">
+          <span class="pip top">A<i>†</i></span>
+          <span class="sigil">†</span>
+          <span class="pip bot">A<i>†</i></span>
+        </div>
+      </div>
+      <ul class="rules">
+        <li><b>I</b> Crea una stanza e copia il codice</li>
+        <li><b>II</b> Gli altri agenti entrano dal loro dispositivo</li>
+        <li><b>III</b> Il capo del tavolo avvia la partita</li>
+      </ul>
+    </div>
+
+    <!-- colonna destra: la carta-modulo -->
+    <div class="form-card">
+      <span class="corner tl">A<i>†</i></span>
+      <span class="corner br">A<i>†</i></span>
+      <h2 class="card-title">Prendi posto al tavolo</h2>
+
+      <div class="field">
+        <label for="playerName">Nome da assassino</label>
+        <input id="playerName" maxlength="20" placeholder="Es. Vipera" autocomplete="off">
+      </div>
+
+      <div class="field">
+        <label for="roomName">Nome della stanza</label>
+        <input id="roomName" maxlength="30" placeholder="Es. Vicolo Cieco" autocomplete="off">
+      </div>
+      <button id="btnCreate" class="btn btn-blood">Crea la stanza</button>
+
+      <div class="divider"><span>♦</span>oppure<span>♦</span></div>
+
+      <div class="field">
+        <label for="roomCode">Codice stanza</label>
+        <input id="roomCode" maxlength="6" placeholder="K7FQ2Z" autocomplete="off" spellcheck="false">
+      </div>
+      <button id="btnJoin" class="btn">Entra con il codice</button>
+
+      <p id="menuError" class="error-line"></p>
+    </div>
+
+  </section>
+
+  <footer class="step-row">
+    <span>Step 01 · Lobby</span>
+    <span>Ogni dispositivo è un giocatore</span>
+  </footer>
+
+</main>
+
+<div id="toast" class="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/menu.js"></script>
+</body>
+</html>

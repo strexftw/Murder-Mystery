@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lobby — Il Gioco dell'Assassino</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗡️</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400..900&family=Karla:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/lobby.css">
+</head>
+<body>
+
+<div class="suits" aria-hidden="true">
+  <span class="s s1">♠</span><span class="s s2">♥</span>
+  <span class="s s3">♣</span><span class="s s4">♦</span>
+</div>
+
+<!-- barra superiore -->
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">†</span>
+    <div class="brand-text">
+      <span class="brand-title">Il Gioco dell'Assassino</span>
+      <span class="room-name" id="roomName">…</span>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="live"><span class="live-dot"></span>In diretta · 0.5s</div>
+    <button class="code-chip" id="codeChip" title="Clicca per copiare il codice">
+      <span class="code-label">Codice</span>
+      <span id="codeText">······</span>
+      <span class="copy-hint" id="copyHint">Copia</span>
+    </button>
+    <button id="btnExit" class="btn btn-sm">Esci</button>
+  </div>
+</header>
+
+<main class="lobby-grid">
+
+  <!-- il tavolo: giocatori come carte -->
+  <section class="players-col panel-col">
+    <div class="col-head">
+      <h2>❖ Il tavolo</h2>
+      <span class="count" id="playerCount">0 agenti</span>
+    </div>
+    <ul id="playerList" class="player-list"></ul>
+    <div class="host-zone" id="hostZone" hidden>
+      <button id="btnStart" class="btn btn-blood btn-big">Avvia la partita</button>
+    </div>
+    <div class="wait-note" id="waitNote" hidden>
+      In attesa che il <b>capo del tavolo</b> avvii la partita…
+    </div>
+  </section>
+
+  <!-- canale sicuro: chat di lobby -->
+  <section class="chat-col panel-col">
+    <div class="col-head">
+      <h2>❖ Canale sicuro</h2>
+      <span class="count">Solo lobby</span>
+    </div>
+    <div id="chatLog" class="chat-log"></div>
+    <form id="chatForm" class="chat-form" autocomplete="off">
+      <input id="chatInput" maxlength="200" placeholder="Scrivi al tavolo…">
+      <button class="btn btn-blood btn-sm" type="submit">Invia</button>
+    </form>
+  </section>
+
+</main>
+
+<!-- overlay avvio partita -->
+<div class="overlay" id="overlay" hidden>
+  <div class="overlay-card">
+    <div class="orn">✦ ✦ ✦</div>
+    <h2 class="overlay-title">La caccia<br><span>ha inizio</span></h2>
+    <p>I ruoli segreti verranno assegnati nel prossimo step.<br>Restate al tavolo.</p>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/lobby.js"></script>
+</body>
+</html>

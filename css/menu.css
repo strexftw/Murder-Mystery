@@ -1,0 +1,138 @@
+/* =========================================================
+   MENU.CSS — grafica dedicata a index.html
+   ========================================================= */
+.table{
+  min-height:100svh; max-width:1200px; margin:auto;
+  padding:clamp(1.4rem,4vw,3rem); display:flex; flex-direction:column;
+}
+
+/* ---------- stemma / titolo ---------- */
+.crest{ text-align:center; animation:rise .6s ease both; }
+.overline{
+  font-family:var(--head); letter-spacing:.4em; text-transform:uppercase;
+  font-size:.66rem; color:var(--gold);
+}
+.title{
+  font-family:var(--display); font-weight:900; text-transform:uppercase;
+  font-size:clamp(2.5rem,6vw,4.6rem); line-height:1.05; color:var(--ivory);
+  margin:.7rem 0 .6rem;
+  text-shadow:0 3px 0 rgba(0,0,0,.3), 0 0 46px rgba(217,172,78,.18);
+}
+.title .blood{ color:var(--crimson-hot); text-shadow:0 0 34px rgba(224,75,82,.45); }
+.crest .orn{ font-size:.95rem; }
+
+/* ---------- area a due colonne ---------- */
+.table-area{
+  flex:1; display:grid; grid-template-columns:1fr minmax(340px,460px);
+  gap:clamp(2rem,5vw,4.5rem); align-items:center;
+  margin-top:clamp(1.6rem,4vw,3rem);
+}
+.left{ animation:rise .6s .12s ease both; }
+
+/* ---------- ventaglio di carte ---------- */
+.fan{ position:relative; width:min(340px,86%); aspect-ratio:4/3; margin:0 auto; }
+.card-back, .card-face{
+  position:absolute; bottom:0; left:50%; width:116px; height:164px; border-radius:10px;
+  transform-origin:50% 135%; box-shadow:0 18px 34px rgba(0,0,0,.5);
+  transition:transform .55s cubic-bezier(.2,.85,.25,1);
+}
+.card-back{
+  background:repeating-linear-gradient(45deg, #12352a 0 7px, #0e2a21 7px 14px);
+  border:2px solid var(--gold-dark);
+}
+.card-back::after{
+  content:''; position:absolute; inset:7px;
+  border:1px solid rgba(217,172,78,.35); border-radius:6px;
+}
+.c1{ transform:translateX(-50%) rotate(-19deg); }
+.c2{ transform:translateX(-50%) rotate(-7deg); }
+.c3{ transform:translateX(-50%) rotate(5deg); }
+.card-face{
+  transform:translateX(-50%) rotate(17deg);
+  background:linear-gradient(160deg, #f7efdd, #e8dcc0);
+  border:2px solid #cbb87f; display:grid; place-items:center;
+}
+.sigil{ font-size:3.2rem; color:var(--crimson); font-family:var(--head); text-shadow:0 2px 4px rgba(0,0,0,.15); }
+.pip{
+  position:absolute; font-family:var(--head); font-weight:700; font-size:.8rem;
+  color:var(--crimson); display:flex; flex-direction:column; align-items:center; line-height:1;
+}
+.pip i{ font-style:normal; font-size:.85rem; }
+.pip.top{ top:8px; left:10px; }
+.pip.bot{ bottom:8px; right:10px; transform:rotate(180deg); }
+.fan:hover .c1{ transform:translateX(-50%) rotate(-28deg); }
+.fan:hover .c2{ transform:translateX(-50%) rotate(-10deg); }
+.fan:hover .c3{ transform:translateX(-50%) rotate(9deg); }
+.fan:hover .card-face{ transform:translateX(-50%) rotate(24deg) translateY(-6px); }
+
+/* ---------- regole ---------- */
+.rules{ list-style:none; display:grid; gap:.7rem; margin-top:2.2rem; }
+.rules li{
+  display:flex; align-items:center; gap:.9rem; padding:.65rem 1rem;
+  border:1px solid rgba(217,172,78,.22); border-radius:8px;
+  background:rgba(9,27,21,.5); color:var(--ivory-dim); font-size:.92rem;
+  transition:border-color .2s, color .2s, transform .2s;
+}
+.rules li:hover{ border-color:var(--gold); color:var(--ivory); transform:translateX(6px); }
+.rules b{ font-family:var(--head); color:var(--gold-bright); letter-spacing:.08em; min-width:1.4rem; }
+
+/* ---------- carta-modulo ---------- */
+.form-card{
+  position:relative; border-radius:12px;
+  background:linear-gradient(170deg, #14382b, #0d241c);
+  border:1px solid var(--line); padding:clamp(1.7rem,3vw,2.6rem);
+  box-shadow:0 34px 70px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.03), inset 0 0 60px rgba(0,0,0,.35);
+  animation:rise .6s .2s ease both;
+}
+.form-card::before{ /* cornice interna dorata */
+  content:''; position:absolute; inset:9px; pointer-events:none;
+  border:1px solid rgba(217,172,78,.25); border-radius:8px;
+}
+.corner{
+  position:absolute; display:flex; flex-direction:column; align-items:center; gap:2px;
+  font-family:var(--head); font-weight:700; font-size:.8rem; line-height:1; color:var(--gold); opacity:.85;
+}
+.corner i{ font-style:normal; color:var(--crimson-hot); font-size:.9rem; }
+.corner.tl{ top:15px; left:17px; }
+.corner.br{ bottom:15px; right:17px; transform:rotate(180deg); }
+
+.card-title{
+  font-family:var(--head); font-weight:700; text-align:center; text-transform:uppercase;
+  letter-spacing:.3em; font-size:.92rem; color:var(--gold-bright); margin-bottom:1.6rem;
+}
+.form-card .field{ margin-bottom:1rem; }
+.form-card .btn{ width:100%; }
+#roomCode{
+  text-transform:uppercase; letter-spacing:.5em; text-align:center;
+  font-family:var(--head); font-weight:700; font-size:1.3rem;
+}
+
+.divider{
+  display:flex; align-items:center; gap:.8rem; margin:1.5rem 0;
+  font-family:var(--head); font-size:.64rem; letter-spacing:.3em;
+  text-transform:uppercase; color:var(--ivory-dim);
+}
+.divider::before, .divider::after{
+  content:''; height:1px; flex:1;
+  background:linear-gradient(90deg, transparent, var(--line), transparent);
+}
+.divider span{ color:var(--crimson-hot); font-size:.8rem; }
+
+.error-line{
+  min-height:1.3em; margin-top:1.1rem; text-align:center;
+  font-family:var(--head); font-size:.78rem; letter-spacing:.08em; color:var(--crimson-hot);
+}
+
+/* ---------- piè di pagina ---------- */
+.step-row{
+  display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap;
+  margin-top:clamp(2rem,4vw,3rem); padding-top:1rem;
+  border-top:1px solid rgba(217,172,78,.15);
+  font-family:var(--head); font-size:.62rem; letter-spacing:.3em;
+  text-transform:uppercase; color:rgba(185,174,147,.7);
+}
+
+@media (max-width:940px){
+  .table-area{ grid-template-columns:1fr; }
+  .form-card{ max-width:520px; width:100%; margin:0 auto; }
+}

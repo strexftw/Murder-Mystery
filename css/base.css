@@ -1,0 +1,147 @@
+/* =========================================================
+   BASE.CSS — palette "tavolo da gioco", bottoni, campi, toast
+   ========================================================= */
+*{ margin:0; padding:0; box-sizing:border-box; }
+
+:root{
+  --felt:#0f2e24;
+  --felt-deep:#091b15;
+  --felt-lite:#1a4433;
+  --ivory:#f3ead6;
+  --ivory-dim:#b9ae93;
+  --gold:#d9ac4e;
+  --gold-bright:#f2cf7f;
+  --gold-dark:#9a742c;
+  --crimson:#b3202f;
+  --crimson-hot:#e04b52;
+  --line:rgba(217,172,78,.28);
+  --line-soft:rgba(243,234,214,.12);
+  --display:'Cinzel Decorative',serif;
+  --head:'Cinzel',serif;
+  --body:'Karla',sans-serif;
+}
+
+html{ scrollbar-color:var(--gold-dark) var(--felt-deep); }
+
+body{
+  min-height:100svh; font-family:var(--body); color:var(--ivory); overflow-x:hidden;
+  background:
+    radial-gradient(1200px 700px at 50% -10%, rgba(242,207,127,.08), transparent 60%),
+    radial-gradient(900px 600px at 85% 110%, rgba(179,32,47,.10), transparent 55%),
+    radial-gradient(ellipse at center, var(--felt-lite) 0%, var(--felt) 45%, var(--felt-deep) 100%);
+  background-attachment:fixed;
+}
+/* luce della lampada sul tavolo, con lieve tremolio */
+body::before{
+  content:''; position:fixed; inset:0; z-index:-2; pointer-events:none;
+  background:radial-gradient(900px 500px at 50% -6%, rgba(242,207,127,.11), transparent 65%);
+  animation:flicker 7s ease-in-out infinite;
+}
+/* grana leggera */
+body::after{
+  content:''; position:fixed; inset:0; z-index:60; pointer-events:none; opacity:.05;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+::selection{ background:var(--crimson); color:#fff; }
+::-webkit-scrollbar{ width:9px; height:9px; }
+::-webkit-scrollbar-track{ background:var(--felt-deep); }
+::-webkit-scrollbar-thumb{ background:var(--gold-dark); border:2px solid var(--felt-deep); border-radius:6px; }
+::-webkit-scrollbar-thumb:hover{ background:var(--gold); }
+
+/* ---------- semi fluttuanti (sfondo) ---------- */
+.suits{ position:fixed; inset:0; z-index:-1; pointer-events:none; overflow:hidden; }
+.suits .s{
+  position:absolute; font-size:clamp(70px,11vw,150px);
+  color:rgba(217,172,78,.06); animation:floaty 16s ease-in-out infinite alternate;
+}
+.suits .s2, .suits .s4{ color:rgba(224,75,82,.07); }
+.s1{ top:8%; left:4%; }
+.s2{ top:16%; right:6%; animation-delay:-4s; }
+.s3{ bottom:12%; left:9%; animation-delay:-8s; }
+.s4{ bottom:6%; right:11%; animation-delay:-12s; }
+
+/* ---------- bottoni ---------- */
+.btn{
+  font-family:var(--head); font-weight:700; letter-spacing:.16em; text-transform:uppercase;
+  font-size:.85rem; padding:.95rem 1.5rem; cursor:pointer; position:relative; overflow:hidden;
+  border:1px solid var(--gold-dark); border-radius:6px; color:var(--gold-bright);
+  background:linear-gradient(180deg, rgba(217,172,78,.14), rgba(217,172,78,.03));
+  transition:transform .18s ease, box-shadow .18s ease, border-color .18s, color .18s;
+}
+.btn::after{ /* riflesso che scorre al passaggio */
+  content:''; position:absolute; top:0; left:-80%; width:50%; height:100%;
+  background:linear-gradient(100deg, transparent, rgba(255,255,255,.28), transparent);
+  transform:skewX(-20deg); transition:left .5s ease;
+}
+.btn:hover::after{ left:130%; }
+.btn:hover{ transform:translateY(-2px); border-color:var(--gold); box-shadow:0 12px 26px rgba(0,0,0,.45); }
+.btn:active{ transform:translateY(0); }
+.btn:disabled{ opacity:.5; cursor:wait; }
+.btn:focus-visible{ outline:2px solid var(--gold-bright); outline-offset:2px; }
+
+.btn-blood{
+  color:#fff; border-color:#7c1420; text-shadow:0 1px 2px rgba(0,0,0,.45);
+  background:linear-gradient(180deg, #cf3341, var(--crimson) 55%, #8e1622);
+  box-shadow:0 10px 24px rgba(179,32,47,.35), inset 0 1px 0 rgba(255,255,255,.25);
+}
+.btn-blood:hover{
+  box-shadow:0 16px 34px rgba(179,32,47,.5), inset 0 1px 0 rgba(255,255,255,.25);
+  border-color:#e0777e;
+}
+.btn-sm{ padding:.6rem 1rem; font-size:.72rem; }
+.btn-big{ width:100%; padding:1.2rem; font-size:1.05rem; }
+.btn.armed{
+  background:linear-gradient(180deg, var(--gold-bright), var(--gold) 60%, #b58a35);
+  color:#241703; border-color:#8a6a24; text-shadow:none; animation:tremble .28s infinite;
+}
+
+/* ---------- campi ---------- */
+.field{ display:flex; flex-direction:column; gap:.5rem; text-align:left; }
+.field label{
+  font-family:var(--head); font-weight:700; font-size:.68rem;
+  letter-spacing:.3em; text-transform:uppercase; color:var(--gold);
+}
+.field input{
+  width:100%; background:rgba(9,27,21,.7); border:1px solid var(--line); border-radius:6px;
+  color:var(--ivory); padding:.9rem 1rem; font:500 1rem var(--body); outline:none;
+  transition:border-color .2s, box-shadow .2s, background .2s;
+}
+.field input::placeholder{ color:rgba(185,174,147,.5); }
+.field input:focus{
+  border-color:var(--gold); background:rgba(9,27,21,.92);
+  box-shadow:0 0 0 3px rgba(217,172,78,.18), 0 0 20px rgba(217,172,78,.12);
+}
+
+/* ---------- ornamenti ---------- */
+.orn{ color:var(--gold); letter-spacing:.6em; font-size:.85rem; text-align:center; }
+
+/* ---------- toast ---------- */
+.toast{
+  position:fixed; left:50%; bottom:1.4rem; transform:translate(-50%,180%); z-index:80;
+  font-family:var(--head); font-size:.8rem; letter-spacing:.1em; text-align:center;
+  background:#0c231c; border:1px solid var(--line); border-radius:6px; color:var(--ivory);
+  padding:.8rem 1.4rem; box-shadow:0 18px 44px rgba(0,0,0,.55); max-width:90vw;
+  transition:transform .35s cubic-bezier(.2,1.4,.4,1);
+}
+.toast.show{ transform:translate(-50%,0); }
+.toast.ok{ border-color:var(--gold); color:var(--gold-bright); }
+.toast.ko{ border-color:var(--crimson-hot); color:var(--crimson-hot); }
+
+/* ---------- avviso configurazione ---------- */
+.config-warning{
+  position:fixed; top:0; left:0; right:0; z-index:99;
+  background:linear-gradient(180deg, #cf3341, var(--crimson));
+  color:#fff; text-align:center; padding:.75rem 1rem;
+  font-family:var(--head); font-size:.78rem; letter-spacing:.12em;
+}
+.config-warning b{ color:#ffe27a; }
+
+/* ---------- animazioni ---------- */
+@keyframes flicker{ 0%,100%{opacity:.7} 42%{opacity:1} 58%{opacity:.6} 72%{opacity:.95} }
+@keyframes floaty{ from{ transform:translateY(0) rotate(-6deg); } to{ transform:translateY(-36px) rotate(7deg); } }
+@keyframes rise{ from{ opacity:0; transform:translateY(14px); } to{ opacity:1; transform:none; } }
+@keyframes dealIn{ from{ opacity:0; transform:translateY(-20px) scale(.85); } to{ opacity:1; transform:none; } }
+@keyframes pulseGold{ 0%{ box-shadow:0 0 0 0 rgba(242,207,127,.55); } 80%,100%{ box-shadow:0 0 0 9px rgba(242,207,127,0); } }
+@keyframes tremble{ 0%,100%{ transform:translateX(0); } 25%{ transform:translateX(-1.5px); } 75%{ transform:translateX(1.5px); } }
+@keyframes fadeIn{ from{ opacity:0; } to{ opacity:1; } }
