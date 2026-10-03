@@ -1,33 +1,39 @@
 /* =========================================================
-   PHONE.CSS v2 — telefono: TUTTO entra nello schermo.
-   La PAGINA non scorre mai (né in verticale né in
-   orizzontale). Se servisse spazio extra, scorrono solo
-   la lista giocatori e la chat DENTRO i loro riquadri.
-   La rotazione del telefono cambia layout all'istante,
-   senza ricaricare.
+   PHONE.CSS v3 — telefono: tutto a schermo e campi SEMPRE
+   raggiungibili.
+   - 100dvh: quando si apre la tastiera il layout si
+     restringe da solo e i campi non finiscono coperti
+   - la pagina non scorre; se proprio serve, scorre SOLO
+     il menu dentro il suo riquadro
+   - campi di testo a 16px: niente zoom automatico su iPhone
    ========================================================= */
 
-/* ============ COMUNE: blocca lo scorrimento di pagina ============ */
+/* ============ COMUNE: la pagina non si muove ============ */
 html, body{
-  height:100svh;
-  overflow:hidden;                 /* la pagina non si muove MAI */
-  overscroll-behavior:none;        /* niente "effetto elastico" */
+  height:100dvh;
+  overflow:hidden;
+  overscroll-behavior:none;
 }
 body{ display:flex; flex-direction:column; }
 
-/* sul telefono questi elementi rubano spazio prezioso: via */
 .live{ display:none; }
 .fan{ display:none; }
 
-/* rispetta i bordi dei telefoni con notch/foro */
+/* bordi sicuri per telefoni con notch/foro */
 .topbar{
   padding-left:calc(.7rem + env(safe-area-inset-left));
   padding-right:calc(.7rem + env(safe-area-inset-right));
 }
 
+/* il MENU può scorrere DENTRO il suo riquadro se serve:
+   così tutti i campi restano sempre raggiungibili */
+.table{ height:100dvh; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+
+/* niente zoom automatico quando tocchi un campo (iPhone) */
+.field input, .chat-form input{ font-size:16px; }
+
 /* =========================================================
    TELEFONO DRITTO (verticale)
-   Tavolo sopra, chat sotto: entrambi riempiono lo schermo
    ========================================================= */
 @media (orientation: portrait){
 
@@ -43,7 +49,7 @@ body{ display:flex; flex-direction:column; }
   .code-label, .copy-hint{ font-size:.65rem; }
   .btn-sm{ padding:.45rem .8rem; font-size:.8rem; }
 
-  /* ---------- la griglia occupa TUTTA l'altezza rimasta ---------- */
+  /* ---------- lobby: riempie tutta l'altezza ---------- */
   .lobby-grid{
     flex:1; min-height:0; height:auto;
     grid-template-columns:1fr;
@@ -55,7 +61,6 @@ body{ display:flex; flex-direction:column; }
   .col-head h2{ font-size:1rem; }
   .count{ font-size:.72rem; padding:.25rem .6rem; }
 
-  /* la lista riempie il riquadro; scorre SOLO se i giocatori sono tanti */
   .player-list{
     min-height:0; max-height:none; overflow-y:auto;
     grid-template-columns:repeat(auto-fill, minmax(120px,1fr));
@@ -70,16 +75,15 @@ body{ display:flex; flex-direction:column; }
   .btn-big{ padding:.85rem; font-size:1.05rem; }
   .wait-note{ margin-top:.6rem; font-size:.9rem; padding:.6rem; }
 
-  /* ---------- chat: i messaggi scorrono DENTRO il riquadro ---------- */
   .chat-col{ min-height:0; }
   .chat-log{ flex:1; min-height:0; max-height:none; overflow-y:auto; }
   .msg{ font-size:.95rem; padding:.5rem .75rem; }
   .msg .who{ font-size:.8rem; }
   .chat-form{ margin-top:.55rem; gap:.5rem; }
-  .chat-form input{ font-size:1rem; padding:.65rem .8rem; }
+  .chat-form input{ padding:.65rem .8rem; }
 
   /* ---------- menu (index.html) ---------- */
-  .table{ height:100svh; overflow:hidden; padding:.9rem; max-width:640px; }
+  .table{ padding:.9rem; max-width:640px; }
   .overline{ font-size:.75rem; letter-spacing:.18em; }
   .title{ font-size:clamp(2rem,9vw,3rem); margin:.5rem 0 .4rem; }
   .table-area{ grid-template-columns:1fr; gap:1rem; margin-top:.8rem; }
@@ -88,7 +92,7 @@ body{ display:flex; flex-direction:column; }
   .form-card{ padding:1.2rem 1.1rem; width:100%; max-width:none; }
   .card-title{ font-size:1rem; margin-bottom:1rem; }
   .form-card .field{ margin-bottom:.8rem; }
-  .field input{ font-size:1.05rem; padding:.75rem .9rem; }
+  .field input{ padding:.75rem .9rem; }
   .btn{ font-size:.95rem; padding:.8rem 1.1rem; }
   #roomCode{ font-size:1.25rem; letter-spacing:.3em; }
   .divider{ margin:1rem 0; font-size:.9rem; }
@@ -97,8 +101,6 @@ body{ display:flex; flex-direction:column; }
 
 /* =========================================================
    TELEFONO GIRATO (orizzontale)
-   Barra sottile in alto, poi tavolo e chat AFFIANCATI:
-   tutto visibile in un colpo d'occhio, zero scorrimento
    ========================================================= */
 @media (orientation: landscape){
 
@@ -107,14 +109,14 @@ body{ display:flex; flex-direction:column; }
   /* ---------- barra superiore sottilissima ---------- */
   .topbar{ flex:none; padding-top:.3rem; padding-bottom:.3rem; gap:.5rem; }
   .brand-mark{ width:30px; height:30px; font-size:.95rem; }
-  .brand-title{ display:none; }            /* resta solo il nome della stanza */
+  .brand-title{ display:none; }
   .room-name{ font-size:.95rem; }
   .code-chip{ padding:.3rem .55rem; gap:.4rem; }
   #codeText{ font-size:1rem; letter-spacing:.16em; }
   .code-label, .copy-hint{ font-size:.6rem; }
   .btn-sm{ padding:.4rem .7rem; font-size:.72rem; }
 
-  /* ---------- tavolo e chat affiancati, a tutta altezza ---------- */
+  /* ---------- lobby: tavolo e chat affiancati ---------- */
   .lobby-grid{
     flex:1; min-height:0; height:auto;
     grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);
@@ -125,7 +127,6 @@ body{ display:flex; flex-direction:column; }
   .col-head h2{ font-size:.9rem; }
   .count{ font-size:.65rem; padding:.2rem .5rem; }
 
-  /* carte compatte; scorrono DENTRO il riquadro solo se servono */
   .player-list{
     min-height:0; max-height:none; overflow-y:auto;
     grid-template-columns:repeat(auto-fill, minmax(105px,1fr));
@@ -141,34 +142,44 @@ body{ display:flex; flex-direction:column; }
   .btn-big{ padding:.6rem; font-size:.9rem; }
   .wait-note{ margin-top:.5rem; font-size:.78rem; padding:.45rem; }
 
-  /* ---------- chat affiancata ---------- */
   .chat-col{ min-height:0; }
   .chat-log{ flex:1; min-height:0; overflow-y:auto; }
   .msg{ font-size:.85rem; padding:.4rem .6rem; }
   .msg .who{ font-size:.7rem; margin-bottom:.15rem; }
   .chat-form{ margin-top:.45rem; gap:.4rem; }
-  .chat-form input{ font-size:.9rem; padding:.5rem .7rem; }
+  .chat-form input{ padding:.5rem .7rem; }
 
-  /* ---------- menu (index.html): titolo a sinistra, modulo a destra ---------- */
+  /* ---------- menu (index.html): titolo a sinistra,
+       modulo a destra con i campi su DUE COLONNE:
+       nome e stanza affiancati, codice sotto.
+       Così entra tutto anche sui telefoni più bassi ---------- */
   .table{
-    height:100svh; overflow:hidden; max-width:1000px;
-    flex-direction:row; align-items:center; gap:1.2rem;
-    padding:.5rem 1.2rem;
+    max-width:1000px;
+    flex-direction:row; align-items:center; gap:1rem;
+    padding:.4rem .9rem;
   }
   .crest{ flex:0 0 auto; }
-  .overline{ font-size:.7rem; letter-spacing:.16em; }
-  .title{ font-size:clamp(1.5rem,6vh,2.4rem); margin:.3rem 0 .2rem; }
+  .overline{ display:none; }
   .crest .orn{ display:none; }
+  .title{ font-size:clamp(1.3rem,9vh,2rem); margin:0; }
   .table-area{ flex:1; margin-top:0; grid-template-columns:1fr; gap:0; }
-  .left{ display:none; }                   /* niente ventaglio e regole: spazio al modulo */
-  .form-card{ padding:.8rem 1.1rem; }
-  .card-title{ font-size:.9rem; margin-bottom:.6rem; }
-  .form-card .field{ margin-bottom:.5rem; gap:.3rem; }
-  .field label{ font-size:.72rem; }
-  .field input{ font-size:.95rem; padding:.45rem .7rem; }
-  .btn{ font-size:.8rem; padding:.55rem .9rem; }
-  #roomCode{ font-size:1.1rem; letter-spacing:.28em; }
-  .divider{ margin:.55rem 0; font-size:.75rem; }
-  .error-line{ margin-top:.5rem; font-size:.8rem; min-height:1.1em; }
+  .left{ display:none; }              /* niente ventaglio e regole */
   .step-row{ display:none; }
+
+  /* il modulo diventa una griglia a 2 colonne */
+  .form-card{
+    display:grid; grid-template-columns:1fr 1fr;
+    gap:.35rem .6rem; padding:.6rem .9rem;
+  }
+  .card-title{ grid-column:1/-1; font-size:.85rem; margin-bottom:.1rem; }
+  .form-card .field{ margin-bottom:0; gap:.25rem; }
+  .field:has(#roomCode){ grid-column:1/-1; }   /* il codice sta sotto, a tutta larghezza */
+  .field label{ font-size:.68rem; }
+  .field input{ padding:.4rem .65rem; }
+  #btnCreate{ grid-column:1/-1; }
+  #btnJoin{ grid-column:1/-1; }
+  .btn{ font-size:.78rem; padding:.5rem .8rem; }
+  #roomCode{ font-size:1.05rem; letter-spacing:.28em; }
+  .divider{ grid-column:1/-1; margin:.3rem 0; font-size:.7rem; }
+  .error-line{ grid-column:1/-1; margin-top:.15rem; font-size:.75rem; min-height:1em; }
 }
