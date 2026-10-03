@@ -1,8 +1,11 @@
 /* =========================================================
    UTILS.JS — identità dispositivo, codici, toast, messaggi
+   Nome e stanza corrente: sessionStorage (solo finché la
+   scheda resta aperta). UID dispositivo: localStorage
+   (serve solo a rientrare nella stanza se aggiorni).
    ========================================================= */
 
-/* --- identità del giocatore (persistita su questo dispositivo) --- */
+/* --- identità tecnica del dispositivo (persistente, mai mostrata) --- */
 function getUid(){
   let u = localStorage.getItem('assassino_uid');
   if(!u){
@@ -13,16 +16,18 @@ function getUid(){
   }
   return u;
 }
-function getPlayerName(){ return localStorage.getItem('assassino_name') || ''; }
-function savePlayerName(n){ localStorage.setItem('assassino_name', n.trim()); }
 
-/* --- stanza corrente --- */
-function saveCurrentRoom(room){ localStorage.setItem('assassino_room', JSON.stringify(room)); }
+/* --- nome giocatore: solo sessione, niente precompilazione futura --- */
+function getPlayerName(){ return sessionStorage.getItem('assassino_name') || ''; }
+function savePlayerName(n){ sessionStorage.setItem('assassino_name', n.trim()); }
+
+/* --- stanza corrente: solo sessione (chiudi la scheda = fuori stanza) --- */
+function saveCurrentRoom(room){ sessionStorage.setItem('assassino_room', JSON.stringify(room)); }
 function getCurrentRoom(){
-  try { return JSON.parse(localStorage.getItem('assassino_room')); }
+  try { return JSON.parse(sessionStorage.getItem('assassino_room')); }
   catch (e) { return null; }
 }
-function clearCurrentRoom(){ localStorage.removeItem('assassino_room'); }
+function clearCurrentRoom(){ sessionStorage.removeItem('assassino_room'); }
 
 /* --- codice stanza: niente caratteri ambigui (0/O, 1/I) --- */
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -34,7 +39,7 @@ function generateRoomCode(len = 6){
   return s;
 }
 
-/* --- escape HTML --- */
+/* --- escape HTML (sicurezza) --- */
 function escapeHtml(s){
   return String(s ?? '').replace(/[&<>"']/g, c =>
     ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -52,7 +57,6 @@ function showToast(msg, ok = true){
 
 /* --- controllo configurazione (a prova di file mancante) --- */
 function configReady(){
-  // se config.js non è stato caricato, queste costanti non esistono:
   if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON_KEY === 'undefined') return false;
   return /supabase\.co\/?$/.test(SUPABASE_URL)
       && SUPABASE_ANON_KEY.length > 30

@@ -1,8 +1,14 @@
 /* =========================================================
-   MENU.JS — file di logica del menu (index.html)
+   MENU.JS — logica del menu (index.html)
+   v2: diagnostica visibile + nessun nome precompilato
    ========================================================= */
 (function(){
-  if(!guardConfig()) return;
+  console.log('[MENU] menu.js caricato');
+
+  if(!guardConfig()){
+    console.warn('[MENU] Config Supabase mancante: pulsanti inattivi (vedi barra rossa in alto).');
+    return;
+  }
 
   const uid = getUid();
 
@@ -13,9 +19,19 @@
   const btnJoin       = document.getElementById('btnJoin');
   const errLine       = document.getElementById('menuError');
 
-  nameInput.value = getPlayerName();
+  /* se manca anche un solo elemento della pagina, dillo a schermo */
+  const missing = [
+    ['playerName', nameInput], ['roomName', roomNameInput], ['roomCode', codeInput],
+    ['btnCreate', btnCreate], ['btnJoin', btnJoin], ['menuError', errLine]
+  ].filter(x => !x[1]).map(x => x[0]);
+  if(missing.length){
+    console.error('[MENU] Elementi mancanti in index.html:', missing);
+    if(errLine) errLine.textContent = '⚠ index.html incompleta: mancano ' + missing.join(', ');
+    return;
+  }
 
-  /* codice sempre maiuscolo e pulito mentre scrivi */
+  /* niente precompilazione: ogni visita = nuovo nome da assassino */
+
   codeInput.addEventListener('input', () => {
     codeInput.value = codeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
   });
@@ -23,12 +39,24 @@
   roomNameInput.addEventListener('keydown', e => { if(e.key === 'Enter') createRoom(); });
   btnCreate.addEventListener('click', createRoom);
   btnJoin.addEventListener('click', joinRoom);
+  console.log('[MENU] ascoltatori collegati: pronto');
+
+  /* traduce gli errori tecnici in italiano comprensibile */
+  function explain(err){
+    const m = (err && err.message) || String(err);
+    if(/does not exist/i.test(m))             return 'le tabelle non esistono: esegui database.sql su Supabase.';
+    if(/PGRST116|no rows/i.test(m))           return 'operazione bloccata (RLS senza policy): ricontrolla database.sql.';
+    if(/Failed to fetch|NetworkError/i.test(m)) return 'Supabase non raggiungibile: controlla URL in config.js e la rete.';
+    if(/JWT|API key|apikey/i.test(m))         return 'anon key sbagliata in config.js.';
+    return m;
+  }
 
   function fail(msg){
+    console.error('[MENU]', msg);
     errLine.textContent = '⚠ ' + msg;
     btnCreate.disabled = btnJoin.disabled = false;
-    btnCreate.textContent = '✚ Crea stanza';
-    btnJoin.textContent = '→ Entra nella stanza';
+    btnCreate.textContent = 'Crea la stanza';
+    btnJoin.textContent = 'Entra con il codice';
   }
 
   function readName(){
@@ -40,6 +68,7 @@
 
   /* ---------------- CREA STANZA ---------------- */
   async function createRoom(){
+    console.log('[MENU] clic → Crea stanza');
     const name = readName(); if(!name) return;
     const roomName = roomNameInput.value.trim();
     if(!roomName){ fail('Dai un nome alla stanza.'); roomNameInput.focus(); return; }
@@ -49,40 +78,44 @@
     btnCreate.textContent = '… apertura stanza';
 
     try{
-      /* genera un codice e riprova finché non è unico */
       let room = null;
       for(let i = 0; i < 5 && !room; i++){
         const code = generateRoomCode();
+        console.log('[MENU] tentativo insert rooms, codice:', code);
         const res = await db.from('rooms')
           .insert({ code, name: roomName, host_uid: uid })
           .select().single();
         if(res.error){
+          console.error('[MENU] errore insert rooms:', res.error);
           if(res.error.code === '23505') continue; // codice duplicato: riprova
           throw res.error;
         }
         room = res.data;
       }
       if(!room) throw new Error('Codice stanza non disponibile, riprova.');
+      console.log('[MENU] stanza creata:', room.code);
 
-      /* l'host entra come primo giocatore */
       const p = await db.from('players').insert({
         room_id: room.id, uid, name,
         is_host: true, online: true,
         last_seen: new Date().toISOString()
       });
       if(p.error) throw p.error;
+      console.log('[MENU] host inserito come giocatore');
 
       await sysMessage(room.id, `${escapeHtml(name)} ha aperto la stanza segreta.`);
       saveCurrentRoom({ id: room.id, code: room.code, name: room.name });
+      console.log('[MENU] → vado a lobby.html');
       location.href = 'lobby.html';
     }catch(err){
-      console.error(err);
-      fail('Errore nella creazione: ' + (err.message || err));
+      console.error('[MENU] creazione fallita:', err);
+      fail('Creazione fallita: ' + explain(err));
     }
   }
 
   /* ---------------- ENTRA CON CODICE ---------------- */
   async function joinRoom(){
+    console.log('[MENU] clic → Entra nella stanza');
     const name = readName(); if(!name) return;
     const code = codeInput.value.trim();
     if(code.length < 4){ fail('Il codice stanza è di 6 caratteri.'); codeInput.focus(); return; }
@@ -95,10 +128,10 @@
       const res = await db.from('rooms').select('*').eq('code', code).maybeSingle();
       if(res.error) throw res.error;
       const room = res.data;
-      if(!room) return fail('Nessuna stanza con codice ' + code + '.');
+      if(!room) return fail('Nessuna stanza con codice ' + code + '. Se il codice è giusto, esegui/ricontrolla database.sql (policy RLS).');
       if(room.status !== 'lobby') return fail('In questa stanza la partita è già iniziata.');
+      console.log('[MENU] stanza trovata:', room.name);
 
-      /* già presente? rientro silenzioso. Altrimenti: nuovo ingresso. */
       const me = await db.from('players')
         .select('id').eq('room_id', room.id).eq('uid', uid).maybeSingle();
       if(me.data){
@@ -116,10 +149,11 @@
       }
 
       saveCurrentRoom({ id: room.id, code: room.code, name: room.name });
+      console.log('[MENU] → vado a lobby.html');
       location.href = 'lobby.html';
     }catch(err){
-      console.error(err);
-      fail('Errore di connessione: ' + (err.message || err));
+      console.error('[MENU] ingresso fallito:', err);
+      fail('Ingresso fallito: ' + explain(err));
     }
   }
 })();
