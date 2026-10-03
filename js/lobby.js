@@ -1,7 +1,7 @@
 /* =========================================================
    LOBBY.JS — logica della lobby (lobby.html)
-   v3.2: successione del capo stanza (nuovo host random
-   quando il capo se ne va; il vecchio capo rientra normale)
+   v3.3: fix successione host — il fantasma dell'host non
+   blocca più pulizie e proclamazione del nuovo capo
    heartbeat 0.5s · lista · chat · avvio (solo host)
    ========================================================= */
 (function(){
@@ -130,7 +130,6 @@
   }
 
   /* ---------------- SUCCESSIONE DEL CAPO ---------------- */
-  /* proclama un nuovo capo stanza a caso tra i candidati */
   async function promoteNewHost(candidates){
     if(!candidates || !candidates.length) return null;
     const pick = candidates[Math.floor(Math.random() * candidates.length)];
@@ -209,21 +208,23 @@
 
   function schedule(){ setTimeout(beat, HEARTBEAT_MS); }
 
-  /* Chi fa le pulizie: il capo stanza; se il capo non dà segni di vita,
-     il giocatore in linea da più tempo (evita messaggi duplicati). */
+  /* Chi fa le pulizie: il capo stanza vivo; se il capo è un fantasma
+     (o non c'è), il giocatore VIVO in linea da più tempo. */
   function iAmCleaner(players){
     const me = players.find(function(p){ return p.uid === uid; });
     if(!me) return false;
-    if(isHost) return true;
+    if(isHost && isFresh(me)) return true;
 
     const host = players.find(function(p){ return p.is_host; });
     const hostFresh = host && isFresh(host);
     if(hostFresh) return false;
 
-    const online = players
-      .filter(function(p){ return p.online; })
+    /* FIX v3.3: qui contano solo i giocatori VIVI (battito recente),
+       altrimenti il fantasma dell'host vinceva la votazione */
+    const vivi = players
+      .filter(function(p){ return p.online && isFresh(p); })
       .sort(function(a, b){ return new Date(a.joined_at) - new Date(b.joined_at); });
-    return online.length > 0 && online[0].uid === uid;
+    return vivi.length > 0 && vivi[0].uid === uid;
   }
 
   /* chi non batte più da OFFLINE_AFTER_MS viene tolto dal tavolo */
@@ -400,8 +401,7 @@
   });
 
   /* chiusura scheda: provo a rimuovermi subito
-     (se non fa in tempo, ci pensa la pulizia entro ~5s,
-      e la successione del capo parte da lì) */
+     (se non fa in tempo, ci pensa la pulizia entro ~5s) */
   window.addEventListener('beforeunload', function(){
     try{
       db.from('players').delete().eq('room_id', roomId).eq('uid', uid);
