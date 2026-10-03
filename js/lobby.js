@@ -1,8 +1,7 @@
 /* =========================================================
    LOBBY.JS — logica della lobby (lobby.html)
-   v3.3: fix successione host — il fantasma dell'host non
-   blocca più pulizie e proclamazione del nuovo capo
-   heartbeat 0.5s · lista · chat · avvio (solo host)
+   v3.4: Politica A — l'ultimo che esce cancella la stanza
+   heartbeat 0.5s · lista · chat · successione capo · avvio
    ========================================================= */
 (function(){
   console.log('[LOBBY] lobby.js caricato');
@@ -66,7 +65,6 @@
   el.roomName.textContent = stored.name || '…';
   el.codeText.textContent = stored.code || '······';
 
-  /* un giocatore è "vivo" se il suo battito è recente */
   function isFresh(p){
     return (Date.now() - Date.parse(p.last_seen)) <= OFFLINE_AFTER_MS;
   }
@@ -108,7 +106,6 @@
     }
   }
 
-  /* se la mia riga non esiste più (rimosso mentre ero via), la ricreo */
   async function ensurePresence(){
     const me = await db.from('players')
       .select('id').eq('room_id', roomId).eq('uid', uid).maybeSingle();
@@ -147,7 +144,6 @@
     if(!running) return;
     beatN++;
     try{
-      /* 1) il mio battito; se nel frattempo sono stato rimosso, rientro */
       if(beatN % PRESENCE_EVERY === 1){
         const t = await db.from('players')
           .update({ online: true, last_seen: new Date().toISOString() })
@@ -159,17 +155,14 @@
         }
       }
 
-      /* 2) scheda nascosta: il cuore batte, la grafica no */
       if(document.hidden){ schedule(); return; }
 
-      /* 3) lista giocatori (aggiornata ogni 0.5s) */
       const pl = await db.from('players').select('*').eq('room_id', roomId);
       if(!pl.error && pl.data){
         let players = pl.data;
         if(iAmCleaner(players)){
           players = await cleanup(players);
 
-          /* se il capo non è più tra noi, proclamane uno nuovo a caso */
           const hostAlive = players.some(function(p){ return p.is_host; });
           if(!hostAlive && players.length){
             const pick = await promoteNewHost(players);
@@ -181,10 +174,8 @@
         renderPlayers(players);
       }
 
-      /* 4) chat */
       await refreshChat();
 
-      /* 5) stato stanza + sincronizzazione del mio ruolo di capo */
       if(beatN % PRESENCE_EVERY === 2){
         const st = await db.from('rooms')
           .select('status, host_uid').eq('id', roomId).maybeSingle();
@@ -208,8 +199,6 @@
 
   function schedule(){ setTimeout(beat, HEARTBEAT_MS); }
 
-  /* Chi fa le pulizie: il capo stanza vivo; se il capo è un fantasma
-     (o non c'è), il giocatore VIVO in linea da più tempo. */
   function iAmCleaner(players){
     const me = players.find(function(p){ return p.uid === uid; });
     if(!me) return false;
@@ -219,15 +208,12 @@
     const hostFresh = host && isFresh(host);
     if(hostFresh) return false;
 
-    /* FIX v3.3: qui contano solo i giocatori VIVI (battito recente),
-       altrimenti il fantasma dell'host vinceva la votazione */
     const vivi = players
       .filter(function(p){ return p.online && isFresh(p); })
       .sort(function(a, b){ return new Date(a.joined_at) - new Date(b.joined_at); });
     return vivi.length > 0 && vivi[0].uid === uid;
   }
 
-  /* chi non batte più da OFFLINE_AFTER_MS viene tolto dal tavolo */
   async function cleanup(players){
     const kept = [];
     for(const p of players){
@@ -379,29 +365,36 @@
     el.overlay.hidden = false;
   }
 
-  /* ---------------- ESCI ---------------- */
+  /* ---------------- ESCI (Politica A) ---------------- */
   el.btnExit.addEventListener('click', async function(){
     running = false;
     try{
-      /* se sono il capo, passo lo scettro a caso prima di andarmene */
-      if(isHost){
-        const pl = await db.from('players').select('*').eq('room_id', roomId);
-        const others = (pl.data || []).filter(function(p){
-          return p.uid !== uid && isFresh(p);
-        });
-        if(others.length){
-          await promoteNewHost(others);
+      const pl = await db.from('players').select('*').eq('room_id', roomId);
+      const altriVivi = (pl.data || []).filter(function(p){
+        return p.uid !== uid && isFresh(p);
+      });
+
+      if(altriVivi.length === 0){
+        /* sono l'ultimo: spengo la luce.
+           Cancello la stanza: il cascade porta via giocatori e chat. */
+        console.log('[LOBBY] ero l\'ultimo giocatore: elimino la stanza');
+        await db.from('rooms').delete().eq('id', roomId);
+      } else {
+        /* ci sono altri: passo lo scettro se sono il capo, poi saluto */
+        if(isHost){
+          await promoteNewHost(altriVivi);
         }
+        await db.from('players').delete().eq('room_id', roomId).eq('uid', uid);
+        await sysMessage(roomId, escapeHtml(myName) + ' ha abbandonato la stanza.');
       }
-      await db.from('players').delete().eq('room_id', roomId).eq('uid', uid);
-      await sysMessage(roomId, escapeHtml(myName) + ' ha abbandonato la stanza.');
     }catch(e){}
     clearCurrentRoom();
     location.href = 'index.html';
   });
 
   /* chiusura scheda: provo a rimuovermi subito
-     (se non fa in tempo, ci pensa la pulizia entro ~5s) */
+     (se non fa in tempo, ci pensa la pulizia entro ~5s;
+      se ero l'ultimo, lo spazzino del menu eliminerà la stanza) */
   window.addEventListener('beforeunload', function(){
     try{
       db.from('players').delete().eq('room_id', roomId).eq('uid', uid);
