@@ -1,143 +1,174 @@
 /* =========================================================
-   PHONE.CSS v1 — caricato SOLO su dispositivi touch
-   (media="(pointer:coarse)")
-   Due layout interni: verticale (portrait) e
-   orizzontale (landscape). La rotazione è automatica,
-   senza ricaricare la pagina.
+   PHONE.CSS v2 — telefono: TUTTO entra nello schermo.
+   La PAGINA non scorre mai (né in verticale né in
+   orizzontale). Se servisse spazio extra, scorrono solo
+   la lista giocatori e la chat DENTRO i loro riquadri.
+   La rotazione del telefono cambia layout all'istante,
+   senza ricaricare.
    ========================================================= */
 
+/* ============ COMUNE: blocca lo scorrimento di pagina ============ */
+html, body{
+  height:100svh;
+  overflow:hidden;                 /* la pagina non si muove MAI */
+  overscroll-behavior:none;        /* niente "effetto elastico" */
+}
+body{ display:flex; flex-direction:column; }
+
+/* sul telefono questi elementi rubano spazio prezioso: via */
+.live{ display:none; }
+.fan{ display:none; }
+
+/* rispetta i bordi dei telefoni con notch/foro */
+.topbar{
+  padding-left:calc(.7rem + env(safe-area-inset-left));
+  padding-right:calc(.7rem + env(safe-area-inset-right));
+}
+
 /* =========================================================
-   TELEFONO IN VERTICALE
+   TELEFONO DRITTO (verticale)
+   Tavolo sopra, chat sotto: entrambi riempiono lo schermo
    ========================================================= */
 @media (orientation: portrait){
 
   body{ font-size:16px; }
 
   /* ---------- barra superiore compatta ---------- */
-  .topbar{ padding:.7rem .8rem; gap:.6rem; }
-  .brand-mark{ width:38px; height:38px; font-size:1.2rem; }
-  .brand-title{ font-size:.72rem; letter-spacing:.16em; }
-  .room-name{ font-size:1.15rem; }
-  .live{ display:none; }                       /* toglie l'etichetta "In diretta" */
-  .code-chip{ padding:.45rem .7rem; gap:.5rem; }
-  #codeText{ font-size:1.2rem; letter-spacing:.2em; }
-  .code-label, .copy-hint{ font-size:.7rem; }
-  .btn-sm{ padding:.55rem .9rem; font-size:.85rem; }
+  .topbar{ flex:none; padding-top:.5rem; padding-bottom:.5rem; gap:.5rem; }
+  .brand-mark{ width:34px; height:34px; font-size:1.05rem; }
+  .brand-title{ font-size:.68rem; letter-spacing:.14em; }
+  .room-name{ font-size:1.05rem; }
+  .code-chip{ padding:.4rem .6rem; gap:.45rem; }
+  #codeText{ font-size:1.1rem; letter-spacing:.18em; }
+  .code-label, .copy-hint{ font-size:.65rem; }
+  .btn-sm{ padding:.45rem .8rem; font-size:.8rem; }
 
-  /* ---------- lobby in colonna singola ---------- */
-  .lobby-grid{ grid-template-columns:1fr; gap:.9rem; padding:.9rem; }
-  .panel-col{ padding:1rem; }
-  .col-head{ padding-bottom:.6rem; margin-bottom:.8rem; }
-  .col-head h2{ font-size:1.1rem; }
-  .count{ font-size:.8rem; padding:.3rem .7rem; }
-
-  .player-list{
-    grid-template-columns:repeat(auto-fill, minmax(140px,1fr));
-    gap:.7rem; max-height:none;
+  /* ---------- la griglia occupa TUTTA l'altezza rimasta ---------- */
+  .lobby-grid{
+    flex:1; min-height:0; height:auto;
+    grid-template-columns:1fr;
+    grid-template-rows:minmax(0,1.05fr) minmax(0,.95fr);
+    gap:.7rem; padding:.7rem;
   }
-  .player{ padding:1rem .6rem .9rem; gap:.5rem; }
-  .avatar{ width:52px; height:52px; font-size:1.5rem; }
-  .p-name{ font-size:1.05rem; }
-  .p-device{ font-size:.85rem; padding:.15rem .55rem; }
+  .panel-col{ min-height:0; padding:.8rem; }
+  .col-head{ padding-bottom:.45rem; margin-bottom:.6rem; }
+  .col-head h2{ font-size:1rem; }
+  .count{ font-size:.72rem; padding:.25rem .6rem; }
 
-  /* ---------- chat con altezza controllata ---------- */
-  .chat-col{ min-height:340px; }
-  .chat-log{ min-height:220px; max-height:42vh; }
-  .msg{ font-size:1rem; padding:.6rem .85rem; }
-  .chat-form{ margin-top:.7rem; gap:.5rem; }
-  .chat-form input{ font-size:1.05rem; padding:.8rem .9rem; }
+  /* la lista riempie il riquadro; scorre SOLO se i giocatori sono tanti */
+  .player-list{
+    min-height:0; max-height:none; overflow-y:auto;
+    grid-template-columns:repeat(auto-fill, minmax(120px,1fr));
+    gap:.55rem;
+  }
+  .player{ padding:.75rem .5rem .65rem; gap:.4rem; }
+  .avatar{ width:46px; height:46px; font-size:1.35rem; }
+  .p-name{ font-size:.95rem; }
+  .p-device{ font-size:.78rem; padding:.12rem .5rem; }
+  .badge-host{ font-size:.68rem; }
+  .host-zone{ margin-top:.6rem; }
+  .btn-big{ padding:.85rem; font-size:1.05rem; }
+  .wait-note{ margin-top:.6rem; font-size:.9rem; padding:.6rem; }
 
-  .btn-big{ padding:1.05rem; font-size:1.15rem; }
-  .wait-note{ font-size:1rem; padding:.8rem; }
+  /* ---------- chat: i messaggi scorrono DENTRO il riquadro ---------- */
+  .chat-col{ min-height:0; }
+  .chat-log{ flex:1; min-height:0; max-height:none; overflow-y:auto; }
+  .msg{ font-size:.95rem; padding:.5rem .75rem; }
+  .msg .who{ font-size:.8rem; }
+  .chat-form{ margin-top:.55rem; gap:.5rem; }
+  .chat-form input{ font-size:1rem; padding:.65rem .8rem; }
 
   /* ---------- menu (index.html) ---------- */
-  .table{ padding:1.1rem; }
-  .overline{ font-size:.85rem; letter-spacing:.2em; }
-  .title{ font-size:clamp(2.2rem,11vw,3.4rem); }
-  .fan{ display:none; }                        /* il ventaglio ruba spazio: via */
-  .table-area{ grid-template-columns:1fr; gap:1.3rem; margin-top:1.2rem; }
-  .rules{ margin-top:0; gap:.6rem; }
-  .rules li{ font-size:1rem; padding:.7rem .9rem; }
-  .form-card{ padding:1.6rem 1.2rem; max-width:560px; width:100%; margin:0 auto; }
-  .card-title{ font-size:1.05rem; margin-bottom:1.2rem; }
-  .form-card .field{ margin-bottom:.9rem; }
-  .field input{ font-size:1.1rem; padding:.85rem .95rem; }
-  .btn{ font-size:1rem; padding:.9rem 1.2rem; }
-  #roomCode{ font-size:1.35rem; letter-spacing:.35em; }
-  .divider{ margin:1.2rem 0; }
-  .step-row{ font-size:.78rem; letter-spacing:.16em; }
+  .table{ height:100svh; overflow:hidden; padding:.9rem; max-width:640px; }
+  .overline{ font-size:.75rem; letter-spacing:.18em; }
+  .title{ font-size:clamp(2rem,9vw,3rem); margin:.5rem 0 .4rem; }
+  .table-area{ grid-template-columns:1fr; gap:1rem; margin-top:.8rem; }
+  .rules{ margin-top:0; gap:.5rem; }
+  .rules li{ font-size:.95rem; padding:.6rem .8rem; }
+  .form-card{ padding:1.2rem 1.1rem; width:100%; max-width:none; }
+  .card-title{ font-size:1rem; margin-bottom:1rem; }
+  .form-card .field{ margin-bottom:.8rem; }
+  .field input{ font-size:1.05rem; padding:.75rem .9rem; }
+  .btn{ font-size:.95rem; padding:.8rem 1.1rem; }
+  #roomCode{ font-size:1.25rem; letter-spacing:.3em; }
+  .divider{ margin:1rem 0; font-size:.9rem; }
+  .step-row{ font-size:.72rem; letter-spacing:.14em; }
 }
 
 /* =========================================================
-   TELEFONO IN ORIZZONTALE
+   TELEFONO GIRATO (orizzontale)
+   Barra sottile in alto, poi tavolo e chat AFFIANCATI:
+   tutto visibile in un colpo d'occhio, zero scorrimento
    ========================================================= */
 @media (orientation: landscape){
 
   body{ font-size:15px; }
 
   /* ---------- barra superiore sottilissima ---------- */
-  .topbar{ padding:.4rem .8rem; gap:.5rem; }
-  .brand-mark{ width:32px; height:32px; font-size:1rem; }
-  .brand-title{ display:none; }                /* resta solo il nome della stanza */
-  .room-name{ font-size:1.05rem; }
-  .live{ display:none; }
-  .code-chip{ padding:.35rem .6rem; gap:.45rem; }
-  #codeText{ font-size:1.05rem; letter-spacing:.18em; }
-  .code-label, .copy-hint{ font-size:.65rem; }
-  .btn-sm{ padding:.45rem .8rem; font-size:.78rem; }
+  .topbar{ flex:none; padding-top:.3rem; padding-bottom:.3rem; gap:.5rem; }
+  .brand-mark{ width:30px; height:30px; font-size:.95rem; }
+  .brand-title{ display:none; }            /* resta solo il nome della stanza */
+  .room-name{ font-size:.95rem; }
+  .code-chip{ padding:.3rem .55rem; gap:.4rem; }
+  #codeText{ font-size:1rem; letter-spacing:.16em; }
+  .code-label, .copy-hint{ font-size:.6rem; }
+  .btn-sm{ padding:.4rem .7rem; font-size:.72rem; }
 
-  /* ---------- tavolo e chat AFFIANCATI ---------- */
+  /* ---------- tavolo e chat affiancati, a tutta altezza ---------- */
   .lobby-grid{
-    grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);
-    gap:.8rem; padding:.6rem .8rem;
-    height:calc(100svh - 58px);                /* tutto entra in altezza */
+    flex:1; min-height:0; height:auto;
+    grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);
+    gap:.6rem; padding:.5rem .7rem;
   }
-  .panel-col{ padding:.8rem; }
-  .col-head{ padding-bottom:.45rem; margin-bottom:.6rem; }
-  .col-head h2{ font-size:1rem; }
-  .count{ font-size:.72rem; padding:.25rem .6rem; }
+  .panel-col{ min-height:0; padding:.7rem; }
+  .col-head{ padding-bottom:.35rem; margin-bottom:.5rem; }
+  .col-head h2{ font-size:.9rem; }
+  .count{ font-size:.65rem; padding:.2rem .5rem; }
 
+  /* carte compatte; scorrono DENTRO il riquadro solo se servono */
   .player-list{
-    grid-template-columns:repeat(auto-fill, minmax(130px,1fr));
-    gap:.6rem; min-height:0; max-height:none;
+    min-height:0; max-height:none; overflow-y:auto;
+    grid-template-columns:repeat(auto-fill, minmax(105px,1fr));
+    gap:.45rem;
   }
-  .player{ padding:.75rem .5rem .65rem; gap:.35rem; }
-  .avatar{ width:44px; height:44px; font-size:1.3rem; }
-  .p-name{ font-size:.95rem; }
-  .p-device{ font-size:.78rem; padding:.12rem .5rem; }
-  .badge-host{ font-size:.68rem; }
+  .player{ padding:.55rem .4rem .5rem; gap:.3rem; }
+  .avatar{ width:38px; height:38px; font-size:1.15rem; }
+  .p-name{ font-size:.85rem; }
+  .p-device{ font-size:.7rem; padding:.1rem .4rem; }
+  .p-you{ font-size:.7rem; }
+  .badge-host{ font-size:.6rem; padding:.15rem .4rem; }
+  .host-zone{ margin-top:.5rem; }
+  .btn-big{ padding:.6rem; font-size:.9rem; }
+  .wait-note{ margin-top:.5rem; font-size:.78rem; padding:.45rem; }
 
+  /* ---------- chat affiancata ---------- */
   .chat-col{ min-height:0; }
-  .chat-log{ min-height:0; }
-  .msg{ font-size:.92rem; padding:.5rem .75rem; }
-  .msg .who{ font-size:.8rem; }
-  .chat-form{ margin-top:.55rem; gap:.5rem; }
-  .chat-form input{ font-size:.95rem; padding:.6rem .8rem; }
+  .chat-log{ flex:1; min-height:0; overflow-y:auto; }
+  .msg{ font-size:.85rem; padding:.4rem .6rem; }
+  .msg .who{ font-size:.7rem; margin-bottom:.15rem; }
+  .chat-form{ margin-top:.45rem; gap:.4rem; }
+  .chat-form input{ font-size:.9rem; padding:.5rem .7rem; }
 
-  .btn-big{ padding:.8rem; font-size:1.05rem; }
-  .host-zone, .wait-note{ margin-top:.7rem; }
-  .wait-note{ font-size:.9rem; padding:.6rem; }
-
-  /* ---------- menu (index.html): tornano 2 colonne ---------- */
-  .table{ padding:.8rem 1.3rem; max-width:1100px; }
-  .overline{ font-size:.75rem; letter-spacing:.18em; }
-  .title{ font-size:clamp(1.8rem,7vh,2.8rem); margin:.35rem 0 .25rem; }
-  .crest .orn{ font-size:.9rem; }
-  .fan{ display:none; }                        /* niente ventaglio: spazio al modulo */
-  .table-area{
-    grid-template-columns:1fr minmax(320px,440px);
-    gap:1.4rem; margin-top:.8rem; align-items:start;
+  /* ---------- menu (index.html): titolo a sinistra, modulo a destra ---------- */
+  .table{
+    height:100svh; overflow:hidden; max-width:1000px;
+    flex-direction:row; align-items:center; gap:1.2rem;
+    padding:.5rem 1.2rem;
   }
-  .rules{ margin-top:.6rem; gap:.5rem; }
-  .rules li{ font-size:.9rem; padding:.5rem .75rem; }
-  .form-card{ padding:1.1rem 1.2rem; }
-  .card-title{ font-size:.95rem; margin-bottom:.8rem; }
-  .form-card .field{ margin-bottom:.65rem; }
-  .field label{ font-size:.85rem; }
-  .field input{ font-size:1rem; padding:.65rem .85rem; }
-  .btn{ font-size:.9rem; padding:.7rem 1rem; }
-  #roomCode{ font-size:1.2rem; letter-spacing:.3em; }
-  .divider{ margin:.85rem 0; font-size:.85rem; }
-  .error-line{ margin-top:.7rem; font-size:.9rem; }
-  .step-row{ display:none; }                   /* in orizzontale non c'è spazio */
+  .crest{ flex:0 0 auto; }
+  .overline{ font-size:.7rem; letter-spacing:.16em; }
+  .title{ font-size:clamp(1.5rem,6vh,2.4rem); margin:.3rem 0 .2rem; }
+  .crest .orn{ display:none; }
+  .table-area{ flex:1; margin-top:0; grid-template-columns:1fr; gap:0; }
+  .left{ display:none; }                   /* niente ventaglio e regole: spazio al modulo */
+  .form-card{ padding:.8rem 1.1rem; }
+  .card-title{ font-size:.9rem; margin-bottom:.6rem; }
+  .form-card .field{ margin-bottom:.5rem; gap:.3rem; }
+  .field label{ font-size:.72rem; }
+  .field input{ font-size:.95rem; padding:.45rem .7rem; }
+  .btn{ font-size:.8rem; padding:.55rem .9rem; }
+  #roomCode{ font-size:1.1rem; letter-spacing:.28em; }
+  .divider{ margin:.55rem 0; font-size:.75rem; }
+  .error-line{ margin-top:.5rem; font-size:.8rem; min-height:1.1em; }
+  .step-row{ display:none; }
 }
