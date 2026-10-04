@@ -1,13 +1,11 @@
-/* =========================================================
-   LOBBY.JS — logica della lobby (lobby.html)
-   v4.0: all'avvio della partita il capo ASSEGNA i ruoli
-   (1 assassino, 1 detective, resto innocenti), i codici di
-   riconoscimento e la parola segreta, poi TUTTI passano a
-   partita.html. Il ruolo è offuscato con l'uid del giocatore.
-   heartbeat 0.5s · lista · chat · successione capo · Politica A
-   ========================================================= */
+// LOBBY.JS v4.2 - logica della lobby (lobby.html)
+// Stile anti-manomissione: solo commenti //, select() senza
+// argomenti (equivale a tutte le colonne), apostrofi solo
+// dentro virgolette doppie.
+// Il capo assegna ruoli, codici e parola segreta all'avvio.
+// heartbeat 0.5s, chat, successione capo, Politica A.
 (function(){
-  console.log('[LOBBY] lobby.js caricato');
+  console.log('[LOBBY] lobby.js caricato v4.2');
 
   if(!guardConfig()) return;
 
@@ -65,29 +63,26 @@
   }
 
   let isHost = false, running = true, beatN = 0, lastChatId = 0;
-  let stayAtTable = false; // true quando la partita inizia: il beforeunload non mi cancella
+  let stayAtTable = false;
   const seenPlayers = new Set();
 
   el.roomName.textContent = stored.name || '…';
   el.codeText.textContent = stored.code || '······';
 
-  /* un giocatore è "vivo" se il suo battito è recente */
   function isFresh(p){
     return (Date.now() - Date.parse(p.last_seen)) <= OFFLINE_AFTER_MS;
   }
-
-  /* etichetta dispositivo sempre presente, anche se il campo è vuoto */
   function deviceText(p){
     return p.device ? deviceLabel(p.device) : '❓ Sconosciuto';
   }
 
   init();
 
-  /* ---------------- INIT ---------------- */
+  // ---------------- INIT ----------------
   async function init(){
     console.log('[LOBBY] init, cerco la stanza:', roomId);
     try{
-      const res = await db.from('rooms').select('*').eq('id', roomId).maybeSingle();
+      const res = await db.from('rooms').select().eq('id', roomId).maybeSingle();
       if(res.error){
         loud('Errore database: ' + explain(res.error) + ' (torno al menu tra 3s)');
         setTimeout(function(){ clearCurrentRoom(); location.replace('index.html'); }, 3000);
@@ -118,7 +113,7 @@
     }
   }
 
-  /* se la mia riga non esiste più (rimosso mentre ero via), la ricreo */
+  // se la mia riga non esiste piu (rimosso mentre ero via), la ricreo
   async function ensurePresence(){
     const me = await db.from('players')
       .select('id').eq('room_id', roomId).eq('uid', uid).maybeSingle();
@@ -141,12 +136,11 @@
     }
   }
 
-  /* ---------------- SUCCESSIONE DEL CAPO ---------------- */
+  // ---------------- SUCCESSIONE DEL CAPO ----------------
   async function promoteNewHost(candidates){
     if(!candidates || !candidates.length) return null;
     const pick = candidates[Math.floor(Math.random() * candidates.length)];
     console.log('[LOBBY] nuovo capo stanza proclamato:', pick.name);
-
     await db.from('rooms').update({ host_uid: pick.uid }).eq('id', roomId);
     await db.from('players').update({ is_host: false }).eq('room_id', roomId);
     await db.from('players').update({ is_host: true }).eq('id', pick.id);
@@ -154,14 +148,12 @@
     return pick;
   }
 
-  /* ---------------- HEARTBEAT (ogni 0.5s) ---------------- */
+  // ---------------- HEARTBEAT (ogni 0.5s) ----------------
   async function beat(){
     if(!running) return;
     beatN++;
     try{
-      /* 1) il mio battito: riscrive SEMPRE anche il dispositivo,
-            così tutti vedono da cosa gioco (e le righe con device
-            vuoto si riparano da sole). Se sono stato rimosso, rientro */
+      // 1) il mio battito: riscrive sempre anche il dispositivo
       if(beatN % PRESENCE_EVERY === 1){
         const t = await db.from('players')
           .update({ online: true, device: getDeviceType(), last_seen: new Date().toISOString() })
@@ -173,17 +165,15 @@
         }
       }
 
-      /* 2) scheda nascosta: il cuore batte, la grafica no */
+      // 2) scheda nascosta: il cuore batte, la grafica no
       if(document.hidden){ schedule(); return; }
 
-      /* 3) lista giocatori (aggiornata ogni 0.5s) */
-      const pl = await db.from('players').select('*').eq('room_id', roomId);
+      // 3) lista giocatori (aggiornata ogni 0.5s)
+      const pl = await db.from('players').select().eq('room_id', roomId);
       if(!pl.error && pl.data){
         let players = pl.data;
         if(iAmCleaner(players)){
           players = await cleanup(players);
-
-          /* se il capo non è più tra noi, proclamane uno nuovo a caso */
           const hostAlive = players.some(function(p){ return p.is_host; });
           if(!hostAlive && players.length){
             const pick = await promoteNewHost(players);
@@ -195,10 +185,10 @@
         renderPlayers(players);
       }
 
-      /* 4) chat */
+      // 4) chat
       await refreshChat();
 
-      /* 5) stato stanza + sincronizzazione del mio ruolo di capo */
+      // 5) stato stanza + sincronizzazione del mio ruolo di capo
       if(beatN % PRESENCE_EVERY === 2){
         const st = await db.from('rooms')
           .select('status, host_uid').eq('id', roomId).maybeSingle();
@@ -222,8 +212,8 @@
 
   function schedule(){ setTimeout(beat, HEARTBEAT_MS); }
 
-  /* Chi fa le pulizie: il capo stanza vivo; se il capo è un fantasma
-     (o non c'è), il giocatore VIVO in linea da più tempo. */
+  // Chi fa le pulizie: il capo vivo; se il capo e un fantasma
+  // (o non c'e), il giocatore VIVO in linea da piu tempo.
   function iAmCleaner(players){
     const me = players.find(function(p){ return p.uid === uid; });
     if(!me) return false;
@@ -233,14 +223,13 @@
     const hostFresh = host && isFresh(host);
     if(hostFresh) return false;
 
-    /* solo i giocatori VIVI (battito recente) possono pulire */
     const vivi = players
       .filter(function(p){ return p.online && isFresh(p); })
       .sort(function(a, b){ return new Date(a.joined_at) - new Date(b.joined_at); });
     return vivi.length > 0 && vivi[0].uid === uid;
   }
 
-  /* chi non batte più da OFFLINE_AFTER_MS viene tolto dal tavolo */
+  // chi non batte piu da OFFLINE_AFTER_MS viene tolto dal tavolo
   async function cleanup(players){
     const kept = [];
     for(const p of players){
@@ -261,7 +250,7 @@
     return kept;
   }
 
-  /* ---------------- LISTA GIOCATORI ---------------- */
+  // ---------------- LISTA GIOCATORI ----------------
   function renderPlayers(players){
     const presenti = players
       .filter(function(p){ return p.online !== false; })
@@ -285,7 +274,6 @@
 
       const meta = document.createElement('div');
       meta.className = 'p-meta';
-      /* il dispositivo è visibile a TUTTI, sotto ogni nome */
       meta.innerHTML =
         '<span class="p-name">' + escapeHtml(p.name) + '</span>' +
         '<span class="p-device">' + deviceText(p) + '</span>' +
@@ -302,9 +290,9 @@
     }
   }
 
-  /* ---------------- CHAT ---------------- */
+  // ---------------- CHAT ----------------
   async function refreshChat(){
-    const res = await db.from('chat_messages').select('*')
+    const res = await db.from('chat_messages').select()
       .eq('room_id', roomId).order('id', { ascending: true }).limit(200);
     if(res.error || !res.data) return;
 
@@ -346,7 +334,7 @@
     refreshChat();
   });
 
-  /* ---------------- COPIA CODICE ---------------- */
+  // ---------------- COPIA CODICE ----------------
   el.codeChip.addEventListener('click', async function(){
     const code = el.codeText.textContent.trim();
     try{
@@ -368,7 +356,7 @@
     }, 1600);
   });
 
-  /* ---------------- AVVIA PARTITA (solo host) ---------------- */
+  // ---------------- AVVIA PARTITA (solo host) ----------------
   let armed = false, armTimer = null;
   el.btnStart.addEventListener('click', async function(){
     if(!armed){
@@ -396,16 +384,13 @@
     el.btnStart.textContent = 'Avvia la partita';
   }
 
-  /* ================= ASSEGNAZIONE (solo il capo la esegue) =================
-     1) mescola i giocatori vivi (Fisher-Yates con crypto)
-     2) 1° = assassino, 2° = detective, resto = innocenti
-     3) ogni giocatore riceve un codice di riconoscimento unico (es. ♥Q3)
-     4) il ruolo è salvato OFFUSCATO con l'uid del giocatore
-     5) la parola segreta è salvata offuscata con l'id della stanza
-     6) rooms.status = 'playing' + started_at → tutti passano a partita.html */
+  // ASSEGNAZIONE RUOLI (solo il capo la esegue):
+  // mescola i vivi, 1 assassino + 1 detective + resto innocenti,
+  // codice unico per ognuno, ruolo offuscato con l'uid,
+  // parola segreta offuscata con l'id stanza, status playing.
   async function startGame(){
     try{
-      const res = await db.from('players').select('*').eq('room_id', roomId);
+      const res = await db.from('players').select().eq('room_id', roomId);
       if(res.error) throw res.error;
 
       const vivi = (res.data || []).filter(function(p){ return p.online && isFresh(p); });
@@ -415,7 +400,6 @@
         return;
       }
 
-      /* 1) mescola */
       const mescolati = vivi.slice();
       const rnd = new Uint32Array(mescolati.length);
       crypto.getRandomValues(rnd);
@@ -424,14 +408,12 @@
         const tmp = mescolati[i]; mescolati[i] = mescolati[j]; mescolati[j] = tmp;
       }
 
-      /* 2-3-4) ruoli + codici unici */
       const usati = new Set();
       for(let i = 0; i < mescolati.length; i++){
         const ruolo = (i === 0) ? 'assassino' : (i === 1) ? 'detective' : 'innocente';
         let code;
         do { code = generatePlayerCode(); } while(usati.has(code));
         usati.add(code);
-
         const up = await db.from('players').update({
           role:  scramble(ruolo, mescolati[i].uid),
           code:  code,
@@ -441,7 +423,6 @@
         console.log('[LOBBY]', mescolati[i].name, '→ ruolo assegnato, codice', code);
       }
 
-      /* 5-6) parola segreta + via */
       const word = pickSecretWord();
       const rm = await db.from('rooms').update({
         status:      'playing',
@@ -460,30 +441,27 @@
     }
   }
 
-  /* overlay + passaggio a partita.html per TUTTI */
+  // overlay + passaggio a partita.html per TUTTI
   function startOverlay(){
     running = false;
-    stayAtTable = true; // il beforeunload non deve cancellarmi: resto al tavolo
+    stayAtTable = true;
     el.overlay.hidden = false;
     setTimeout(function(){ location.href = 'partita.html'; }, 2400);
   }
 
-  /* ---------------- ESCI (Politica A) ---------------- */
+  // ---------------- ESCI (Politica A) ----------------
   el.btnExit.addEventListener('click', async function(){
     running = false;
     try{
-      const pl = await db.from('players').select('*').eq('room_id', roomId);
+      const pl = await db.from('players').select().eq('room_id', roomId);
       const altriVivi = (pl.data || []).filter(function(p){
         return p.uid !== uid && isFresh(p);
       });
 
       if(altriVivi.length === 0){
-        /* sono l'ultimo: spengo la luce.
-           Cancello la stanza: il cascade porta via giocatori e chat. */
-        console.log('[LOBBY] ero l\'ultimo giocatore: elimino la stanza');
+        console.log("[LOBBY] ero l'ultimo giocatore: elimino la stanza");
         await db.from('rooms').delete().eq('id', roomId);
       } else {
-        /* ci sono altri: passo lo scettro se sono il capo, poi saluto */
         if(isHost){
           await promoteNewHost(altriVivi);
         }
@@ -495,10 +473,8 @@
     location.href = 'index.html';
   });
 
-  /* chiusura scheda: provo a rimuovermi subito
-     (se non fa in tempo, ci pensa la pulizia entro ~5s).
-     Quando la partita è avviata (stayAtTable) NON rimuovo:
-     il redirect a partita.html non è un abbandono. */
+  // chiusura scheda: mi rimuovo subito se posso.
+  // Con partita avviata (stayAtTable) NON rimuovo: il redirect non e un abbandono.
   window.addEventListener('beforeunload', function(){
     if(stayAtTable) return;
     try{

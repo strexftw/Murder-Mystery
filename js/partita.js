@@ -1,15 +1,12 @@
-/* =========================================================
-   PARTITA.JS — logica della partita (partita.html)
-   v1.0: rivelazione privata del ruolo (carta che si gira),
-   codice di riconoscimento personale, parola segreta
-   (nascosta all'assassino), timer di partita, tavolo vivo,
-   chat. Heartbeat 0.5s · successione capo · Politica A.
-   I segreti nel DB sono offuscati (scramble): il ruolo si
-   decifra solo con il proprio uid, la parola solo con
-   l'id della stanza — e l'assassino non la decifra mai.
-   ========================================================= */
+// PARTITA.JS v1.3 - logica della partita (partita.html)
+// Stile anti-manomissione: solo commenti //, select() senza
+// argomenti, apostrofi solo dentro virgolette doppie.
+// Se il tavolo scende SOTTO 3 agenti vivi la partita e
+// ANNULLATA e si torna in lobby.
+// rivelazione privata, codice personale, parola segreta
+// (mai all'assassino), timer, tavolo vivo, chat.
 (function(){
-  console.log('[PARTITA] partita.js caricato');
+  console.log('[PARTITA] partita.js caricato v1.3');
 
   if(!guardConfig()) return;
 
@@ -21,6 +18,7 @@
     location.replace('index.html');
     return;
   }
+
   const roomId = stored.id;
 
   const el = {
@@ -75,19 +73,19 @@
     return;
   }
 
-  /* ---------------- RUOLI ---------------- */
+  // RUOLI: testi con apostrofi dentro virgolette doppie
   const ROLE_INFO = {
     assassino: {
       tag:  'Assassino',
-      desc: 'Colpisci nell\'ombra e non farti scoprire. Gli altri conoscono una parola segreta: osserva, ascolta e fingi di conoscerla anche tu.'
+      desc: "Colpisci nell'ombra e non farti scoprire. Gli altri conoscono una parola segreta: osserva, ascolta e fingi di conoscerla anche tu."
     },
     detective: {
       tag:  'Detective',
-      desc: 'Conosci la parola segreta. Usala per riconoscere gli innocenti e smascherare l\'assassino prima che colpisca.'
+      desc: "Conosci la parola segreta. Usala per riconoscere gli innocenti e smascherare l'assassino prima che colpisca."
     },
     innocente: {
       tag:  'Innocente',
-      desc: 'Conosci la parola segreta. Diffida di chi non sa ripeterla: l\'assassino è seduto al tuo stesso tavolo.'
+      desc: "Conosci la parola segreta. Diffida di chi non sa ripeterla: l'assassino è seduto al tuo stesso tavolo."
     }
   };
 
@@ -97,7 +95,6 @@
   let isHost = false;
   const seenPlayers = new Set();
 
-  /* un giocatore è "vivo" (connesso) se il suo battito è recente */
   function isFresh(p){
     return (Date.now() - Date.parse(p.last_seen)) <= OFFLINE_AFTER_MS;
   }
@@ -107,11 +104,11 @@
 
   init();
 
-  /* ---------------- INIT ---------------- */
+  // ---------------- INIT ----------------
   async function init(){
     console.log('[PARTITA] init, stanza:', roomId);
     try{
-      const res = await db.from('rooms').select('*').eq('id', roomId).maybeSingle();
+      const res = await db.from('rooms').select().eq('id', roomId).maybeSingle();
       if(res.error){
         loud('Errore database: ' + explain(res.error) + ' (torno al menu tra 3s)');
         setTimeout(function(){ clearCurrentRoom(); location.replace('index.html'); }, 3000);
@@ -124,13 +121,12 @@
       }
       room = res.data;
 
-      /* la partita non è (più) in corso: torno dove devo stare */
       if(room.status !== 'playing'){
         location.replace(room.status === 'lobby' ? 'lobby.html' : 'index.html');
         return;
       }
 
-      const meRes = await db.from('players').select('*')
+      const meRes = await db.from('players').select()
         .eq('room_id', roomId).eq('uid', uid).maybeSingle();
       if(meRes.error || !meRes.data){
         console.warn('[PARTITA] non sono al tavolo: torno in lobby');
@@ -140,24 +136,21 @@
 
       isHost = room.host_uid === uid;
 
-      /* decifro SOLO i miei segreti: la chiave del ruolo è il mio uid */
+      // decifro SOLO i miei segreti: la chiave del ruolo e il mio uid
       myRole = unscramble(meRes.data.role, uid) || 'innocente';
       if(!ROLE_INFO[myRole]) myRole = 'innocente';
       myCode = meRes.data.code || '—';
-      /* la parola la decifro solo se NON sono l'assassino */
+      // la parola la decifro solo se NON sono l'assassino
       myWord = (myRole === 'assassino') ? null
-                                       : unscramble(room.secret_word || '', roomId);
-
+                                      : unscramble(room.secret_word || '', roomId);
       console.log('[PARTITA] ruolo:', myRole, '| codice:', myCode, '| parola:', myWord ? 'sì' : 'no (assassino)');
 
       el.roomName.textContent = room.name;
       el.codeText.textContent = room.code;
-
       fillReveal();
       fillMyCard();
       startTimer(room.started_at);
 
-      /* mostro la carta coperta, poi si gira da sola */
       el.reveal.hidden = false;
       setTimeout(function(){ el.flipCard.classList.add('flipped'); }, 650);
 
@@ -168,7 +161,7 @@
     }
   }
 
-  /* ---------------- RIVELAZIONE + LA TUA CARTA ---------------- */
+  // ---------------- RIVELAZIONE + LA TUA CARTA ----------------
   function fillReveal(){
     const info = ROLE_INFO[myRole];
     el.revealRole.textContent = info.tag;
@@ -204,7 +197,7 @@
     showToast('Buona caccia, ' + myName);
   });
 
-  /* ---------------- TIMER (uguale per tutti: parte da started_at) ---------------- */
+  // ---------------- TIMER (uguale per tutti) ----------------
   function startTimer(startedAt){
     const t0 = Date.parse(startedAt) || Date.now();
     const pad = function(n){ return String(n).padStart(2, '0'); };
@@ -221,12 +214,11 @@
     setInterval(function(){ if(running) tick(); }, 1000);
   }
 
-  /* ---------------- SUCCESSIONE DEL CAPO ---------------- */
+  // ---------------- SUCCESSIONE DEL CAPO ----------------
   async function promoteNewHost(candidates){
     if(!candidates || !candidates.length) return null;
     const pick = candidates[Math.floor(Math.random() * candidates.length)];
     console.log('[PARTITA] nuovo capo stanza proclamato:', pick.name);
-
     await db.from('rooms').update({ host_uid: pick.uid }).eq('id', roomId);
     await db.from('players').update({ is_host: false }).eq('room_id', roomId);
     await db.from('players').update({ is_host: true }).eq('id', pick.id);
@@ -234,13 +226,24 @@
     return pick;
   }
 
-  /* ---------------- HEARTBEAT (ogni 0.5s) ---------------- */
+  // ---------------- PARTITA ANNULLATA: MENO DI 3 VIVI ----------------
+  async function cancelGame(){
+    console.log('[PARTITA] troppo pochi agenti vivi: partita annullata, si torna in lobby');
+    running = false;
+    try{
+      await db.from('rooms').update({ status: 'lobby' }).eq('id', roomId);
+      await sysMessage(roomId, '⚠ Troppo pochi agenti al tavolo: la partita è annullata, si torna in lobby.');
+    }catch(e){}
+    showToast('Partita annullata: si torna in lobby', false);
+    setTimeout(function(){ location.replace('lobby.html'); }, 1500);
+  }
+
+  // ---------------- HEARTBEAT (ogni 0.5s) ----------------
   async function beat(){
     if(!running) return;
     beatN++;
     try{
-      /* 1) il mio battito. Se la mia riga è sparita, sono stato
-            rimosso dal tavolo: esco dalla partita */
+      // 1) il mio battito. Se la mia riga e sparita, esco dalla partita
       if(beatN % PRESENCE_EVERY === 1){
         const t = await db.from('players')
           .update({ online: true, device: getDeviceType(), last_seen: new Date().toISOString() })
@@ -255,17 +258,13 @@
         }
       }
 
-      /* 2) scheda nascosta: il cuore batte, la grafica no */
-      if(document.hidden){ schedule(); return; }
-
-      /* 3) il tavolo */
-      const pl = await db.from('players').select('*').eq('room_id', roomId);
+      // 2) il tavolo: pulizia + numero minimo (gira anche a scheda nascosta)
+      const pl = await db.from('players').select().eq('room_id', roomId);
       if(!pl.error && pl.data){
         let players = pl.data;
         if(iAmCleaner(players)){
           players = await cleanup(players);
 
-          /* se il capo non è più tra noi, proclamane uno nuovo a caso */
           const hostAlive = players.some(function(p){ return p.is_host; });
           if(!hostAlive && players.length){
             const pick = await promoteNewHost(players);
@@ -273,14 +272,24 @@
               players.forEach(function(q){ q.is_host = (q.uid === pick.uid); });
             }
           }
+
+          // REGOLA: meno di 3 agenti vivi = partita annullata
+          const viviOra = players.filter(function(p){ return isFresh(p); }).length;
+          if(viviOra < 3){
+            await cancelGame();
+            return;
+          }
         }
-        renderPlayers(players);
+        if(!document.hidden) renderPlayers(players);
       }
 
-      /* 4) chat */
+      // 3) scheda nascosta: il cuore batte, la grafica no
+      if(document.hidden){ schedule(); return; }
+
+      // 4) chat
       await refreshChat();
 
-      /* 5) stato stanza: chiusa? tornata in lobby? cambio capo? */
+      // 5) stato stanza: chiusa? tornata in lobby? cambio capo?
       if(beatN % PRESENCE_EVERY === 2){
         const st = await db.from('rooms')
           .select('status, host_uid').eq('id', roomId).maybeSingle();
@@ -292,7 +301,6 @@
             if(isHost) showToast('♛ Sei tu il nuovo capo stanza!');
           }
         } else {
-          /* stanza cancellata (l'ultimo uscito ha spento la luce) */
           running = false;
           showToast('La stanza è stata chiusa', false);
           clearCurrentRoom();
@@ -308,8 +316,6 @@
 
   function schedule(){ setTimeout(beat, HEARTBEAT_MS); }
 
-  /* Chi fa le pulizie: il capo stanza vivo; se il capo è un fantasma
-     (o non c'è), il giocatore VIVO in linea da più tempo. */
   function iAmCleaner(players){
     const me = players.find(function(p){ return p.uid === uid; });
     if(!me) return false;
@@ -325,7 +331,6 @@
     return vivi.length > 0 && vivi[0].uid === uid;
   }
 
-  /* chi non batte più da OFFLINE_AFTER_MS viene tolto dal tavolo */
   async function cleanup(players){
     const kept = [];
     for(const p of players){
@@ -346,14 +351,14 @@
     return kept;
   }
 
-  /* ---------------- IL TAVOLO (nessun ruolo visibile!) ---------------- */
+  // ---------------- IL TAVOLO (nessun ruolo visibile) ----------------
   function renderPlayers(players){
     const presenti = players
       .filter(function(p){ return p.online !== false; })
       .sort(function(a, b){
-        return ((b.alive !== false) - (a.alive !== false))     // prima i vivi
-            || (b.is_host - a.is_host)                          // poi il capo
-            || (new Date(a.joined_at) - new Date(b.joined_at)); // poi per ingresso
+        return ((b.alive !== false) - (a.alive !== false))
+            || (b.is_host - a.is_host)
+            || (new Date(a.joined_at) - new Date(b.joined_at));
       });
 
     const inGioco = presenti.filter(function(p){ return p.alive !== false; }).length;
@@ -363,8 +368,8 @@
     for(const p of presenti){
       const isNew = !seenPlayers.has(p.uid);
       seenPlayers.add(p.uid);
-      const dead = (p.alive === false);
 
+      const dead = (p.alive === false);
       const li = document.createElement('li');
       li.className = 'player' + (p.is_host ? ' host' : '') + (isNew ? ' new' : '') + (dead ? ' eliminated' : '');
 
@@ -391,9 +396,9 @@
     }
   }
 
-  /* ---------------- CHAT ---------------- */
+  // ---------------- CHAT ----------------
   async function refreshChat(){
-    const res = await db.from('chat_messages').select('*')
+    const res = await db.from('chat_messages').select()
       .eq('room_id', roomId).order('id', { ascending: true }).limit(200);
     if(res.error || !res.data) return;
 
@@ -435,7 +440,7 @@
     refreshChat();
   });
 
-  /* ---------------- COPIA CODICE ---------------- */
+  // ---------------- COPIA CODICE ----------------
   el.codeChip.addEventListener('click', async function(){
     const code = el.codeText.textContent.trim();
     try{
@@ -457,18 +462,17 @@
     }, 1600);
   });
 
-  /* ---------------- ESCI (Politica A) ---------------- */
+  // ---------------- ESCI (Politica A) ----------------
   el.btnExit.addEventListener('click', async function(){
     running = false;
     try{
-      const pl = await db.from('players').select('*').eq('room_id', roomId);
+      const pl = await db.from('players').select().eq('room_id', roomId);
       const altriVivi = (pl.data || []).filter(function(p){
         return p.uid !== uid && isFresh(p);
       });
 
       if(altriVivi.length === 0){
-        /* sono l'ultimo: spengo la luce */
-        console.log('[PARTITA] ero l\'ultimo giocatore: elimino la stanza');
+        console.log("[PARTITA] ero l'ultimo giocatore: elimino la stanza");
         await db.from('rooms').delete().eq('id', roomId);
       } else {
         if(isHost){
@@ -482,7 +486,6 @@
     location.href = 'index.html';
   });
 
-  /* chiusura scheda durante la partita: NON cancello la mia riga qui
-     (la richiesta non farebbe in tempo comunque); ci pensa la pulizia
-     degli altri giocatori entro ~5s. */
+  // chiusura scheda: NON cancello la mia riga qui;
+  // ci pensa la pulizia degli altri entro 5s, e se restano in 2 annullano.
 })();

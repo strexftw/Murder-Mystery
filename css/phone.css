@@ -1,15 +1,6 @@
-/* =========================================================
-   PHONE.CSS v4.1 — telefono: tutto a schermo e campi SEMPRE
-   raggiungibili.
-   - 100dvh: quando si apre la tastiera il layout si
-     restringe da solo e i campi non finiscono coperti
-   - la pagina non scorre; se proprio serve, scorre SOLO
-     il menu dentro il suo riquadro
-   - campi di testo a 16px: niente zoom automatico su iPhone
-   v4.1: commenti e selettori riparati (.form-card > *)
-   ========================================================= */
+/* PHONE.CSS v4.2 - telefono: tutto a schermo, campi raggiungibili */
+/* niente asterischi nei selettori: usa elenchi espliciti */
 
-/* ============ COMUNE: la pagina non si muove ============ */
 html, body{
   height:100dvh;
   overflow:hidden;
@@ -19,26 +10,19 @@ body{ display:flex; flex-direction:column; }
 .live{ display:none; }
 .fan{ display:none; }
 
-/* bordi sicuri per telefoni con notch/foro */
 .topbar{
   padding-left:calc(.7rem + env(safe-area-inset-left));
   padding-right:calc(.7rem + env(safe-area-inset-right));
 }
 
-/* il MENU può scorrere DENTRO il suo riquadro se serve:
-   così tutti i campi restano sempre raggiungibili */
 .table{ height:100dvh; overflow-y:auto; -webkit-overflow-scrolling:touch; }
 
-/* niente zoom automatico quando tocchi un campo (iPhone) */
 .field input, .chat-form input{ font-size:16px; }
 
-/* =========================================================
-   TELEFONO DRITTO (verticale)
-   ========================================================= */
+/* telefono dritto (verticale) */
 @media (orientation: portrait){
   body{ font-size:16px; }
 
-  /* ---------- barra superiore compatta ---------- */
   .topbar{ flex:none; padding-top:.5rem; padding-bottom:.5rem; gap:.5rem; }
   .brand-mark{ width:34px; height:34px; font-size:1.05rem; }
   .brand-title{ font-size:.68rem; letter-spacing:.14em; }
@@ -48,7 +32,6 @@ body{ display:flex; flex-direction:column; }
   .code-label, .copy-hint{ font-size:.65rem; }
   .btn-sm{ padding:.45rem .8rem; font-size:.8rem; }
 
-  /* ---------- lobby: riempie tutta l'altezza ---------- */
   .lobby-grid{
     flex:1; min-height:0; height:auto;
     grid-template-columns:1fr;
@@ -79,7 +62,6 @@ body{ display:flex; flex-direction:column; }
   .chat-form{ margin-top:.55rem; gap:.5rem; }
   .chat-form input{ padding:.65rem .8rem; }
 
-  /* ---------- menu (index.html) — a tutto schermo ---------- */
   .table{
     width:100%; max-width:none; margin:0;
     box-sizing:border-box;
@@ -93,10 +75,6 @@ body{ display:flex; flex-direction:column; }
   .overline{ font-size:.75rem; letter-spacing:.18em; }
   .title{ font-size:clamp(2rem,9vw,3rem); line-height:1.1; margin:.5rem 0 .4rem; }
 
-  /* l'area centrale occupa tutto lo spazio rimasto:
-     regole in alto, modulo che si allarga fino in fondo.
-     (flex:1 0 auto → con la tastiera aperta non si schiaccia,
-     scorre dentro .table) */
   .table-area{
     flex:1 0 auto;
     display:grid;
@@ -110,9 +88,13 @@ body{ display:flex; flex-direction:column; }
   .form-card{
     display:flex; flex-direction:column; justify-content:center; gap:.3rem;
     width:100%; max-width:none; box-sizing:border-box;
-    padding:2.4rem 1.1rem 2.2rem;      /* spazio per gli angoli A† */
+    padding:2.4rem 1.1rem 2.2rem;
   }
-  .form-card > *{ flex:none; }          /* nessun elemento si schiaccia */
+  .form-card > .field,
+  .form-card > .btn,
+  .form-card > .divider,
+  .form-card > .card-title,
+  .form-card > .error-line{ flex:none; }
   .corner{ font-size:.9rem; line-height:1; }
   .corner.tl{ top:.55rem; left:.7rem; }
   .corner.br{ bottom:.55rem; right:.7rem; }
@@ -127,13 +109,10 @@ body{ display:flex; flex-direction:column; }
   .step-row{ flex:none; margin-top:.8rem; font-size:.72rem; letter-spacing:.14em; }
 }
 
-/* =========================================================
-   TELEFONO GIRATO (orizzontale)
-   ========================================================= */
+/* telefono girato (orizzontale) */
 @media (orientation: landscape){
   body{ font-size:15px; }
 
-  /* ---------- barra superiore sottilissima ---------- */
   .topbar{ flex:none; padding-top:.3rem; padding-bottom:.3rem; gap:.5rem; }
   .brand-mark{ width:30px; height:30px; font-size:.95rem; }
   .brand-title{ display:none; }
@@ -143,7 +122,6 @@ body{ display:flex; flex-direction:column; }
   .code-label, .copy-hint{ font-size:.6rem; }
   .btn-sm{ padding:.4rem .7rem; font-size:.72rem; }
 
-  /* ---------- lobby: tavolo e chat affiancati ---------- */
   .lobby-grid{
     flex:1; min-height:0; height:auto;
     grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);
@@ -174,10 +152,6 @@ body{ display:flex; flex-direction:column; }
   .chat-form{ margin-top:.45rem; gap:.4rem; }
   .chat-form input{ padding:.5rem .7rem; }
 
-  /* ---------- menu (index.html): titolo a sinistra,
-     modulo a destra con i campi su DUE COLONNE:
-     nome e stanza affiancati, codice sotto.
-     Così entra tutto anche sui telefoni più bassi ---------- */
   .table{
     max-width:1000px;
     flex-direction:row; align-items:center; gap:1rem;
@@ -188,17 +162,16 @@ body{ display:flex; flex-direction:column; }
   .crest .orn{ display:none; }
   .title{ font-size:clamp(1.3rem,9vh,2rem); margin:0; }
   .table-area{ flex:1; margin-top:0; grid-template-columns:1fr; gap:0; }
-  .left{ display:none; }              /* niente ventaglio e regole */
+  .left{ display:none; }
   .step-row{ display:none; }
 
-  /* il modulo diventa una griglia a 2 colonne */
   .form-card{
     display:grid; grid-template-columns:1fr 1fr;
     gap:.35rem .6rem; padding:.6rem .9rem;
   }
   .card-title{ grid-column:1/-1; font-size:.85rem; margin-bottom:.1rem; }
   .form-card .field{ margin-bottom:0; gap:.25rem; }
-  .field:has(#roomCode){ grid-column:1/-1; }   /* il codice sta sotto, a tutta larghezza */
+  .field:has(#roomCode){ grid-column:1/-1; }
   .field label{ font-size:.68rem; }
   .field input{ padding:.4rem .65rem; }
   #btnCreate{ grid-column:1/-1; }
