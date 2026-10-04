@@ -8,11 +8,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400..900&family=Karla:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/base.css?v=10">
-  <link rel="stylesheet" href="css/lobby.css?v=10">
-  <link rel="stylesheet" href="css/partita.css?v=10">
-  <link rel="stylesheet" href="css/pc.css?v=10" media="(hover:hover) and (pointer:fine)">
-  <link rel="stylesheet" href="css/phone.css?v=10" media="(pointer:coarse)">
+  <link rel="stylesheet" href="css/base.css?v=11">
+  <link rel="stylesheet" href="css/lobby.css?v=11">
+  <link rel="stylesheet" href="css/partita.css?v=11">
+  <link rel="stylesheet" href="css/Assassino.css?v=11">
+  <link rel="stylesheet" href="css/pc.css?v=11" media="(hover:hover) and (pointer:fine)">
+  <link rel="stylesheet" href="css/phone.css?v=11" media="(pointer:coarse)">
 </head>
 <body>
 
@@ -84,6 +85,45 @@
 
 </main>
 
+<!-- mano dell'assassino: visibile solo se il mio ruolo e assassino -->
+<div class="mano-assassino" id="manoAssassino" hidden>
+  <button class="carta-coltello" id="cartaColtello" type="button" title="Colpisci">
+    <span class="coltello">🔪</span>
+    <span class="carta-label">Colpisci</span>
+  </button>
+</div>
+
+<!-- chip countdown del colpo pianificato -->
+<div class="colpo-chip" id="colpoChip" hidden>
+  <span class="colpo-label">Colpo tra</span>
+  <span id="colpoTimer">50</span>s
+</div>
+
+<!-- scelta vittima -->
+<div class="overlay bersaglio" id="overlayBersaglio" hidden>
+  <div class="bersaglio-stack">
+    <h2 class="bersaglio-title">Scegli la vittima</h2>
+    <p class="bersaglio-sub">Il colpo arriverà 50 secondi dopo la conferma.</p>
+    <div class="bersaglio-list" id="bersaglioList"></div>
+    <div class="bersaglio-actions">
+      <button class="btn" id="btnAnnullaBersaglio" type="button">Annulla</button>
+      <button class="btn btn-blood" id="btnConfermaBersaglio" type="button" disabled>Conferma il colpo</button>
+    </div>
+  </div>
+</div>
+
+<!-- animazione del taglio (solo assassino) -->
+<div class="slash-overlay" id="slashOverlay" hidden>
+  <span class="slash-blade">🔪</span>
+</div>
+
+<!-- jumpscare della vittima -->
+<div class="jumpscare" id="jumpscare" hidden>
+  <button class="jump-mute" id="btnMute" type="button" title="Audio on/off">🔊</button>
+  <div class="jump-face" id="jumpFace">👹</div>
+  <p class="jump-text" id="jumpText">Sei stato eliminato</p>
+</div>
+
 <!-- rivelazione privata del ruolo -->
 <div class="overlay reveal" id="reveal" hidden>
   <div class="reveal-stack">
@@ -114,8 +154,10 @@
 <div id="toast" class="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/config.js?v=10"></script>
-<script src="js/utils.js?v=10"></script>
-<script src="js/partita.js?v=10"></script>
+<script src="js/config.js?v=11"></script>
+<script src="js/utils.js?v=11"></script>
+<script src="js/partita.js?v=11"></script>
+<script src="js/Assassino.js?v=11"></script>
+<script src="js/Innocente.js?v=11"></script>
 </body>
 </html>

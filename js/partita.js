@@ -1,12 +1,11 @@
-// PARTITA.JS v1.3 - logica della partita (partita.html)
+// PARTITA.JS v1.4 - logica della partita (partita.html)
+// Novita: bus di eventi PARTITA.on(...) per i moduli dedicati
+// (Assassino.js, Innocente.js) + esecuzione dell'eliminazione
+// pianificata (kill_at) da parte del pulitore.
 // Stile anti-manomissione: solo commenti //, select() senza
 // argomenti, apostrofi solo dentro virgolette doppie.
-// Se il tavolo scende SOTTO 3 agenti vivi la partita e
-// ANNULLATA e si torna in lobby.
-// rivelazione privata, codice personale, parola segreta
-// (mai all'assassino), timer, tavolo vivo, chat.
 (function(){
-  console.log('[PARTITA] partita.js caricato v1.3');
+  console.log('[PARTITA] partita.js caricato v1.4');
 
   if(!guardConfig()) return;
 
@@ -62,6 +61,7 @@
     const m = (err && err.message) || String(err);
     if(/does not exist/i.test(m))     return 'tabelle mancanti: esegui database.sql.';
     if(/role|secret_word|started_at|alive/i.test(m)) return 'mancano le colonne della partita: esegui il nuovo database.sql.';
+    if(/kill_at|kill_target_uid|kill_by_uid/i.test(m)) return 'mancano le colonne della eliminazione: esegui le 3 righe SQL dello Step 3.';
     if(/Failed to fetch|NetworkError/i.test(m)) return 'Supabase non raggiungibile.';
     if(/JWT|API key|apikey/i.test(m)) return 'anon key sbagliata in config.js.';
     return m;
@@ -91,9 +91,23 @@
 
   let running = true, beatN = 0, lastChatId = 0;
   let room = null;
+  let lastPlayers = [];
   let myRole = 'innocente', myCode = '—', myWord = null;
   let isHost = false;
   const seenPlayers = new Set();
+
+  // ---------------- BUS EVENTI + API PER I MODULI ----------------
+  // Assassino.js e Innocente.js si agganciano qui senza toccare
+  // la logica della partita: eventi 'ready', 'players', 'room'.
+  const BUS = {
+    map: {},
+    on: function(evt, fn){ (BUS.map[evt] = BUS.map[evt] || []).push(fn); },
+    emit: function(evt, data){
+      (BUS.map[evt] || []).forEach(function(fn){
+        try{ fn(data); }catch(e){ console.warn('[BUS]', evt, e); }
+      });
+    }
+  };
 
   function isFresh(p){
     return (Date.now() - Date.parse(p.last_seen)) <= OFFLINE_AFTER_MS;
@@ -101,6 +115,20 @@
   function deviceText(p){
     return p.device ? deviceLabel(p.device) : '❓ Sconosciuto';
   }
+
+  window.PARTITA = {
+    getRoomId: function(){ return roomId; },
+    getUid:    function(){ return uid; },
+    getMyName: function(){ return myName; },
+    getRole:   function(){ return myRole; },
+    getMyCode: function(){ return myCode; },
+    isRunning: function(){ return running; },
+    getRoom:   function(){ return room; },
+    getPlayers:function(){ return lastPlayers; },
+    isFresh:   function(p){ return isFresh(p); },
+    dbRef:     function(){ return db; },
+    on:        function(evt, fn){ BUS.on(evt, fn); }
+  };
 
   init();
 
@@ -153,6 +181,10 @@
 
       el.reveal.hidden = false;
       setTimeout(function(){ el.flipCard.classList.add('flipped'); }, 650);
+
+      // i moduli dedicati possono agganciarsi
+      BUS.emit('ready', { role: myRole });
+      BUS.emit('room', room);
 
       beat();
     }catch(err){
@@ -258,18 +290,33 @@
         }
       }
 
-      // 2) il tavolo: pulizia + numero minimo (gira anche a scheda nascosta)
+      // 2) il tavolo: pulizia + eliminazione pianificata + numero
+      //    minimo. Gira anche a scheda nascosta.
       const pl = await db.from('players').select().eq('room_id', roomId);
       if(!pl.error && pl.data){
         let players = pl.data;
         if(iAmCleaner(players)){
           players = await cleanup(players);
 
-          const hostAlive = players.some(function(p){ return p.is_host; });
+          const hostAlive = players.some(function(p){ return p.is_host && p.alive !== false; });
           if(!hostAlive && players.length){
             const pick = await promoteNewHost(players);
             if(pick){
               players.forEach(function(q){ q.is_host = (q.uid === pick.uid); });
+            }
+          }
+
+          // ELIMINAZIONE: quando scade kill_at, il pulitore la esegue
+          if(room && room.kill_at && room.kill_target_uid){
+            const scad = Date.parse(room.kill_at);
+            if(!isNaN(scad) && Date.now() >= scad){
+              const bersaglio = players.find(function(p){ return p.uid === room.kill_target_uid; });
+              if(bersaglio && bersaglio.alive !== false){
+                await db.from('players').update({ alive: false }).eq('id', bersaglio.id);
+                await sysMessage(roomId, '☠ ' + escapeHtml(bersaglio.name) + ' è stato eliminato.');
+                console.log('[PARTITA] eliminazione eseguita:', bersaglio.name);
+                bersaglio.alive = false;
+              }
             }
           }
 
@@ -280,7 +327,11 @@
             return;
           }
         }
-        if(!document.hidden) renderPlayers(players);
+        lastPlayers = players;
+        if(!document.hidden){
+          renderPlayers(players);
+          BUS.emit('players', players);
+        }
       }
 
       // 3) scheda nascosta: il cuore batte, la grafica no
@@ -289,17 +340,25 @@
       // 4) chat
       await refreshChat();
 
-      // 5) stato stanza: chiusa? tornata in lobby? cambio capo?
+      // 5) stato stanza + campi eliminazione + cambio capo
       if(beatN % PRESENCE_EVERY === 2){
         const st = await db.from('rooms')
-          .select('status, host_uid').eq('id', roomId).maybeSingle();
+          .select('status, host_uid, kill_target_uid, kill_by_uid, kill_at')
+          .eq('id', roomId).maybeSingle();
         if(st.data){
-          if(st.data.status !== 'playing'){ location.replace('lobby.html'); return; }
-          const nowHost = (st.data.host_uid === uid);
+          room.status          = st.data.status;
+          room.host_uid        = st.data.host_uid;
+          room.kill_target_uid = st.data.kill_target_uid;
+          room.kill_by_uid     = st.data.kill_by_uid;
+          room.kill_at         = st.data.kill_at;
+
+          if(room.status !== 'playing'){ location.replace('lobby.html'); return; }
+          const nowHost = (room.host_uid === uid);
           if(nowHost !== isHost){
             isHost = nowHost;
             if(isHost) showToast('♛ Sei tu il nuovo capo stanza!');
           }
+          BUS.emit('room', room);
         } else {
           running = false;
           showToast('La stanza è stata chiusa', false);
@@ -316,17 +375,19 @@
 
   function schedule(){ setTimeout(beat, HEARTBEAT_MS); }
 
+  // Chi fa le pulizie (ed esegue il colpo): il capo vivo; se il capo
+  // e un fantasma o e morto, il giocatore VIVO in linea da piu tempo.
   function iAmCleaner(players){
     const me = players.find(function(p){ return p.uid === uid; });
-    if(!me) return false;
+    if(!me || me.alive === false) return false;
     if(isHost && isFresh(me)) return true;
 
     const host = players.find(function(p){ return p.is_host; });
-    const hostFresh = host && isFresh(host);
+    const hostFresh = host && isFresh(host) && host.alive !== false;
     if(hostFresh) return false;
 
     const vivi = players
-      .filter(function(p){ return p.online && isFresh(p); })
+      .filter(function(p){ return p.online && isFresh(p) && p.alive !== false; })
       .sort(function(a, b){ return new Date(a.joined_at) - new Date(b.joined_at); });
     return vivi.length > 0 && vivi[0].uid === uid;
   }
@@ -487,5 +548,5 @@
   });
 
   // chiusura scheda: NON cancello la mia riga qui;
-  // ci pensa la pulizia degli altri entro 5s, e se restano in 2 annullano.
+  // ci pensa la pulizia degli altri entro 5s.
 })();
