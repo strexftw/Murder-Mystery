@@ -2,17 +2,17 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Partita — Il Gioco dell'Assassino</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗡️</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400..900&family=Karla:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/base.css">
-  <link rel="stylesheet" href="css/lobby.css">   <!-- riusa pannelli, tavolo e chat -->
-  <link rel="stylesheet" href="css/partita.css">
-  <!-- stili per dispositivo (il browser sceglie da solo) -->
-  <link rel="stylesheet" href="css/pc.css"    media="(hover:hover) and (pointer:fine)">
-  <link rel="stylesheet" href="css/phone.css" media="(pointer:coarse)">
+  <link rel="stylesheet" href="css/base.css?v=10">
+  <link rel="stylesheet" href="css/lobby.css?v=10">
+  <link rel="stylesheet" href="css/partita.css?v=10">
+  <link rel="stylesheet" href="css/pc.css?v=10" media="(hover:hover) and (pointer:fine)">
+  <link rel="stylesheet" href="css/phone.css?v=10" media="(pointer:coarse)">
 </head>
 <body>
 
@@ -21,17 +21,16 @@
   <span class="s s3">♣</span><span class="s s4">♦</span>
 </div>
 
-<!-- barra superiore -->
 <header class="topbar">
   <div class="brand">
     <span class="brand-mark">†</span>
     <div class="brand-text">
-      <span class="brand-title">La partita è in corso</span>
-      <span class="room-name" id="roomName">…</span>
+      <span class="brand-title">Il Gioco dell'Assassino</span>
+      <span class="room-name" id="roomName">La partita è in corso…</span>
     </div>
   </div>
   <div class="topbar-right">
-    <div class="timer-chip" title="Tempo di partita">
+    <div class="timer-chip">
       <span class="timer-label">Tempo</span>
       <span id="timerText">00:00</span>
     </div>
@@ -44,16 +43,14 @@
   </div>
 </header>
 
-<main class="lobby-grid game-grid">
+<main class="lobby-grid">
 
-  <!-- colonna sinistra: la tua carta segreta + il tavolo -->
   <section class="players-col panel-col">
     <div class="col-head">
       <h2>❖ La tua carta</h2>
       <span class="count role-tag" id="roleTag">…</span>
     </div>
-
-    <div class="my-card" id="myCard">
+    <div class="my-card">
       <div class="my-role" id="myRole">…</div>
       <div class="my-secret-row">
         <span class="my-secret-label">Codice di riconoscimento</span>
@@ -61,7 +58,7 @@
       </div>
       <div class="my-secret-row" id="myWordRow" hidden>
         <span class="my-secret-label">Parola segreta</span>
-        <b class="my-word" id="myWord">…</b>
+        <span class="my-word" id="myWord">…</span>
       </div>
       <p class="my-hint" id="myHint"></p>
     </div>
@@ -73,7 +70,6 @@
     <ul id="playerList" class="player-list"></ul>
   </section>
 
-  <!-- colonna destra: canale sicuro -->
   <section class="chat-col panel-col">
     <div class="col-head">
       <h2>❖ Canale sicuro</h2>
@@ -88,16 +84,15 @@
 
 </main>
 
-<!-- overlay rivelazione: la carta del destino -->
+<!-- rivelazione privata del ruolo -->
 <div class="overlay reveal" id="reveal" hidden>
   <div class="reveal-stack">
     <p class="reveal-over">✦ &nbsp;Il tuo destino, solo per i tuoi occhi&nbsp; ✦</p>
-
     <div class="flip-scene">
       <div class="flip-card" id="flipCard">
         <div class="flip-back"><span>†</span></div>
         <div class="flip-front">
-          <div class="orn dark">✦ ✦ ✦</div>
+          <div class="orn dark">✦ ✦ </div>
           <h2 class="reveal-role" id="revealRole">…</h2>
           <p class="reveal-desc" id="revealDesc"></p>
           <div class="reveal-row">
@@ -106,23 +101,21 @@
           </div>
           <div class="reveal-row" id="revealWordRow" hidden>
             <span>Parola segreta</span>
-            <b class="reveal-word" id="revealWord">…</b>
+            <span class="reveal-word" id="revealWord">…</span>
           </div>
         </div>
       </div>
     </div>
-
-    <button id="btnEnter" class="btn btn-blood btn-big">Ho memorizzato · Entra in gioco</button>
     <p class="reveal-warn">Non mostrare questa schermata a nessuno.</p>
+    <button id="btnEnter" class="btn btn-blood">Ho memorizzato · Entra in gioco</button>
   </div>
 </div>
 
 <div id="toast" class="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/config.js"></script>
-<script src="js/utils.js"></script>
-<script src="js/words.js"></script>
-<script src="js/partita.js"></script>
+<script src="js/config.js?v=10"></script>
+<script src="js/utils.js?v=10"></script>
+<script src="js/partita.js?v=10"></script>
 </body>
 </html>

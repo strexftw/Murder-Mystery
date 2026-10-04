@@ -3,7 +3,7 @@
    Nome e stanza corrente: sessionStorage (solo finché la
    scheda resta aperta). UID dispositivo: localStorage
    (serve solo a rientrare nella stanza se aggiorni).
-   v2: scramble/unscramble + codice di riconoscimento
+   v2.1: escapeHtml RIPARATA + regex config con backslash
    ========================================================= */
 
 /* --- identità tecnica del dispositivo (persistente, mai mostrata) --- */
@@ -74,7 +74,7 @@ function unscramble(enc, key){
   }catch(e){ return null; }
 }
 
-/* --- escape HTML (sicurezza) --- */
+/* --- escape HTML (sicurezza) — VERSIONE INTEGRA --- */
 function escapeHtml(s){
   return String(s ?? '').replace(/[&<>"']/g, c =>
     ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

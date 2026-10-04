@@ -1,13 +1,12 @@
 /* =========================================================
-   PHONE.CSS v4 — telefono: tutto a schermo e campi SEMPRE
+   PHONE.CSS v4.1 — telefono: tutto a schermo e campi SEMPRE
    raggiungibili.
    - 100dvh: quando si apre la tastiera il layout si
      restringe da solo e i campi non finiscono coperti
    - la pagina non scorre; se proprio serve, scorre SOLO
      il menu dentro il suo riquadro
    - campi di testo a 16px: niente zoom automatico su iPhone
-   - v4: il menu in verticale ora riempie tutta la larghezza
-     e tutta l'altezza dello schermo
+   v4.1: commenti e selettori riparati (.form-card > *)
    ========================================================= */
 
 /* ============ COMUNE: la pagina non si muove ============ */
@@ -17,7 +16,6 @@ html, body{
   overscroll-behavior:none;
 }
 body{ display:flex; flex-direction:column; }
-
 .live{ display:none; }
 .fan{ display:none; }
 
@@ -38,7 +36,6 @@ body{ display:flex; flex-direction:column; }
    TELEFONO DRITTO (verticale)
    ========================================================= */
 @media (orientation: portrait){
-
   body{ font-size:16px; }
 
   /* ---------- barra superiore compatta ---------- */
@@ -62,7 +59,6 @@ body{ display:flex; flex-direction:column; }
   .col-head{ padding-bottom:.45rem; margin-bottom:.6rem; }
   .col-head h2{ font-size:1rem; }
   .count{ font-size:.72rem; padding:.25rem .6rem; }
-
   .player-list{
     min-height:0; max-height:none; overflow-y:auto;
     grid-template-columns:repeat(auto-fill, minmax(120px,1fr));
@@ -76,7 +72,6 @@ body{ display:flex; flex-direction:column; }
   .host-zone{ margin-top:.6rem; }
   .btn-big{ padding:.85rem; font-size:1.05rem; }
   .wait-note{ margin-top:.6rem; font-size:.9rem; padding:.6rem; }
-
   .chat-col{ min-height:0; }
   .chat-log{ flex:1; min-height:0; max-height:none; overflow-y:auto; }
   .msg{ font-size:.95rem; padding:.5rem .75rem; }
@@ -112,7 +107,6 @@ body{ display:flex; flex-direction:column; }
   .left{ width:100%; }
   .rules{ margin-top:0; gap:.5rem; }
   .rules li{ font-size:.95rem; line-height:1.3; padding:.6rem .8rem; }
-
   .form-card{
     display:flex; flex-direction:column; justify-content:center; gap:.3rem;
     width:100%; max-width:none; box-sizing:border-box;
@@ -130,7 +124,6 @@ body{ display:flex; flex-direction:column; }
   #roomCode{ font-size:1.25rem; letter-spacing:.3em; }
   .divider{ margin:.8rem 0; font-size:.9rem; line-height:1.2; }
   .error-line{ min-height:1.2em; margin:.4rem 0 0; font-size:.85rem; line-height:1.3; }
-
   .step-row{ flex:none; margin-top:.8rem; font-size:.72rem; letter-spacing:.14em; }
 }
 
@@ -138,7 +131,6 @@ body{ display:flex; flex-direction:column; }
    TELEFONO GIRATO (orizzontale)
    ========================================================= */
 @media (orientation: landscape){
-
   body{ font-size:15px; }
 
   /* ---------- barra superiore sottilissima ---------- */
@@ -161,7 +153,6 @@ body{ display:flex; flex-direction:column; }
   .col-head{ padding-bottom:.35rem; margin-bottom:.5rem; }
   .col-head h2{ font-size:.9rem; }
   .count{ font-size:.65rem; padding:.2rem .5rem; }
-
   .player-list{
     min-height:0; max-height:none; overflow-y:auto;
     grid-template-columns:repeat(auto-fill, minmax(105px,1fr));
@@ -176,7 +167,6 @@ body{ display:flex; flex-direction:column; }
   .host-zone{ margin-top:.5rem; }
   .btn-big{ padding:.6rem; font-size:.9rem; }
   .wait-note{ margin-top:.5rem; font-size:.78rem; padding:.45rem; }
-
   .chat-col{ min-height:0; }
   .chat-log{ flex:1; min-height:0; overflow-y:auto; }
   .msg{ font-size:.85rem; padding:.4rem .6rem; }
@@ -185,9 +175,9 @@ body{ display:flex; flex-direction:column; }
   .chat-form input{ padding:.5rem .7rem; }
 
   /* ---------- menu (index.html): titolo a sinistra,
-       modulo a destra con i campi su DUE COLONNE:
-       nome e stanza affiancati, codice sotto.
-       Così entra tutto anche sui telefoni più bassi ---------- */
+     modulo a destra con i campi su DUE COLONNE:
+     nome e stanza affiancati, codice sotto.
+     Così entra tutto anche sui telefoni più bassi ---------- */
   .table{
     max-width:1000px;
     flex-direction:row; align-items:center; gap:1rem;
