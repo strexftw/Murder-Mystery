@@ -1,5 +1,5 @@
-// UTILS.JS v4 - identita, codici, toast, messaggi, reset.
-// Stile anti-manomissione: niente entita letterali, niente backslash.
+// UTILS.JS v4.1 - identita, codici, toast, messaggi, reset.
+// Niente entita letterali, niente backslash: anti-manomissione.
 
 function getUid(){
   let u = localStorage.getItem('assassino_uid');
@@ -38,6 +38,7 @@ function generatePlayerCode(){
   return CODE_SUITS[r[0] % CODE_SUITS.length] + generateRoomCode(2);
 }
 
+// offuscamento XOR+base64 (solo ASCII)
 function scramble(text, key){
   const k = String(key || '');
   if(!k) return btoa(text);
@@ -58,7 +59,7 @@ function unscramble(enc, key){
   }catch(e){ return null; }
 }
 
-// escape HTML senza entita letterali (immune al copia-incolla)
+// escape HTML senza entita letterali
 function escapeHtml(s){
   let t = String(s == null ? '' : s);
   t = t.split('&').join('&' + 'amp;');
@@ -126,17 +127,17 @@ function deviceLabel(type){
   return '💻 PC';
 }
 
-// RESET UNICO partita (DB)
+// RESET UNICO partita (DB): vivi, conferme, ruoli, carte,
+// indizio, timer, fase. Winner resta fino al prossimo avvio.
 async function resetPartita(roomId){
   if (typeof db === 'undefined' || !db) return;
   await db.from('players').update({
     alive: true, ready: false, role: null, code: null, card: null
   }).eq('room_id', roomId);
   await db.from('rooms').update({
-    kill_target_uid: null, kill_by_uid: null, kill_at: null,
-    secret_word: null, started_at: null, phase: 'reveal',
+    started_at: null, phase: 'reveal', winner: null,
     clue: null, next_kill_at: null, last_kill_at: null, last_kill_uid: null,
-    indagini_usate: 0, skip_usati: 0, winner: null
+    indagini_usate: 0, skip_usati: 0
   }).eq('id', roomId);
   console.log('[UTILS] resetPartita eseguito per', roomId);
 }

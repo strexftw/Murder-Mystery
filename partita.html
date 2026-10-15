@@ -8,12 +8,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400..900&family=Karla:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/base.css?v=17">
-  <link rel="stylesheet" href="css/lobby.css?v=17">
-  <link rel="stylesheet" href="css/partita.css?v=17">
-  <link rel="stylesheet" href="css/Ispettore.css?v=17">
-  <link rel="stylesheet" href="css/pc.css?v=17" media="(hover:hover) and (pointer:fine)">
-  <link rel="stylesheet" href="css/phone.css?v=17" media="(pointer:coarse)">
+  <link rel="stylesheet" href="css/base.css?v=18">
+  <link rel="stylesheet" href="css/lobby.css?v=18">
+  <link rel="stylesheet" href="css/partita.css?v=18">
+  <link rel="stylesheet" href="css/Ispettore.css?v=18">
+  <link rel="stylesheet" href="css/pc.css?v=18" media="(hover:hover) and (pointer:fine)">
+  <link rel="stylesheet" href="css/phone.css?v=18" media="(pointer:coarse)">
 </head>
 <body>
 
@@ -43,7 +43,6 @@
 
 <main class="lobby-grid">
 
-  <!-- colonna sinistra: la tua carta + il tavolo -->
   <section class="players-col panel-col">
     <div class="col-head">
       <h2>❖ La tua carta</h2>
@@ -63,6 +62,8 @@
         <button class="btn btn-sm" id="btnTabella" type="button" hidden>📋 Tabella sospetti</button>
         <button class="btn btn-sm btn-blood" id="btnElimina" type="button" hidden disabled>⚖ Elimina</button>
       </div>
+      <div class="my-secret-label" id="myCardLabel" hidden>La tua identità segreta</div>
+      <div class="tabella-list" id="myCardId" hidden></div>
       <p class="my-hint" id="myHint"></p>
     </div>
 
@@ -73,7 +74,6 @@
     <ul id="playerList" class="player-list"></ul>
   </section>
 
-  <!-- colonna destra: chat di partita -->
   <section class="chat-col panel-col">
     <div class="col-head"><h2>❖ Canale sicuro</h2><span class="count">In partita</span></div>
     <div id="chatLog" class="chat-log"></div>
@@ -85,7 +85,6 @@
 
 </main>
 
-<!-- attesa sincronizzata: tutti devono confermare la lettura del ruolo -->
 <div class="overlay attesa" id="overlayAttesa" hidden>
   <div class="attesa-stack">
     <div class="attesa-spin">✦</div>
@@ -95,7 +94,6 @@
   </div>
 </div>
 
-<!-- notifica ispettore: nuova vittima. Il timer è FERMO finché non decide -->
 <div class="overlay isp" id="overlayNotifica" hidden>
   <div class="isp-stack">
     <h2 class="isp-title">🕯 Nuova vittima al tavolo</h2>
@@ -108,7 +106,6 @@
   </div>
 </div>
 
-<!-- indagine: persona -> informazione -> FINE ISPEZIONE (riparte il timer) -->
 <div class="overlay isp" id="overlayIndagine" hidden>
   <div class="isp-stack">
     <h2 class="isp-title">🔍 Indagine</h2>
@@ -120,7 +117,6 @@
   </div>
 </div>
 
-<!-- tabella privata dell'ispettore: chi NON è l'assassino -->
 <div class="overlay isp" id="overlayTabella" hidden>
   <div class="isp-stack">
     <h2 class="isp-title">📋 Chi NON è l'assassino</h2>
@@ -129,7 +125,6 @@
   </div>
 </div>
 
-<!-- accusa finale: un solo tentativo -->
 <div class="overlay isp" id="overlayElimina" hidden>
   <div class="isp-stack">
     <h2 class="isp-title">⚖ Accusa finale</h2>
@@ -142,7 +137,6 @@
   </div>
 </div>
 
-<!-- fine partita: vincitore + ruoli VERI + ritorno in lobby -->
 <div class="overlay isp" id="overlayFine" hidden>
   <div class="isp-stack">
     <h2 class="isp-title fine" id="fineTitolo">🏆</h2>
@@ -151,7 +145,6 @@
   </div>
 </div>
 
-<!-- rivelazione privata del ruolo (carta che si gira) -->
 <div class="overlay reveal" id="reveal" hidden>
   <div class="reveal-stack">
     <p class="reveal-over">✦ &nbsp;Il tuo destino, solo per i tuoi occhi&nbsp; ✦</p>
@@ -171,7 +164,6 @@
   </div>
 </div>
 
-<!-- jumpscare della vittima del Sistema -->
 <div class="jumpscare" id="jumpscare" hidden>
   <button class="jump-mute" id="btnMute" type="button" title="Audio on/off">🔊</button>
   <div class="jump-face">👹</div>
@@ -181,12 +173,12 @@
 <div id="toast" class="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/config.js?v=17"></script>
-<script src="js/utils.js?v=17"></script>
-<script src="js/Personaggi.js?v=17"></script>
-<script src="js/partita.js?v=17"></script>
-<script src="js/Sistema.js?v=17"></script>
-<script src="js/Ispettore.js?v=17"></script>
-<script src="js/Innocente.js?v=17"></script>
+<script src="js/config.js?v=18"></script>
+<script src="js/utils.js?v=18"></script>
+<script src="js/Personaggi.js?v=18"></script>
+<script src="js/partita.js?v=18"></script>
+<script src="js/Sistema.js?v=18"></script>
+<script src="js/Ispettore.js?v=18"></script>
+<script src="js/Innocente.js?v=18"></script>
 </body>
 </html>

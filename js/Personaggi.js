@@ -1,5 +1,4 @@
-// PERSONAGGI.JS v1 - carte identita + indizio unico.
-// Tutto ASCII (l'indizio viaggia offuscato con btoa).
+// PERSONAGGI.JS v1 - carte identita + indizio unico (solo ASCII).
 const PG_NOMI = ['Bruno','Ada','Carlo','Delia','Ettore','Flavia','Gino','Ida','Livio','Marta','Nello','Olga'];
 const PG_COGNOMI = ['Valli','Bruni','Colli','Riva','Monti','Sarti','Falco','Greco','Longhi','Mari','Neri','Poli'];
 const PG_LUOGHI = ['Trieste','Mantova','Vercelli','Termoli','Spoleto','Aosta','Matera','Ravenna','Trapani','Udine','Fermo','Rieti'];
@@ -26,6 +25,7 @@ function pgCodiceFiscale(nome, cognome, anno){
   return (pad(cognome, 3) + pad(nome, 3) + yy + 'M' + gg + 'L2' + pad(nome, 1) + 'X').toUpperCase();
 }
 
+// genera n carte con valori UNICI per ogni campo indagabile
 function generaCarte(n){
   const nomi = pgShuffle(PG_NOMI), cogn = pgShuffle(PG_COGNOMI);
   const luoghi = pgShuffle(PG_LUOGHI), lavori = pgShuffle(PG_LAVORI);
@@ -50,6 +50,7 @@ function generaCarte(n){
   return carte;
 }
 
+// indizio preso dalla carta dell'assassino (valore unico per costruzione)
 function scegliIndizio(carte, iAssassino){
   const campi = ['nascita','luogo','lavoro','hobby','altezza'];
   const r = new Uint32Array(1);
