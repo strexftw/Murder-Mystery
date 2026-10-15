@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Partita -- Il Gioco dell'Assassino</title>
+  <title>Partita — Il Gioco dell'Assassino</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗡️</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400..900&family=Karla:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/base.css?v=23">
-  <link rel="stylesheet" href="css/lobby.css?v=23">
-  <link rel="stylesheet" href="css/partita.css?v=23">
-  <link rel="stylesheet" href="css/Ispettore.css?v=23">
-  <link rel="stylesheet" href="css/pc.css?v=23" media="(hover:hover) and (pointer:fine)">
-  <link rel="stylesheet" href="css/phone.css?v=23" media="(pointer:coarse)">
+  <link rel="stylesheet" href="css/base.css?v=25">
+  <link rel="stylesheet" href="css/lobby.css?v=25">
+  <link rel="stylesheet" href="css/partita.css?v=25">
+  <link rel="stylesheet" href="css/Ispettore.css?v=25">
+  <link rel="stylesheet" href="css/pc.css?v=25" media="(hover:hover) and (pointer:fine)">
+  <link rel="stylesheet" href="css/phone.css?v=25" media="(pointer:coarse)">
 </head>
 <body>
 
@@ -27,14 +27,11 @@
     <span class="brand-mark">†</span>
     <div class="brand-text">
       <span class="brand-title">Il Gioco dell'Assassino</span>
-      <span class="room-name" id="roomName">La partita e in corso…</span>
+      <span class="room-name" id="roomName">La partita è in corso…</span>
     </div>
   </div>
   <div class="topbar-right">
-    <div class="timer-chip">
-      <span class="timer-label">Tempo</span>
-      <span id="timerText">00:00</span>
-    </div>
+    <div class="timer-chip"><span class="timer-label">Tempo</span><span id="timerText">00:00</span></div>
     <button class="code-chip" id="codeChip" title="Clicca per copiare il codice">
       <span class="code-label">Codice</span>
       <span id="codeText">······</span>
@@ -55,17 +52,17 @@
       <div class="my-role" id="myRole">…</div>
       <div class="my-secret-row">
         <span class="my-secret-label">Codice di riconoscimento</span>
-        <span class="my-code" id="myCode">--</span>
+        <span class="my-code" id="myCode">—</span>
       </div>
       <div class="my-secret-row" id="clueRow" hidden>
         <span class="my-secret-label">Indizio (solo tuo)</span>
         <span class="my-word" id="clueText">…</span>
       </div>
       <div class="my-actions">
-        <button class="btn btn-sm" id="btnTabella" type="button" hidden>Tabella sospetti</button>
-        <button class="btn btn-sm btn-blood" id="btnElimina" type="button" hidden disabled>Elimina</button>
+        <button class="btn btn-sm" id="btnTabella" type="button" hidden>📋 Tabella sospetti</button>
+        <button class="btn btn-sm btn-blood" id="btnElimina" type="button" hidden disabled>⚖ Elimina</button>
       </div>
-      <div class="my-secret-label" id="myCardLabel" hidden>La tua identita segreta</div>
+      <div class="my-secret-label" id="myCardLabel" hidden>La tua identità segreta</div>
       <div class="tabella-list" id="myCardId" hidden></div>
       <p class="my-hint" id="myHint"></p>
     </div>
@@ -78,10 +75,7 @@
   </section>
 
   <section class="chat-col panel-col">
-    <div class="col-head">
-      <h2>❖ Canale sicuro</h2>
-      <span class="count">In partita</span>
-    </div>
+    <div class="col-head"><h2>❖ Canale sicuro</h2><span class="count">In partita</span></div>
     <div id="chatLog" class="chat-log"></div>
     <form id="chatForm" class="chat-form" autocomplete="off">
       <input id="chatInput" maxlength="200" placeholder="Scrivi al tavolo…">
@@ -97,11 +91,11 @@
     <div class="attesa-spin">✦</div>
     <h2 class="attesa-title">In attesa degli altri giocatori…</h2>
     <p class="attesa-count" id="attesaCount">0/0</p>
-    <p class="attesa-sub">La partita iniziera per tutti nello stesso istante.</p>
+    <p class="attesa-sub">La partita inizierà per tutti nello stesso istante.</p>
   </div>
 </div>
 
-<!-- 2. Overlay "Hai letto l'indizio?" (prima della notifica) -->
+<!-- 2. Overlay "Hai letto l'indizio?" -->
 <div class="overlay isp" id="overlayLeggiIndizio" hidden>
   <div class="isp-stack">
     <h2 class="isp-title">🕯 Nuova vittima al tavolo</h2>
@@ -116,15 +110,15 @@
 <div class="overlay isp" id="overlayNotifica" hidden>
   <div class="isp-stack">
     <h2 class="isp-title">🕯 Nuova vittima al tavolo</h2>
-    <p class="isp-testo" id="notifTesto">Nuova vittima. Il timer di eliminazione e BLOCCATO.</p>
+    <p class="isp-testo" id="notifTesto">Nuova vittima. Il timer di eliminazione è BLOCCATO.</p>
     <div class="isp-actions">
-      <button class="btn btn-blood" id="btnNotifSi" type="button">Si, indago</button>
+      <button class="btn btn-blood" id="btnNotifSi" type="button">Sì, indago</button>
       <button class="btn" id="btnNotifNo" type="button">No, skip</button>
     </div>
   </div>
 </div>
 
-<!-- 4. Indagine: persona + campi + Fine ispezione -->
+<!-- 4. Indagine -->
 <div class="overlay isp" id="overlayIndagine" hidden>
   <div class="isp-stack">
     <h2 class="isp-title">🔍 Indagine</h2>
@@ -132,27 +126,23 @@
     <div class="bersaglio-list" id="indagineList"></div>
     <div class="bersaglio-list" id="indagineCampi"></div>
     <p class="indagine-esito" id="indagineEsito"></p>
-    <div class="isp-actions">
-      <button class="btn btn-blood" id="btnIndagineOk" type="button" disabled>Fine ispezione</button>
-    </div>
+    <div class="isp-actions"><button class="btn btn-blood" id="btnIndagineOk" type="button" disabled>Fine ispezione</button></div>
   </div>
 </div>
 
 <!-- 5. Tabella sospetti -->
 <div class="overlay isp" id="overlayTabella" hidden>
   <div class="isp-stack">
-    <h2 class="isp-title">📋 Chi NON e l'assassino</h2>
+    <h2 class="isp-title">📋 Chi NON è l'assassino</h2>
     <ul class="tabella-list" id="tabellaList"></ul>
-    <div class="isp-actions">
-      <button class="btn" id="btnTabellaChiudi" type="button">Chiudi</button>
-    </div>
+    <div class="isp-actions"><button class="btn" id="btnTabellaChiudi" type="button">Chiudi</button></div>
   </div>
 </div>
 
 <!-- 6. Accusa finale -->
 <div class="overlay isp" id="overlayElimina" hidden>
   <div class="isp-stack">
-    <h2 class="isp-title"> Accusa finale</h2>
+    <h2 class="isp-title">⚖ Accusa finale</h2>
     <p class="isp-sub">Un solo tentativo: se sbagli, vince l'assassino.</p>
     <div class="bersaglio-list" id="eliminaList"></div>
     <div class="isp-actions">
@@ -162,18 +152,7 @@
   </div>
 </div>
 
-<!-- 7. Fine partita -->
-<div class="overlay isp" id="overlayFine" hidden>
-  <div class="isp-stack">
-    <h2 class="isp-title fine" id="fineTitolo">🏆</h2>
-    <ul class="tabella-list" id="fineRuoli"></ul>
-    <div class="isp-actions">
-      <button class="btn btn-blood" id="btnFine" type="button">Torna al tavolo</button>
-    </div>
-  </div>
-</div>
-
-<!-- 8. Rivelazione iniziale -->
+<!-- 7. Rivelazione iniziale -->
 <div class="overlay reveal" id="reveal" hidden>
   <div class="reveal-stack">
     <p class="reveal-over">✦ &nbsp;Il tuo destino, solo per i tuoi occhi&nbsp; ✦</p>
@@ -184,10 +163,7 @@
           <div class="orn dark">✦ ✦ </div>
           <h2 class="reveal-role" id="revealRole">…</h2>
           <p class="reveal-desc" id="revealDesc"></p>
-          <div class="reveal-row">
-            <span>Codice</span>
-            <span class="reveal-code" id="revealCode">--</span>
-          </div>
+          <div class="reveal-row"><span>Codice</span><span class="reveal-code" id="revealCode">—</span></div>
         </div>
       </div>
     </div>
@@ -196,14 +172,14 @@
   </div>
 </div>
 
-<!-- 9. Jumpscare vittima -->
+<!-- 8. Jumpscare vittima -->
 <div class="jumpscare" id="jumpscare" hidden>
   <button class="jump-mute" id="btnMute" type="button" title="Audio on/off">🔊</button>
   <div class="jump-face">👹</div>
   <p class="jump-text">Sei stato trovato senza vita</p>
 </div>
 
-<!-- 10. Overlay post-jumpscare: indizio dell'assassino -->
+<!-- 9. Overlay post-jumpscare: indizio dell'assassino -->
 <div class="overlay isp" id="overlayMorte" hidden>
   <div class="isp-stack">
     <h2 class="isp-title">☠ Sei stato eliminato</h2>
@@ -212,15 +188,24 @@
   </div>
 </div>
 
+<!-- 10. FINE PARTITA: ULTIMO nel DOM + z-index:99 nel CSS = sempre sopra e cliccabile -->
+<div class="overlay isp" id="overlayFine" hidden>
+  <div class="isp-stack">
+    <h2 class="isp-title fine" id="fineTitolo">🏆</h2>
+    <ul class="tabella-list" id="fineRuoli"></ul>
+    <div class="isp-actions"><button class="btn btn-blood" id="btnFine" type="button">Torna al tavolo</button></div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/config.js?v=23"></script>
-<script src="js/utils.js?v=23"></script>
-<script src="js/Personaggi.js?v=23"></script>
-<script src="js/partita.js?v=23"></script>
-<script src="js/Sistema.js?v=23"></script>
-<script src="js/Ispettore.js?v=23"></script>
-<script src="js/Innocente.js?v=23"></script>
+<script src="js/config.js?v=25"></script>
+<script src="js/utils.js?v=25"></script>
+<script src="js/Personaggi.js?v=25"></script>
+<script src="js/partita.js?v=25"></script>
+<script src="js/Sistema.js?v=25"></script>
+<script src="js/Ispettore.js?v=25"></script>
+<script src="js/Innocente.js?v=25"></script>
 </body>
 </html>

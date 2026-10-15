@@ -160,3 +160,8 @@
   box-shadow:0 0 40px rgba(217,172,78,.3);
   animation:rise .6s ease both;
 }
+/* FINE PARTITA: overlayFine sopra jumpscare(90) e overlayMorte(76),
+   cosi "Torna al tavolo" e sempre cliccabile anche se un overlay
+   di morte restasse per errore visibile. */
+#overlayFine{ z-index:99; }
+#overlayFine .isp-stack{ position:relative; z-index:100; }
