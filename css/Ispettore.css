@@ -1,0 +1,136 @@
+/* =========================================================
+   ISPETTORE.CSS v2 - grafica del motore Step 5:
+   attesa conferme · pannelli ispettore (notifica, indagine,
+   tabella, accusa) · fine partita · jumpscare vittima ·
+   badge PRONTO · pulsanti della propria carta.
+   Caricato SOLO da partita.html.
+   ========================================================= */
+
+/* ---------- pulsanti sulla propria carta ---------- */
+.my-actions{ display:flex; gap:.7rem; flex-wrap:wrap; justify-content:center; }
+
+/* ---------- badge PRONTO (fase reveal) ---------- */
+.badge-ready{
+  font-family:var(--head); font-weight:700; font-size:.7rem; letter-spacing:.18em;
+  color:#0d251c; background:linear-gradient(180deg, #9fd8a8, #58c470);
+  padding:.2rem .55rem; border-radius:3px;
+}
+
+/* ---------- overlay attesa conferme ruolo ---------- */
+.overlay.attesa{
+  position:fixed; inset:0; z-index:72; display:grid; place-items:center;
+  background:radial-gradient(ellipse at center, rgba(15,46,36,.96), rgba(4,10,8,.99));
+  animation:fadeIn .4s ease both; padding:1.2rem;
+}
+.overlay.attesa[hidden]{ display:none; }
+.attesa-stack{ display:grid; gap:1rem; justify-items:center; text-align:center; }
+.attesa-spin{
+  font-size:3rem; color:var(--gold-bright);
+  animation:spinSlow 2.6s linear infinite;
+  text-shadow:0 0 30px rgba(242,207,127,.5);
+}
+@keyframes spinSlow{ from{ transform:rotate(0); } to{ transform:rotate(360deg); } }
+.attesa-title{
+  font-family:var(--head); font-weight:700; text-transform:uppercase;
+  letter-spacing:.2em; font-size:clamp(1.2rem,4vw,1.8rem); color:var(--ivory);
+}
+.attesa-count{
+  font-family:var(--head); font-weight:700; font-size:clamp(2.2rem,8vw,3.4rem);
+  color:var(--gold-bright); font-variant-numeric:tabular-nums;
+  text-shadow:0 0 30px rgba(242,207,127,.4);
+}
+.attesa-sub{ color:var(--ivory-dim); font-size:1.05rem; font-style:italic; }
+
+/* ---------- pannelli ispettore (notifica/indagine/tabella/accusa/fine) ---------- */
+.overlay.isp{
+  position:fixed; inset:0; z-index:76; display:grid; place-items:center;
+  background:rgba(4,10,8,.93); padding:1.2rem; overflow-y:auto;
+  animation:fadeIn .3s ease both;
+}
+.overlay.isp[hidden]{ display:none; }
+.isp-stack{ width:min(600px,100%); display:grid; gap:1rem; justify-items:center; text-align:center; }
+.isp-title{
+  font-family:var(--display); font-weight:900; text-transform:uppercase;
+  font-size:clamp(1.5rem,5vw,2.3rem); color:var(--gold-bright);
+}
+.isp-title.fine{ color:var(--crimson-hot); }
+.isp-testo{ font-size:1.15rem; color:var(--ivory); }
+.isp-sub{ font-size:1rem; color:var(--ivory-dim); font-style:italic; }
+.isp-actions{ display:flex; gap:.8rem; flex-wrap:wrap; justify-content:center; }
+.isp-count{ font-family:var(--head); font-size:.9rem; color:var(--ivory-dim); letter-spacing:.12em; }
+
+/* liste bersagli (indagine e accusa) */
+.bersaglio-list{
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(140px,1fr));
+  gap:.8rem; width:100%;
+}
+.bersaglio-card{
+  display:flex; align-items:center; justify-content:center;
+  padding:1rem .7rem; border-radius:10px; cursor:pointer;
+  border:1px solid var(--line); color:var(--ivory);
+  background:linear-gradient(170deg, #163e2f, #0d251c);
+  font-family:var(--head); font-weight:700; font-size:1.05rem;
+  transition:transform .18s, border-color .18s, box-shadow .18s;
+}
+.bersaglio-card:hover{ transform:translateY(-3px); border-color:var(--gold); }
+.bersaglio-card.scelto{
+  border-color:var(--crimson-hot);
+  box-shadow:0 0 0 3px rgba(224,75,82,.25);
+  background:linear-gradient(170deg, #3a1418, #200a0c);
+}
+
+/* esito indagine */
+.indagine-esito{ font-family:var(--head); font-size:1.2rem; letter-spacing:.06em; min-height:1.4em; }
+.indagine-esito.si{ color:var(--crimson-hot); }
+.indagine-esito.no{ color:#9fd8a8; }
+
+/* tabella sospetti esclusi + ruoli finali */
+.tabella-list{ list-style:none; display:grid; gap:.5rem; width:100%; }
+.tab-voce{
+  padding:.6rem .9rem; border:1px solid var(--line-soft); border-radius:8px;
+  background:rgba(9,27,21,.6); font-size:1.05rem; color:var(--ivory); text-align:left;
+}
+.fine-voce{ padding:.5rem .9rem; font-size:1.1rem; color:var(--ivory); text-align:left; }
+.fine-voce b{ color:var(--gold-bright); }
+
+/* ---------- jumpscare della vittima ---------- */
+.jumpscare{
+  position:fixed; inset:0; z-index:90; display:grid; place-items:center;
+  background:#000; animation:jumpFlash .5s steps(2) 3;
+}
+.jumpscare[hidden]{ display:none; }
+.jump-face{
+  font-size:clamp(10rem,45vw,26rem);
+  filter:drop-shadow(0 0 60px rgba(224,75,82,.9));
+  animation:jumpZoom 1.2s cubic-bezier(.1,.9,.2,1) both, jumpShake .12s linear 12;
+}
+.jump-text{
+  position:absolute; bottom:12%;
+  font-family:var(--head); font-size:clamp(1.4rem,5vw,2.4rem);
+  letter-spacing:.3em; text-transform:uppercase; color:var(--crimson-hot);
+  animation:rise .6s .8s ease both;
+}
+.jump-mute{
+  position:absolute; top:calc(.8rem + env(safe-area-inset-top));
+  right:calc(.8rem + env(safe-area-inset-right)); z-index:91;
+  width:56px; height:56px; border-radius:50%;
+  border:1px solid var(--line); background:rgba(9,27,21,.7);
+  color:var(--ivory); font-size:1.5rem; cursor:pointer;
+}
+@keyframes jumpFlash{ 0%{ background:#000; } 50%{ background:#3a0508; } 100%{ background:#000; } }
+@keyframes jumpZoom{ 0%{ transform:scale(.1); opacity:0; } 60%{ transform:scale(1.15); opacity:1; } 100%{ transform:scale(1); } }
+@keyframes jumpShake{ 0%{ margin-left:0; } 25%{ margin-left:-14px; } 75%{ margin-left:14px; } 100%{ margin-left:0; } }
+
+/* ---------- telefono ---------- */
+@media (pointer:coarse){
+  .isp-title{ font-size:1.3rem; }
+  .isp-testo{ font-size:1rem; }
+  .indagine-esito{ font-size:1rem; }
+  .tab-voce, .fine-voce{ font-size:.95rem; }
+  .my-actions .btn{ font-size:.85rem; padding:.6rem .9rem; }
+  .bersaglio-list{ grid-template-columns:repeat(auto-fill, minmax(110px,1fr)); }
+  .bersaglio-card{ font-size:.9rem; padding:.8rem .5rem; }
+  .attesa-count{ font-size:2.4rem; }
+  .attesa-title{ font-size:1.05rem; }
+  .jump-mute{ width:48px; height:48px; font-size:1.2rem; }
+}
