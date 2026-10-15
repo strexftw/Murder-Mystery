@@ -1,8 +1,6 @@
-// UTILS.JS v3 - identita dispositivo, codici, toast, messaggi
-// Stile anti-manomissione: solo commenti //, niente entita
-// HTML letterali, niente backslash, niente apici escapati.
+// UTILS.JS v4 - identita, codici, toast, messaggi, reset.
+// Stile anti-manomissione: commenti //, niente entita letterali.
 
-// identita tecnica del dispositivo (persistente, mai mostrata)
 function getUid(){
   let u = localStorage.getItem('assassino_uid');
   if(!u){
@@ -14,11 +12,9 @@ function getUid(){
   return u;
 }
 
-// nome giocatore: solo sessione
 function getPlayerName(){ return sessionStorage.getItem('assassino_name') || ''; }
 function savePlayerName(n){ sessionStorage.setItem('assassino_name', n.trim()); }
 
-// stanza corrente: solo sessione
 function saveCurrentRoom(room){ sessionStorage.setItem('assassino_room', JSON.stringify(room)); }
 function getCurrentRoom(){
   try { return JSON.parse(sessionStorage.getItem('assassino_room')); }
@@ -26,7 +22,6 @@ function getCurrentRoom(){
 }
 function clearCurrentRoom(){ sessionStorage.removeItem('assassino_room'); }
 
-// codice stanza: niente caratteri ambigui (0/O, 1/I)
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function generateRoomCode(len = 6){
   const a = new Uint32Array(len);
@@ -36,7 +31,6 @@ function generateRoomCode(len = 6){
   return s;
 }
 
-// codice di riconoscimento personale: seme + 2 caratteri (es. Cuore-Q3)
 const CODE_SUITS = ['♠','♥','♣','♦'];
 function generatePlayerCode(){
   const r = new Uint32Array(1);
@@ -44,8 +38,7 @@ function generatePlayerCode(){
   return CODE_SUITS[r[0] % CODE_SUITS.length] + generateRoomCode(2);
 }
 
-// offuscamento segreti (ruolo / parola segreta): XOR + base64.
-// NON e crittografia: serve a non mostrare i ruoli in chiaro nel DB.
+// offuscamento XOR+base64 (solo ASCII)
 function scramble(text, key){
   const k = String(key || '');
   if(!k) return btoa(text);
@@ -66,7 +59,7 @@ function unscramble(enc, key){
   }catch(e){ return null; }
 }
 
-// escape HTML costruito SENZA entita letterali (cosi non si puo rompere)
+// escape HTML senza entita letterali (immune al copia-incolla)
 function escapeHtml(s){
   let t = String(s == null ? '' : s);
   t = t.split('&').join('&' + 'amp;');
@@ -77,7 +70,6 @@ function escapeHtml(s){
   return t;
 }
 
-// toast
 function showToast(msg, ok = true){
   const t = document.getElementById('toast');
   if(!t) return;
@@ -87,7 +79,6 @@ function showToast(msg, ok = true){
   t._h = setTimeout(() => t.classList.remove('show'), 2400);
 }
 
-// controllo configurazione senza regex con backslash
 function configReady(){
   if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON_KEY === 'undefined') return false;
   return SUPABASE_URL.indexOf('supabase.co') !== -1
@@ -111,7 +102,6 @@ function guardConfig(){
   return false;
 }
 
-// messaggio di sistema nella chat della stanza
 async function sysMessage(roomId, text){
   if (typeof db === 'undefined' || !db) return;
   await db.from('chat_messages').insert({
@@ -119,7 +109,6 @@ async function sysMessage(roomId, text){
   });
 }
 
-// riconoscimento dispositivo: pc / phone / tablet
 function getDeviceType(){
   const ua = navigator.userAgent || '';
   const touch = navigator.maxTouchPoints || 0;
@@ -136,4 +125,21 @@ function deviceLabel(type){
   if(type === 'phone')  return '📱 Telefono';
   if(type === 'tablet') return '📟 Tablet';
   return '💻 PC';
+}
+
+// RESET UNICO partita (DB): vivi, conferme, ruoli, carte,
+// colpo/indizi/skip, indizio, timer, fase. Winner resta finche
+// non parte la partita successiva (lo azzera startGame).
+async function resetPartita(roomId){
+  if (typeof db === 'undefined' || !db) return;
+  await db.from('players').update({
+    alive: true, ready: false, role: null, code: null, card: null
+  }).eq('room_id', roomId);
+  await db.from('rooms').update({
+    kill_target_uid: null, kill_by_uid: null, kill_at: null,
+    secret_word: null, started_at: null, phase: 'reveal',
+    clue: null, next_kill_at: null, last_kill_at: null, last_kill_uid: null,
+    indagini_usate: 0, skip_usati: 0
+  }).eq('id', roomId);
+  console.log('[UTILS] resetPartita eseguito per', roomId);
 }

@@ -1,51 +1,47 @@
-// PARTITA.JS v1.4 - logica della partita (partita.html)
-// Novita: bus di eventi PARTITA.on(...) per i moduli dedicati
-// (Assassino.js, Innocente.js) + esecuzione dell'eliminazione
-// pianificata (kill_at) da parte del pulitore.
-// Stile anti-manomissione: solo commenti //, select() senza
+// PARTITA.JS v2.0 - nuovo motore: assassino occulto, loop
+// uccisioni del Sistema, indagini dell'Ispettore, fine con
+// ruoli veri. Rivelazione sincronizzata (ready) + reset.
+// Stile anti-manomissione: commenti //, select() senza
 // argomenti, apostrofi solo dentro virgolette doppie.
 (function(){
-  console.log('[PARTITA] partita.js caricato v1.4');
+  console.log('[PARTITA] partita.js caricato v2.0');
 
   if(!guardConfig()) return;
 
   const uid    = getUid();
   const myName = getPlayerName() || 'Sconosciuto';
   const stored = getCurrentRoom();
-  if(!stored){
-    console.warn('[PARTITA] nessuna stanza salvata: torno al menu');
-    location.replace('index.html');
-    return;
-  }
-
+  if(!stored){ location.replace('index.html'); return; }
   const roomId = stored.id;
 
   const el = {
-    roomName:      document.getElementById('roomName'),
-    codeText:      document.getElementById('codeText'),
-    codeChip:      document.getElementById('codeChip'),
-    copyHint:      document.getElementById('copyHint'),
-    btnExit:       document.getElementById('btnExit'),
-    timerText:     document.getElementById('timerText'),
-    roleTag:       document.getElementById('roleTag'),
-    myRole:        document.getElementById('myRole'),
-    myCode:        document.getElementById('myCode'),
-    myWordRow:     document.getElementById('myWordRow'),
-    myWord:        document.getElementById('myWord'),
-    myHint:        document.getElementById('myHint'),
-    playerList:    document.getElementById('playerList'),
-    playerCount:   document.getElementById('playerCount'),
-    chatLog:       document.getElementById('chatLog'),
-    chatForm:      document.getElementById('chatForm'),
-    chatInput:     document.getElementById('chatInput'),
-    reveal:        document.getElementById('reveal'),
-    flipCard:      document.getElementById('flipCard'),
-    revealRole:    document.getElementById('revealRole'),
-    revealDesc:    document.getElementById('revealDesc'),
-    revealCode:    document.getElementById('revealCode'),
-    revealWordRow: document.getElementById('revealWordRow'),
-    revealWord:    document.getElementById('revealWord'),
-    btnEnter:      document.getElementById('btnEnter')
+    roomName:    document.getElementById('roomName'),
+    codeText:    document.getElementById('codeText'),
+    codeChip:    document.getElementById('codeChip'),
+    copyHint:    document.getElementById('copyHint'),
+    btnExit:     document.getElementById('btnExit'),
+    timerText:   document.getElementById('timerText'),
+    roleTag:     document.getElementById('roleTag'),
+    myRole:      document.getElementById('myRole'),
+    myCode:      document.getElementById('myCode'),
+    myHint:      document.getElementById('myHint'),
+    playerList:  document.getElementById('playerList'),
+    playerCount: document.getElementById('playerCount'),
+    chatLog:     document.getElementById('chatLog'),
+    chatForm:    document.getElementById('chatForm'),
+    chatInput:   document.getElementById('chatInput'),
+    reveal:      document.getElementById('reveal'),
+    flipCard:    document.getElementById('flipCard'),
+    revealRole:  document.getElementById('revealRole'),
+    revealDesc:  document.getElementById('revealDesc'),
+    revealCode:  document.getElementById('revealCode'),
+    btnEnter:    document.getElementById('btnEnter'),
+    overlayAttesa: document.getElementById('overlayAttesa'),
+    attesaCount:   document.getElementById('attesaCount'),
+    overlayFine:   document.getElementById('overlayFine'),
+    fineTitolo:    document.getElementById('fineTitolo'),
+    fineRuoli:     document.getElementById('fineRuoli'),
+    btnFine:       document.getElementById('btnFine')
   };
 
   function loud(msg){
@@ -59,46 +55,32 @@
 
   function explain(err){
     const m = (err && err.message) || String(err);
-    if(/does not exist/i.test(m))     return 'tabelle mancanti: esegui database.sql.';
-    if(/role|secret_word|started_at|alive/i.test(m)) return 'mancano le colonne della partita: esegui il nuovo database.sql.';
-    if(/kill_at|kill_target_uid|kill_by_uid/i.test(m)) return 'mancano le colonne della eliminazione: esegui le 3 righe SQL dello Step 3.';
+    if(/does not exist/i.test(m)) return 'tabelle mancanti: esegui database.sql.';
+    if(/clue|next_kill_at|indagini_usate|skip_usati|card/i.test(m)) return 'mancano le colonne dello Step 5: esegui le righe SQL nuove.';
+    if(/ready|phase|winner/i.test(m)) return 'mancano le colonne dello Step 4: esegui le righe SQL.';
     if(/Failed to fetch|NetworkError/i.test(m)) return 'Supabase non raggiungibile.';
     if(/JWT|API key|apikey/i.test(m)) return 'anon key sbagliata in config.js.';
     return m;
   }
 
   const miss = Object.keys(el).filter(function(k){ return !el[k]; });
-  if(miss.length){
-    loud('partita.html incompleta: mancano ' + miss.join(', '));
-    return;
-  }
+  if(miss.length){ loud('partita.html incompleta: mancano ' + miss.join(', ')); return; }
 
-  // RUOLI: testi con apostrofi dentro virgolette doppie
+  // ruoli VERI; all'assassino mostriamo "Innocente" (non sa)
   const ROLE_INFO = {
-    assassino: {
-      tag:  'Assassino',
-      desc: "Colpisci nell'ombra e non farti scoprire. Gli altri conoscono una parola segreta: osserva, ascolta e fingi di conoscerla anche tu."
-    },
-    detective: {
-      tag:  'Detective',
-      desc: "Conosci la parola segreta. Usala per riconoscere gli innocenti e smascherare l'assassino prima che colpisca."
-    },
-    innocente: {
-      tag:  'Innocente',
-      desc: "Conosci la parola segreta. Diffida di chi non sa ripeterla: l'assassino è seduto al tuo stesso tavolo."
-    }
+    assassino: { tag: 'Assassino', desc: "Sei l'ombra al tavolo. Nessuno sa, nemmeno tu: confonditi tra gli innocenti e lascia che il Sistema mietano le vittime." },
+    detective: { tag: 'Ispettore', desc: "Solo tu vedi l'indizio sull'assassino. Indaga, escludi, e quando sei pronto: elimina. Un solo tentativo." },
+    innocente: { tag: 'Innocente', desc: "Una vittima cade ogni pochi secondi. Osserva, parla, sopravvivi: l'assassino è tra voi e non sa di esserlo." }
   };
+  // descrizione "pubblica" del ruolo: l'assassino si crede innocente
+  function ruoloVisto(r){ return (r === 'assassino') ? 'innocente' : r; }
 
   let running = true, beatN = 0, lastChatId = 0;
-  let room = null;
-  let lastPlayers = [];
-  let myRole = 'innocente', myCode = '—', myWord = null;
-  let isHost = false;
+  let room = null, lastPlayers = [];
+  let myRole = 'innocente', myCode = '—';
+  let isHost = false, readySent = false, timerStarted = false, fineVista = false;
   const seenPlayers = new Set();
 
-  // ---------------- BUS EVENTI + API PER I MODULI ----------------
-  // Assassino.js e Innocente.js si agganciano qui senza toccare
-  // la logica della partita: eventi 'ready', 'players', 'room'.
   const BUS = {
     map: {},
     on: function(evt, fn){ (BUS.map[evt] = BUS.map[evt] || []).push(fn); },
@@ -109,12 +91,14 @@
     }
   };
 
-  function isFresh(p){
-    return (Date.now() - Date.parse(p.last_seen)) <= OFFLINE_AFTER_MS;
+  function isFresh(p){ return (Date.now() - Date.parse(p.last_seen)) <= OFFLINE_AFTER_MS; }
+  function deviceText(p){ return p.device ? deviceLabel(p.device) : '❓ Sconosciuto'; }
+  function statoDi(p){
+    if(!isFresh(p)) return 'disconnesso';
+    return (p.alive === false) ? 'eliminato' : 'vivo';
   }
-  function deviceText(p){
-    return p.device ? deviceLabel(p.device) : '❓ Sconosciuto';
-  }
+  function roleOf(p){ return unscramble(p.role, p.uid) || 'innocente'; }
+  function winnerMsg(w){ return (w === 'assassino') ? "🏆 Vince l'Assassino!" : "🏆 Vince l'Ispettore!"; }
 
   window.PARTITA = {
     getRoomId: function(){ return roomId; },
@@ -132,60 +116,46 @@
 
   init();
 
-  // ---------------- INIT ----------------
   async function init(){
-    console.log('[PARTITA] init, stanza:', roomId);
     try{
       const res = await db.from('rooms').select().eq('id', roomId).maybeSingle();
-      if(res.error){
-        loud('Errore database: ' + explain(res.error) + ' (torno al menu tra 3s)');
-        setTimeout(function(){ clearCurrentRoom(); location.replace('index.html'); }, 3000);
-        return;
-      }
-      if(!res.data){
-        loud('Stanza non trovata su Supabase (torno al menu tra 3s)');
-        setTimeout(function(){ clearCurrentRoom(); location.replace('index.html'); }, 3000);
-        return;
-      }
+      if(res.error){ loud('Errore database: ' + explain(res.error), 3000); return; }
+      if(!res.data){ loud('Stanza non trovata (torno al menu tra 3s)', 3000); return; }
       room = res.data;
-
       if(room.status !== 'playing'){
         location.replace(room.status === 'lobby' ? 'lobby.html' : 'index.html');
         return;
       }
-
       const meRes = await db.from('players').select()
         .eq('room_id', roomId).eq('uid', uid).maybeSingle();
-      if(meRes.error || !meRes.data){
-        console.warn('[PARTITA] non sono al tavolo: torno in lobby');
-        location.replace('lobby.html');
-        return;
-      }
+      if(meRes.error || !meRes.data){ location.replace('lobby.html'); return; }
 
       isHost = room.host_uid === uid;
-
-      // decifro SOLO i miei segreti: la chiave del ruolo e il mio uid
-      myRole = unscramble(meRes.data.role, uid) || 'innocente';
+      myRole = roleOf(meRes.data) || 'innocente';
       if(!ROLE_INFO[myRole]) myRole = 'innocente';
       myCode = meRes.data.code || '—';
-      // la parola la decifro solo se NON sono l'assassino
-      myWord = (myRole === 'assassino') ? null
-                                      : unscramble(room.secret_word || '', roomId);
-      console.log('[PARTITA] ruolo:', myRole, '| codice:', myCode, '| parola:', myWord ? 'sì' : 'no (assassino)');
 
       el.roomName.textContent = room.name;
       el.codeText.textContent = room.code;
-      fillReveal();
+
+      if(room.phase === 'fine'){ mostraFine(); return; }
+
+      if(room.phase === 'live'){
+        el.reveal.hidden = true;
+        if(room.started_at){ startTimer(room.started_at); timerStarted = true; }
+      } else if(meRes.data.ready === true){
+        readySent = true;
+        el.reveal.hidden = true;
+        el.overlayAttesa.hidden = false;
+      } else {
+        fillReveal();
+        el.reveal.hidden = false;
+        setTimeout(function(){ el.flipCard.classList.add('flipped'); }, 650);
+      }
       fillMyCard();
-      startTimer(room.started_at);
 
-      el.reveal.hidden = false;
-      setTimeout(function(){ el.flipCard.classList.add('flipped'); }, 650);
-
-      // i moduli dedicati possono agganciarsi
       BUS.emit('ready', { role: myRole });
       BUS.emit('room', room);
-
       beat();
     }catch(err){
       console.error('[PARTITA] init fallita:', err);
@@ -193,64 +163,60 @@
     }
   }
 
-  // ---------------- RIVELAZIONE + LA TUA CARTA ----------------
-  function fillReveal(){
-    const info = ROLE_INFO[myRole];
-    el.revealRole.textContent = info.tag;
-    el.revealRole.className = 'reveal-role ' + myRole;
-    el.revealDesc.textContent = info.desc;
-    el.revealCode.textContent = myCode;
-    if(myWord){
-      el.revealWord.textContent = myWord;
-      el.revealWordRow.hidden = false;
-    } else {
-      el.revealWordRow.hidden = true;
-    }
+  function loud2(){ } // placeholder rimosso
+  // (uso diretto di loud con timeout dove serve)
+  function loudMsg(msg, ms){
+    loud(msg);
+    setTimeout(function(){ clearCurrentRoom(); location.replace('index.html'); }, ms || 3000);
   }
 
+  // ---------------- rivelazione (ruolo VISTO: assassino=innocente) ----------------
+  function fillReveal(){
+    const visto = ruoloVisto(myRole);
+    const info = ROLE_INFO[visto];
+    el.revealRole.textContent = info.tag;
+    el.revealRole.className = 'reveal-role ' + visto;
+    el.revealDesc.textContent = info.desc;
+    el.revealCode.textContent = myCode;
+  }
   function fillMyCard(){
-    const info = ROLE_INFO[myRole];
+    const visto = ruoloVisto(myRole);
+    const info = ROLE_INFO[visto];
     el.roleTag.textContent = info.tag;
-    el.roleTag.className = 'count role-tag ' + myRole;
+    el.roleTag.className = 'count role-tag ' + visto;
     el.myRole.textContent = info.tag;
-    el.myRole.className = 'my-role ' + myRole;
+    el.myRole.className = 'my-role ' + visto;
     el.myCode.textContent = myCode;
-    if(myWord){
-      el.myWord.textContent = myWord;
-      el.myWordRow.hidden = false;
-    } else {
-      el.myWordRow.hidden = true;
-    }
     el.myHint.textContent = info.desc;
   }
 
-  el.btnEnter.addEventListener('click', function(){
+  el.btnEnter.addEventListener('click', async function(){
+    if(readySent) return;
+    readySent = true;
+    el.btnEnter.disabled = true;
+    await db.from('players').update({ ready: true })
+      .eq('room_id', roomId).eq('uid', uid);
     el.reveal.hidden = true;
-    showToast('Buona caccia, ' + myName);
+    el.overlayAttesa.hidden = false;
   });
 
-  // ---------------- TIMER (uguale per tutti) ----------------
+  // ---------------- timer ----------------
   function startTimer(startedAt){
     const t0 = Date.parse(startedAt) || Date.now();
     const pad = function(n){ return String(n).padStart(2, '0'); };
     const tick = function(){
-      const s  = Math.max(0, Math.floor((Date.now() - t0) / 1000));
-      const h  = Math.floor(s / 3600);
-      const m  = Math.floor((s % 3600) / 60);
-      const ss = s % 60;
-      el.timerText.textContent = h
-        ? h + ':' + pad(m) + ':' + pad(ss)
-        : pad(m) + ':' + pad(ss);
+      const s = Math.max(0, Math.floor((Date.now() - t0) / 1000));
+      const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60;
+      el.timerText.textContent = h ? h + ':' + pad(m) + ':' + pad(ss) : pad(m) + ':' + pad(ss);
     };
     tick();
     setInterval(function(){ if(running) tick(); }, 1000);
   }
 
-  // ---------------- SUCCESSIONE DEL CAPO ----------------
+  // ---------------- successione capo ----------------
   async function promoteNewHost(candidates){
     if(!candidates || !candidates.length) return null;
     const pick = candidates[Math.floor(Math.random() * candidates.length)];
-    console.log('[PARTITA] nuovo capo stanza proclamato:', pick.name);
     await db.from('rooms').update({ host_uid: pick.uid }).eq('id', roomId);
     await db.from('players').update({ is_host: false }).eq('room_id', roomId);
     await db.from('players').update({ is_host: true }).eq('id', pick.id);
@@ -258,24 +224,43 @@
     return pick;
   }
 
-  // ---------------- PARTITA ANNULLATA: MENO DI 3 VIVI ----------------
+  // ---------------- annullamento (disconnessioni, niente winner) ----------------
   async function cancelGame(){
-    console.log('[PARTITA] troppo pochi agenti vivi: partita annullata, si torna in lobby');
     running = false;
     try{
       await db.from('rooms').update({ status: 'lobby' }).eq('id', roomId);
-      await sysMessage(roomId, '⚠ Troppo pochi agenti al tavolo: la partita è annullata, si torna in lobby.');
+      await sysMessage(roomId, '⚠ Troppo pochi agenti al tavolo: partita annullata, si torna in lobby.');
     }catch(e){}
+    BUS.emit('reset');
+    await resetPartita(roomId);
     showToast('Partita annullata: si torna in lobby', false);
     setTimeout(function(){ location.replace('lobby.html'); }, 1500);
   }
 
-  // ---------------- HEARTBEAT (ogni 0.5s) ----------------
+  // ---------------- overlay fine con ruoli VERI ----------------
+  function mostraFine(){
+    if(fineVista) return;
+    fineVista = true;
+    running = false;
+    el.fineTitolo.textContent = winnerMsg(room.winner || 'assassino');
+    const ps = lastPlayers.length ? lastPlayers : [];
+    el.fineRuoli.innerHTML = ps.map(function(p){
+      const r = roleOf(p);
+      return '<li class="fine-voce"><b>' + escapeHtml(p.name) + '</b> — ' + ROLE_INFO[r].tag + '</li>';
+    }).join('');
+    el.overlayFine.hidden = false;
+  }
+
+  el.btnFine.addEventListener('click', async function(){
+    await db.from('rooms').update({ status: 'lobby' }).eq('id', roomId);
+    location.replace('lobby.html');
+  });
+
+  // ---------------- heartbeat ----------------
   async function beat(){
     if(!running) return;
     beatN++;
     try{
-      // 1) il mio battito. Se la mia riga e sparita, esco dalla partita
       if(beatN % PRESENCE_EVERY === 1){
         const t = await db.from('players')
           .update({ online: true, device: getDeviceType(), last_seen: new Date().toISOString() })
@@ -290,69 +275,61 @@
         }
       }
 
-      // 2) il tavolo: pulizia + eliminazione pianificata + numero
-      //    minimo. Gira anche a scheda nascosta.
       const pl = await db.from('players').select().eq('room_id', roomId);
       if(!pl.error && pl.data){
         let players = pl.data;
         if(iAmCleaner(players)){
           players = await cleanup(players);
-
           const hostAlive = players.some(function(p){ return p.is_host && p.alive !== false; });
           if(!hostAlive && players.length){
             const pick = await promoteNewHost(players);
-            if(pick){
-              players.forEach(function(q){ q.is_host = (q.uid === pick.uid); });
+            if(pick) players.forEach(function(q){ q.is_host = (q.uid === pick.uid); });
+          }
+          // reveal -> live quando tutti i connessi hanno letto il ruolo
+          if(room && room.phase === 'reveal'){
+            const freschi = players.filter(isFresh);
+            const pronti = freschi.filter(function(p){ return p.ready === true; });
+            if(freschi.length > 0 && pronti.length >= freschi.length){
+              const ora = new Date().toISOString();
+              await db.from('rooms').update({
+                phase: 'live', started_at: ora,
+                next_kill_at: new Date(Date.now() + 5000).toISOString()
+              }).eq('id', roomId);
+              room.phase = 'live'; room.started_at = ora;
+              await sysMessage(roomId, '⚔ Tutti pronti: la caccia comincia!');
             }
           }
-
-          // ELIMINAZIONE: quando scade kill_at, il pulitore la esegue
-          if(room && room.kill_at && room.kill_target_uid){
-            const scad = Date.parse(room.kill_at);
-            if(!isNaN(scad) && Date.now() >= scad){
-              const bersaglio = players.find(function(p){ return p.uid === room.kill_target_uid; });
-              if(bersaglio && bersaglio.alive !== false){
-                await db.from('players').update({ alive: false }).eq('id', bersaglio.id);
-                await sysMessage(roomId, '☠ ' + escapeHtml(bersaglio.name) + ' è stato eliminato.');
-                console.log('[PARTITA] eliminazione eseguita:', bersaglio.name);
-                bersaglio.alive = false;
-              }
-            }
-          }
-
-          // REGOLA: meno di 3 agenti vivi = partita annullata
-          const viviOra = players.filter(function(p){ return isFresh(p); }).length;
-          if(viviOra < 3){
-            await cancelGame();
-            return;
+          // il Sistema (Sistema.js) riceve il turno di pulizia
+          BUS.emit('cleaner', players);
+          // annullamento per disconnessioni (mai dopo una vittoria)
+          if(room && room.phase !== 'fine' && !room.winner){
+            const connessi = players.filter(isFresh);
+            if(connessi.length < 3){ await cancelGame(); return; }
           }
         }
         lastPlayers = players;
         if(!document.hidden){
           renderPlayers(players);
           BUS.emit('players', players);
+          aggiornaAttesa(players);
         }
       }
 
-      // 3) scheda nascosta: il cuore batte, la grafica no
       if(document.hidden){ schedule(); return; }
-
-      // 4) chat
       await refreshChat();
 
-      // 5) stato stanza + campi eliminazione + cambio capo
       if(beatN % PRESENCE_EVERY === 2){
         const st = await db.from('rooms')
-          .select('status, host_uid, kill_target_uid, kill_by_uid, kill_at')
+          .select('status, host_uid, phase, started_at, winner, clue, next_kill_at, last_kill_at, last_kill_uid, indagini_usate, skip_usati')
           .eq('id', roomId).maybeSingle();
         if(st.data){
-          room.status          = st.data.status;
-          room.host_uid        = st.data.host_uid;
-          room.kill_target_uid = st.data.kill_target_uid;
-          room.kill_by_uid     = st.data.kill_by_uid;
-          room.kill_at         = st.data.kill_at;
-
+          Object.assign(room, st.data);
+          if(room.phase === 'fine'){ mostraFine(); BUS.emit('room', room); return; }
           if(room.status !== 'playing'){ location.replace('lobby.html'); return; }
+          if(room.phase === 'live'){
+            el.overlayAttesa.hidden = true;
+            if(!timerStarted && room.started_at){ startTimer(room.started_at); timerStarted = true; }
+          }
           const nowHost = (room.host_uid === uid);
           if(nowHost !== isHost){
             isHost = nowHost;
@@ -375,17 +352,19 @@
 
   function schedule(){ setTimeout(beat, HEARTBEAT_MS); }
 
-  // Chi fa le pulizie (ed esegue il colpo): il capo vivo; se il capo
-  // e un fantasma o e morto, il giocatore VIVO in linea da piu tempo.
+  function aggiornaAttesa(players){
+    if(!room || room.phase !== 'reveal' || !readySent) return;
+    const freschi = players.filter(isFresh);
+    const pronti = freschi.filter(function(p){ return p.ready === true; });
+    el.attesaCount.textContent = pronti.length + '/' + freschi.length;
+  }
+
   function iAmCleaner(players){
     const me = players.find(function(p){ return p.uid === uid; });
     if(!me || me.alive === false) return false;
     if(isHost && isFresh(me)) return true;
-
     const host = players.find(function(p){ return p.is_host; });
-    const hostFresh = host && isFresh(host) && host.alive !== false;
-    if(hostFresh) return false;
-
+    if(host && isFresh(host) && host.alive !== false) return false;
     const vivi = players
       .filter(function(p){ return p.online && isFresh(p) && p.alive !== false; })
       .sort(function(a, b){ return new Date(a.joined_at) - new Date(b.joined_at); });
@@ -397,22 +376,15 @@
     for(const p of players){
       if(!isFresh(p)){
         const del = await db.from('players').delete().eq('id', p.id);
-        if(del.error){
-          console.warn('[PARTITA] rimozione fallita per', p.name, del.error);
-          kept.push(p);
-        } else {
+        if(!del.error){
           await sysMessage(roomId, escapeHtml(p.name) + ' ha perso la connessione.');
           seenPlayers.delete(p.uid);
-          console.log('[PARTITA] rimosso dal tavolo:', p.name);
-        }
-      } else {
-        kept.push(p);
-      }
+        } else { kept.push(p); }
+      } else { kept.push(p); }
     }
     return kept;
   }
 
-  // ---------------- IL TAVOLO (nessun ruolo visibile) ----------------
   function renderPlayers(players){
     const presenti = players
       .filter(function(p){ return p.online !== false; })
@@ -421,63 +393,49 @@
             || (b.is_host - a.is_host)
             || (new Date(a.joined_at) - new Date(b.joined_at));
       });
-
     const inGioco = presenti.filter(function(p){ return p.alive !== false; }).length;
     el.playerCount.textContent = inGioco + ' agenti in gioco';
     el.playerList.innerHTML = '';
-
     for(const p of presenti){
       const isNew = !seenPlayers.has(p.uid);
       seenPlayers.add(p.uid);
-
       const dead = (p.alive === false);
       const li = document.createElement('li');
       li.className = 'player' + (p.is_host ? ' host' : '') + (isNew ? ' new' : '') + (dead ? ' eliminated' : '');
-
       const avatar = document.createElement('div');
       avatar.className = 'avatar';
       avatar.textContent = dead ? '†' : p.name.charAt(0).toUpperCase();
-
       const meta = document.createElement('div');
       meta.className = 'p-meta';
       meta.innerHTML =
         '<span class="p-name">' + escapeHtml(p.name) + '</span>' +
         '<span class="p-device">' + deviceText(p) + '</span>' +
         (p.uid === uid ? '<span class="p-you">(TU)</span>' : '') +
-        (dead ? '<span class="badge-dead">ELIMINATO</span>' : '') +
+        (dead ? '<span class="badge-dead">VITTIMA</span>' : '') +
+        (room && room.phase === 'reveal' && p.ready === true ? '<span class="badge-ready">PRONTO</span>' : '') +
         (p.is_host ? '<span class="badge-host">CAPO STANZA</span>' : '');
-
       const dot = document.createElement('span');
       dot.className = 'dot ' + (dead ? 'off' : 'on');
-
-      li.appendChild(avatar);
-      li.appendChild(meta);
-      li.appendChild(dot);
+      li.appendChild(avatar); li.appendChild(meta); li.appendChild(dot);
       el.playerList.appendChild(li);
     }
   }
 
-  // ---------------- CHAT ----------------
+  // ---------------- chat ----------------
   async function refreshChat(){
     const res = await db.from('chat_messages').select()
       .eq('room_id', roomId).order('id', { ascending: true }).limit(200);
     if(res.error || !res.data) return;
-
     const msgs = res.data;
     const newest = msgs.length ? msgs[msgs.length - 1].id : 0;
     if(newest === lastChatId) return;
     lastChatId = newest;
-
-    const nearBottom =
-      el.chatLog.scrollHeight - el.chatLog.scrollTop - el.chatLog.clientHeight < 90;
-
+    const near = el.chatLog.scrollHeight - el.chatLog.scrollTop - el.chatLog.clientHeight < 90;
     el.chatLog.innerHTML = '';
     for(const m of msgs){
       const div = document.createElement('div');
-      if(m.is_system){
-        div.className = 'msg system';
-        div.textContent = m.message;
-      } else {
+      if(m.is_system){ div.className = 'msg system'; div.textContent = m.message; }
+      else {
         div.className = 'msg' + (m.sender === myName ? ' mine' : '');
         const who = document.createElement('span');
         who.className = 'who';
@@ -487,7 +445,7 @@
       }
       el.chatLog.appendChild(div);
     }
-    if(nearBottom) el.chatLog.scrollTop = el.chatLog.scrollHeight;
+    if(near) el.chatLog.scrollTop = el.chatLog.scrollHeight;
   }
 
   el.chatForm.addEventListener('submit', async function(e){
@@ -495,50 +453,35 @@
     const text = el.chatInput.value.trim();
     if(!text) return;
     el.chatInput.value = '';
-    await db.from('chat_messages').insert({
-      room_id: roomId, sender: myName, message: text, is_system: false
-    });
+    await db.from('chat_messages').insert({ room_id: roomId, sender: myName, message: text, is_system: false });
     refreshChat();
   });
 
-  // ---------------- COPIA CODICE ----------------
+  // ---------------- copia codice ----------------
   el.codeChip.addEventListener('click', async function(){
     const code = el.codeText.textContent.trim();
-    try{
-      await navigator.clipboard.writeText(code);
-    }catch(e){
+    try{ await navigator.clipboard.writeText(code); }
+    catch(e){
       const ta = document.createElement('textarea');
-      ta.value = code;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      ta.remove();
+      ta.value = code; document.body.appendChild(ta);
+      ta.select(); document.execCommand('copy'); ta.remove();
     }
     el.codeChip.classList.add('copied');
     el.copyHint.textContent = 'COPIATO ✓';
     showToast('Codice ' + code + ' copiato');
-    setTimeout(function(){
-      el.codeChip.classList.remove('copied');
-      el.copyHint.textContent = 'COPIA';
-    }, 1600);
+    setTimeout(function(){ el.codeChip.classList.remove('copied'); el.copyHint.textContent = 'Copia'; }, 1600);
   });
 
-  // ---------------- ESCI (Politica A) ----------------
+  // ---------------- esci (Politica A) ----------------
   el.btnExit.addEventListener('click', async function(){
     running = false;
     try{
       const pl = await db.from('players').select().eq('room_id', roomId);
-      const altriVivi = (pl.data || []).filter(function(p){
-        return p.uid !== uid && isFresh(p);
-      });
-
-      if(altriVivi.length === 0){
-        console.log("[PARTITA] ero l'ultimo giocatore: elimino la stanza");
+      const altri = (pl.data || []).filter(function(p){ return p.uid !== uid && isFresh(p); });
+      if(altri.length === 0){
         await db.from('rooms').delete().eq('id', roomId);
       } else {
-        if(isHost){
-          await promoteNewHost(altriVivi);
-        }
+        if(isHost) await promoteNewHost(altri);
         await db.from('players').delete().eq('room_id', roomId).eq('uid', uid);
         await sysMessage(roomId, escapeHtml(myName) + ' ha abbandonato la partita.');
       }
@@ -546,7 +489,4 @@
     clearCurrentRoom();
     location.href = 'index.html';
   });
-
-  // chiusura scheda: NON cancello la mia riga qui;
-  // ci pensa la pulizia degli altri entro 5s.
 })();
