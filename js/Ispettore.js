@@ -1,6 +1,5 @@
-// ISPETTORE.JS v2.4 - flusso eliminazione completo SENZA auto-no.
-// Timer bloccato dalla vittima fino a NO o Fine ispezione.
-// Il detective decide con calma: solo Sì o No manuali.
+// ISPETTORE.JS v2.5 - overlay "Hai letto l'indizio?" prima della notifica.
+// Flusso: vittima -> overlay "Vai a leggere l'indizio" -> click "Hai letto?" -> notifica Sì/No.
 (function(){
   const KILL_MS = 12000;
   let el = null, clue = null, seenKill = null;
@@ -24,6 +23,7 @@
     PARTITA.on('reset', function(){
       seenKill = null; bersaglioIndagine = null; campoScelto = null; bersaglioElimina = null;
       if(el){
+        el.leggi.hidden = true;
         el.notif.hidden = true;
         el.ind.hidden = true;
         el.elim.hidden = true;
@@ -54,6 +54,8 @@
       clueText:  document.getElementById('clueText'),
       btnTab:    document.getElementById('btnTabella'),
       btnElim:   document.getElementById('btnElimina'),
+      leggi:     document.getElementById('overlayLeggiIndizio'),
+      btnLeggi:  document.getElementById('btnHaiLetto'),
       notif:     document.getElementById('overlayNotifica'),
       notifTesto:document.getElementById('notifTesto'),
       btnSi:     document.getElementById('btnNotifSi'),
@@ -83,6 +85,7 @@
 
     el.btnTab.addEventListener('click', function(){ el.tab.hidden = false; renderTabella(); });
     el.tabChiudi.addEventListener('click', function(){ el.tab.hidden = true; });
+    el.btnLeggi.addEventListener('click', mostraNotifica);
     el.btnSi.addEventListener('click', doSi);
     el.btnNo.addEventListener('click', doNo);
     el.indOk.addEventListener('click', commitIndagine);
@@ -109,27 +112,34 @@
 
     const ind = room.indagini_usate || 0, sk = room.skip_usati || 0;
     if(ind >= 3 && sk >= 2) return;
-    apriNotifica(vit ? vit.name : 'Qualcuno', ind, sk);
+    apriLeggiIndizio();
   }
 
-  function apriNotifica(nomeVittima, ind, sk){
-    el.notifTesto.textContent = 'Nuova vittima: ' + nomeVittima + '. Il timer di eliminazione è BLOCCATO.';
+  // PASSO 1: overlay "Vai a leggere l'indizio"
+  function apriLeggiIndizio(){
+    el.leggi.hidden = false;
+    el.notif.hidden = true;
+  }
+
+  // PASSO 2: dopo "Hai letto?", mostra la notifica Sì/No
+  function mostraNotifica(){
+    el.leggi.hidden = true;
+    const room = PARTITA.getRoom();
+    const ind = room.indagini_usate || 0, sk = room.skip_usati || 0;
+    el.notifTesto.textContent = 'Nuova vittima. Il timer di eliminazione è BLOCCATO.';
     el.btnSi.textContent = 'Sì, indago (' + (3 - ind) + ' rimaste)';
     el.btnNo.textContent = 'No, skip (' + (2 - sk) + ' rimasti)';
     el.btnSi.disabled = ind >= 3;
     el.btnNo.disabled = sk >= 2;
     el.notif.hidden = false;
-    // NESSUN countdown, NESSUN autoTick
   }
 
-  // sblocca il timer (chiamato SOLO da No e Fine ispezione)
   async function sbloccaTimer(){
     await PARTITA.dbRef().from('rooms').update({
       next_kill_at: new Date(Date.now() + KILL_MS).toISOString()
     }).eq('id', PARTITA.getRoomId());
   }
 
-  // PASSO 1: scegli la persona. Timer ANCORA BLOCCATO.
   function doSi(){
     el.notif.hidden = true;
     bersaglioIndagine = null; campoScelto = null;
@@ -158,7 +168,6 @@
     el.ind.hidden = false;
   }
 
-  // PASSO 2: scegli QUALE informazione. Timer ANCORA BLOCCATO.
   function mostraCampi(p){
     el.indEsito.textContent = 'Ora scegli quale informazione verificare.';
     el.indEsito.className = 'indagine-esito';
@@ -185,7 +194,6 @@
     });
   }
 
-  // PASSO 3: FINE ISPEZIONE -> conta l'indagine e SBLOCCA il timer
   async function commitIndagine(){
     if(!bersaglioIndagine || !campoScelto) return;
     const room = PARTITA.getRoom();
@@ -207,7 +215,6 @@
     showToast('Ispezione chiusa (' + n + '/3): timer sbloccato');
   }
 
-  // No: il timer si sblocca subito, skip consumato
   async function doNo(){
     el.notif.hidden = true;
     const room = PARTITA.getRoom();
