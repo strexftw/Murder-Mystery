@@ -1,7 +1,6 @@
-// UTILS.JS v4.3 - identita, codici, toast, messaggi, reset.
-// v4.3: resetPartita azzera anche intro_at (nuova intro a ogni partita).
+// UTILS.JS v4.2 - identita, codici, toast, messaggi, reset.
 // Stile anti-manomissione: solo commenti //, niente entita letterali,
-// niente backslash problematici. Richiede database.txt Step 1 -> 8.
+// niente backslash. Richiede il database.txt completo Step 1 -> 7.
 
 function getUid(){
   let u = localStorage.getItem('assassino_uid');
@@ -129,12 +128,13 @@ function getDeviceType(){
 
 function deviceLabel(type){
   if(type === 'phone')  return '\ud83d\udcf1 Telefono';
-  if(type === 'tablet') return '\ud83d\udcdf Tablet';
+  if(type === 'tablet') return '\ud83d\udfdf Tablet';
   return '\ud83d\udcbb PC';
 }
 
 // RESET UNICO partita (DB).
-// v4.3: azzera anche intro_at, last_victim_clue, clue_read_at.
+// v4.2: azzera anche last_victim_clue e clue_read_at, cosi il segnale
+// "il detective ha letto" non resta sporco tra una partita e l'altra.
 async function resetPartita(roomId){
   if (typeof db === 'undefined' || !db) return;
   await db.from('players').update({
@@ -143,7 +143,7 @@ async function resetPartita(roomId){
   await db.from('rooms').update({
     started_at: null, phase: 'reveal', winner: null,
     clue: null, next_kill_at: null, last_kill_at: null, last_kill_uid: null,
-    last_victim_clue: null, clue_read_at: null, intro_at: null,
+    last_victim_clue: null, clue_read_at: null,
     indagini_usate: 0, skip_usati: 0
   }).eq('id', roomId);
   console.log('[UTILS] resetPartita eseguito per', roomId);

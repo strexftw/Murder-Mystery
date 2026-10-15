@@ -1,10 +1,9 @@
-// LOBBY.JS v5.3 - logica della lobby (lobby.html)
-// v5.3: startGame scrive anche intro_at (broadcast intro video).
-// Nessuna promozione casuale del capo in beat (fix bug doppio capo).
-// Nessun pickSecretWord: usa generaCarte + scegliIndizio (Step 5).
+// LOBBY.JS v5.2 - logica della lobby (lobby.html)
+// v5.2: startGame usa generaCarte() e scegliIndizio() (nuovo motore Step 5).
+// Salva assassin_card e clue_field nel DB per Sistema.js.
 // Stile anti-manomissione: solo commenti //, select() senza argomenti.
 (function(){
-  console.log('[LOBBY] lobby.js caricato v5.3');
+  console.log('[LOBBY] lobby.js caricato v5.2');
   if(!guardConfig()) return;
 
   const uid    = getUid();
@@ -15,6 +14,7 @@
     location.replace('index.html');
     return;
   }
+
   const roomId = stored.id;
 
   const el = {
@@ -46,8 +46,6 @@
   function explain(err){
     const m = (err && err.message) || String(err);
     if(/does not exist/i.test(m))     return 'tabelle mancanti: esegui database.txt.';
-    if(/intro_at/i.test(m))           return 'manca la colonna intro_at: esegui lo Step 8.';
-    if(/clue_read_at|last_victim_clue|assassin_card|clue_field/i.test(m)) return 'mancano le colonne Step 6/7: esegui database.txt.';
     if(/card|clue|next_kill_at|indagini_usate|skip_usati/i.test(m)) return 'mancano le colonne Step 5: esegui database.txt.';
     if(/ready|phase|winner/i.test(m)) return 'mancano le colonne Step 4: esegui database.txt.';
     if(/device/i.test(m))             return 'manca la colonna device: esegui database.txt.';
@@ -57,7 +55,10 @@
   }
 
   const miss = Object.keys(el).filter(function(k){ return !el[k]; });
-  if(miss.length){ loud('lobby.html incompleta: mancano ' + miss.join(', ')); return; }
+  if(miss.length){
+    loud('lobby.html incompleta: mancano ' + miss.join(', '));
+    return;
+  }
 
   let isHost = false, running = true, beatN = 0, lastChatId = 0;
   let stayAtTable = false;
@@ -67,7 +68,7 @@
   el.codeText.textContent = stored.code || '······';
 
   function isFresh(p){ return (Date.now() - Date.parse(p.last_seen)) <= OFFLINE_AFTER_MS; }
-  function deviceText(p){ return p.device ? deviceLabel(p.device) : '❓ Sconosciuto'; }
+  function deviceText(p){ return p.device ? deviceLabel(p.device) : ' Sconosciuto'; }
 
   init();
 
@@ -119,7 +120,6 @@
     }
   }
 
-  // promozione SOLO su abbandono volontario (btnExit), mai in beat
   async function promoteNewHost(candidates){
     if(!candidates || !candidates.length) return null;
     const pick = candidates[Math.floor(Math.random() * candidates.length)];
@@ -147,8 +147,7 @@
         let players = pl.data;
         if(iAmCleaner(players)){
           players = await cleanup(players);
-          // NESSUNA promozione casuale del capo qui: il capo resta
-          // quello di rooms.host_uid anche se si disconnette.
+          // NESSUNA promozione casuale del capo
         }
         renderPlayers(players);
       }
@@ -305,9 +304,10 @@
     el.btnStart.textContent = 'Avvia la partita';
   }
 
-  // ASSEGNAZIONE Step 5 + intro video (Step 8)
+  // ASSEGNAZIONE Step 5: carte + ruoli + codici + indizio + assassin_card
   async function startGame(){
     try{
+      // Verifica che Personaggi.js sia caricato
       if(typeof generaCarte !== 'function' || typeof scegliIndizio !== 'function'){
         showToast('Manca Personaggi.js in lobby.html', false);
         resetStartButton();
@@ -348,7 +348,6 @@
           alive: true
         }).eq('id', mescolati[i].id);
         if(up.error) throw up.error;
-        console.log('[LOBBY]', mescolati[i].name, '→ ruolo', ruolo, 'codice', code);
       }
 
       const indizio = scegliIndizio(carte, 0);
@@ -359,13 +358,11 @@
         winner:        null,
         clue:          scramble(JSON.stringify(indizio), uidDetective),
         clue_field:    indizio.campo,
-        assassin_card: JSON.stringify(carte[0]),
-        intro_at:      new Date().toISOString()
+        assassin_card: JSON.stringify(carte[0])
       }).eq('id', roomId);
       if(rm.error) throw rm.error;
 
       await sysMessage(roomId, '☠ La partita sta per iniziare…');
-      console.log('[LOBBY] partita avviata con', mescolati.length, 'giocatori, intro_at impostato');
       startOverlay();
     }catch(err){
       console.error('[LOBBY] avvio fallito:', err);
