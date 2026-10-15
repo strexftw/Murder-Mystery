@@ -1,8 +1,9 @@
-// PARTITA.JS v2.0 - nuovo motore: assassino occulto, loop
-// uccisioni del Sistema, indagini dell'Ispettore, fine con
-// ruoli veri. Rivelazione sincronizzata (ready) + reset.
+// PARTITA.JS v2.1 - motore Step 5.
+// v2.1: niente elezione del capo in partita (solo lobby);
+// fine partita con ritorno in lobby + reset; prima vittima
+// a 20s; timer pausa mentre il detective decide.
 (function(){
-  console.log('[PARTITA] partita.js caricato v2.0');
+  console.log('[PARTITA] partita.js caricato v2.1');
 
   if(!guardConfig()) return;
 
@@ -11,6 +12,8 @@
   const stored = getCurrentRoom();
   if(!stored){ location.replace('index.html'); return; }
   const roomId = stored.id;
+
+  const FIRST_KILL_MS = 20000; // prima vittima: 20s dall'inizio live
 
   const el = {
     roomName:    document.getElementById('roomName'),
@@ -65,9 +68,9 @@
   if(miss.length){ loud('partita.html incompleta: mancano ' + miss.join(', ')); return; }
 
   const ROLE_INFO = {
-    assassino: { tag: 'Assassino', desc: "Sei l'ombra al tavolo. Nessuno sa, nemmeno tu: confonditi tra gli innocenti e lascia che il Sistema mietano le vittime." },
-    detective: { tag: 'Ispettore', desc: "Solo tu vedi l'indizio sull'assassino. Indaga, escludi, e quando sei pronto: elimina. Un solo tentativo." },
-    innocente: { tag: 'Innocente', desc: "Una vittima cade ogni pochi secondi. Osserva, parla, sopravvivi: l'assassino è tra voi e non sa di esserlo." }
+    assassino: { tag: 'Assassino', desc: "Sei l'ombra al tavolo. Nessuno lo sa, nemmeno tu: confonditi tra gli innocenti." },
+    detective: { tag: 'Ispettore', desc: "Solo tu vedi l'indizio. Indaga, escludi, e quando sei pronto accusa: un solo tentativo." },
+    innocente: { tag: 'Innocente', desc: "Una vittima cade ogni pochi secondi. Osserva, parla, sopravvivi." }
   };
   function ruoloVisto(r){ return (r === 'assassino') ? 'innocente' : r; }
 
@@ -111,8 +114,8 @@
   async function init(){
     try{
       const res = await db.from('rooms').select().eq('id', roomId).maybeSingle();
-      if(res.error){ loud('Errore database: ' + explain(res.error), 3000); return; }
-      if(!res.data){ loud('Stanza non trovata (torno al menu tra 3s)', 3000); return; }
+      if(res.error){ loud('Errore database: ' + explain(res.error)); setTimeout(function(){ clearCurrentRoom(); location.replace('index.html'); }, 3000); return; }
+      if(!res.data){ loud('Stanza non trovata (torno al menu tra 3s)'); setTimeout(function(){ clearCurrentRoom(); location.replace('index.html'); }, 3000); return; }
       room = res.data;
       if(room.status !== 'playing'){
         location.replace(room.status === 'lobby' ? 'lobby.html' : 'index.html');
@@ -130,7 +133,12 @@
       el.roomName.textContent = room.name;
       el.codeText.textContent = room.code;
 
-      if(room.phase === 'fine'){ mostraFine(); return; }
+      if(room.phase === 'fine'){
+        const plf = await db.from('players').select().eq('room_id', roomId);
+        if(plf.data) lastPlayers = plf.data;
+        mostraFine();
+        return;
+      }
 
       if(room.phase === 'live'){
         el.reveal.hidden = true;
@@ -196,16 +204,7 @@
     setInterval(function(){ if(running) tick(); }, 1000);
   }
 
-  async function promoteNewHost(candidates){
-    if(!candidates || !candidates.length) return null;
-    const pick = candidates[Math.floor(Math.random() * candidates.length)];
-    await db.from('rooms').update({ host_uid: pick.uid }).eq('id', roomId);
-    await db.from('players').update({ is_host: false }).eq('room_id', roomId);
-    await db.from('players').update({ is_host: true }).eq('id', pick.id);
-    await sysMessage(roomId, '♛ ' + escapeHtml(pick.name) + ' è ora il capo stanza.');
-    return pick;
-  }
-
+  // ---------------- annullamento (solo disconnessioni, niente winner) ----------------
   async function cancelGame(){
     running = false;
     try{
@@ -218,24 +217,29 @@
     setTimeout(function(){ location.replace('lobby.html'); }, 1500);
   }
 
+  // ---------------- fine partita: overlay + ritorno in lobby ----------------
   function mostraFine(){
     if(fineVista) return;
     fineVista = true;
     running = false;
     el.fineTitolo.textContent = winnerMsg(room.winner || 'assassino');
-    const ps = lastPlayers.length ? lastPlayers : [];
-    el.fineRuoli.innerHTML = ps.map(function(p){
+    el.fineRuoli.innerHTML = (lastPlayers || []).map(function(p){
       const r = roleOf(p);
       return '<li class="fine-voce"><b>' + escapeHtml(p.name) + '</b> — ' + ROLE_INFO[r].tag + '</li>';
     }).join('');
     el.overlayFine.hidden = false;
   }
 
+  // torna in lobby E resetta: cosi si puo rilanciare subito
   el.btnFine.addEventListener('click', async function(){
-    await db.from('rooms').update({ status: 'lobby' }).eq('id', roomId);
+    try{
+      await db.from('rooms').update({ status: 'lobby' }).eq('id', roomId);
+      await resetPartita(roomId);
+    }catch(e){}
     location.replace('lobby.html');
   });
 
+  // ---------------- heartbeat ----------------
   async function beat(){
     if(!running) return;
     beatN++;
@@ -259,11 +263,8 @@
         let players = pl.data;
         if(iAmCleaner(players)){
           players = await cleanup(players);
-          const hostAlive = players.some(function(p){ return p.is_host && p.alive !== false; });
-          if(!hostAlive && players.length){
-            const pick = await promoteNewHost(players);
-            if(pick) players.forEach(function(q){ q.is_host = (q.uid === pick.uid); });
-          }
+
+          // reveal -> live: parte il clock della PRIMA vittima (20s)
           if(room && room.phase === 'reveal'){
             const freschi = players.filter(isFresh);
             const pronti = freschi.filter(function(p){ return p.ready === true; });
@@ -271,13 +272,17 @@
               const ora = new Date().toISOString();
               await db.from('rooms').update({
                 phase: 'live', started_at: ora,
-                next_kill_at: new Date(Date.now() + 5000).toISOString()
+                next_kill_at: new Date(Date.now() + FIRST_KILL_MS).toISOString()
               }).eq('id', roomId);
               room.phase = 'live'; room.started_at = ora;
               await sysMessage(roomId, '⚔ Tutti pronti: la caccia comincia!');
             }
           }
+
+          // il Sistema (Sistema.js) gestisce uccisioni e fine
           BUS.emit('cleaner', players);
+
+          // disconnessioni: annullamento senza winner
           if(room && room.phase !== 'fine' && !room.winner){
             const connessi = players.filter(isFresh);
             if(connessi.length < 3){ await cancelGame(); return; }
@@ -306,11 +311,8 @@
             el.overlayAttesa.hidden = true;
             if(!timerStarted && room.started_at){ startTimer(room.started_at); timerStarted = true; }
           }
-          const nowHost = (room.host_uid === uid);
-          if(nowHost !== isHost){
-            isHost = nowHost;
-            if(isHost) showToast('♛ Sei tu il nuovo capo stanza!');
-          }
+          // sincronizzo isHost in silenzio: in partita NON si elegge nessuno
+          isHost = (room.host_uid === uid);
           BUS.emit('room', room);
         } else {
           running = false;
@@ -335,6 +337,7 @@
     el.attesaCount.textContent = pronti.length + '/' + freschi.length;
   }
 
+  // pulitore silenzioso: nessun cambio di capo, nessun toast
   function iAmCleaner(players){
     const me = players.find(function(p){ return p.uid === uid; });
     if(!me || me.alive === false) return false;
@@ -446,6 +449,7 @@
     setTimeout(function(){ el.codeChip.classList.remove('copied'); el.copyHint.textContent = 'Copia'; }, 1600);
   });
 
+  // esci: niente promozione del capo in partita
   el.btnExit.addEventListener('click', async function(){
     running = false;
     try{
@@ -454,7 +458,6 @@
       if(altri.length === 0){
         await db.from('rooms').delete().eq('id', roomId);
       } else {
-        if(isHost) await promoteNewHost(altri);
         await db.from('players').delete().eq('room_id', roomId).eq('uid', uid);
         await sysMessage(roomId, escapeHtml(myName) + ' ha abbandonato la partita.');
       }

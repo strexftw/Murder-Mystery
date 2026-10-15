@@ -1,19 +1,31 @@
-// ISPETTORE.JS v1 - pannello del detective: indizio, notifiche
-// vittima, indagini (3), skip (2), tabella dei sospetti puliti,
-// eliminazione finale (una sola).
+// ISPETTORE.JS v2 - notifica vittima, indagine con scelta
+// dell'informazione, tabella, accusa finale.
+// Ogni risposta (Si o No) FA RIPARTIRE il clock uccisioni (12s).
 (function(){
+  const KILL_MS = 12000;     // deve combaciare con Sistema.js
   const AUTO_NO_SEC = 10;
   let el = null, clue = null, seenKill = null;
-  let autoTimer = null, autoTick = null;
-  let bersaglioIndagine = null, bersaglioElimina = null;
+  let autoTick = null;
+  let bersaglioIndagine = null, campoScelto = null, bersaglioElimina = null;
+
+  // etichette delle informazioni indagabili
+  const CAMPI = [
+    ['nascita', 'Anno di nascita'],
+    ['luogo',   'Luogo di nascita'],
+    ['lavoro',  'Lavoro'],
+    ['hobby',   'Hobby'],
+    ['altezza', 'Altezza'],
+    ['extra',   'Segno particolare'],
+    ['nome',    'Nome completo'],
+    ['cf',      'Codice fiscale']
+  ];
 
   function boot(){
     if(typeof PARTITA === 'undefined' || !PARTITA.on){ setTimeout(boot, 120); return; }
     PARTITA.on('ready', setup);
     PARTITA.on('room', onRoom);
     PARTITA.on('reset', function(){
-      seenKill = null; bersaglioIndagine = null; bersaglioElimina = null;
-      if(autoTimer) clearTimeout(autoTimer);
+      seenKill = null; bersaglioIndagine = null; campoScelto = null; bersaglioElimina = null;
       if(autoTick) clearInterval(autoTick);
       if(el){
         el.notif.hidden = true;
@@ -53,6 +65,7 @@
       btnNo:     document.getElementById('btnNotifNo'),
       ind:       document.getElementById('overlayIndagine'),
       indList:   document.getElementById('indagineList'),
+      indCampi:  document.getElementById('indagineCampi'),
       indEsito:  document.getElementById('indagineEsito'),
       indOk:     document.getElementById('btnIndagineOk'),
       tab:       document.getElementById('overlayTabella'),
@@ -100,12 +113,12 @@
     if(vit) aggiungiTabella(vit.name);
 
     const ind = room.indagini_usate || 0, sk = room.skip_usati || 0;
-    if(ind >= 3 && sk >= 2) return;
+    if(ind >= 3 && sk >= 2) return;   // budget finito: niente notifica
     apriNotifica(vit ? vit.name : 'Qualcuno', ind, sk);
   }
 
   function apriNotifica(nomeVittima, ind, sk){
-    el.notifTesto.textContent = 'Nuova vittima: ' + nomeVittima + '. Indagare su qualcuno?';
+    el.notifTesto.textContent = 'Nuova vittima: ' + nomeVittima + '. Il tempo è FERMO finché non decidi.';
     el.btnSi.textContent = 'Sì, indago (' + (3 - ind) + ' rimaste)';
     el.btnNo.textContent = 'No, skip (' + (2 - sk) + ' rimasti)';
     el.btnSi.disabled = ind >= 3;
@@ -126,18 +139,20 @@
     el.notif.hidden = true;
   }
 
+  // ogni risposta fa ripartire il clock uccisioni
   async function resetClock(){
     await PARTITA.dbRef().from('rooms').update({
-      next_kill_at: new Date(Date.now() + 5000).toISOString()
+      next_kill_at: new Date(Date.now() + KILL_MS).toISOString()
     }).eq('id', PARTITA.getRoomId());
   }
 
   function doSi(){
     chiudiNotifica();
-    bersaglioIndagine = null;
+    bersaglioIndagine = null; campoScelto = null;
     el.indEsito.textContent = '';
     el.indOk.disabled = true;
     el.indList.innerHTML = '';
+    el.indCampi.innerHTML = '';
     const ps = (PARTITA.getPlayers() || []).filter(function(p){
       return p.alive !== false && p.uid !== PARTITA.getUid();
     });
@@ -147,22 +162,42 @@
       b.className = 'bersaglio-card';
       b.textContent = p.name;
       b.addEventListener('click', function(){
-        bersaglioIndagine = p;
+        bersaglioIndagine = p; campoScelto = null;
         const tots = el.indList.querySelectorAll('.bersaglio-card');
         for(let i = 0; i < tots.length; i++){ tots[i].classList.remove('scelto'); }
         b.classList.add('scelto');
-        let card = null;
-        try{ card = JSON.parse(p.card || 'null'); }catch(e){ card = null; }
-        const match = card && clue && String(card[clue.campo]) === String(clue.valore);
-        el.indEsito.textContent = match
-          ? "SÌ: " + p.name + " corrisponde all'indizio."
-          : "NO: " + p.name + " non corrisponde all'indizio.";
-        el.indEsito.className = 'indagine-esito ' + (match ? 'si' : 'no');
-        el.indOk.disabled = false;
+        mostraCampi(p);
       });
       el.indList.appendChild(b);
     });
     el.ind.hidden = false;
+  }
+
+  // scegli QUALE informazione vedere della carta
+  function mostraCampi(p){
+    el.indEsito.textContent = 'Scegli quale informazione verificare.';
+    el.indEsito.className = 'indagine-esito';
+    el.indOk.disabled = true;
+    el.indCampi.innerHTML = '';
+    let card = null;
+    try{ card = JSON.parse(p.card || 'null'); }catch(e){ card = null; }
+    CAMPI.forEach(function(c){
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'bersaglio-card campo';
+      b.textContent = c[1];
+      b.addEventListener('click', function(){
+        campoScelto = c[0];
+        const tots = el.indCampi.querySelectorAll('.bersaglio-card');
+        for(let i = 0; i < tots.length; i++){ tots[i].classList.remove('scelto'); }
+        b.classList.add('scelto');
+        const val = card ? String(card[c[0]] || '—') : '—';
+        el.indEsito.textContent = p.name + ' — ' + c[1] + ': ' + val;
+        el.indEsito.className = 'indagine-esito no';
+        el.indOk.disabled = false;
+      });
+      el.indCampi.appendChild(b);
+    });
   }
 
   async function commitIndagine(){
@@ -170,9 +205,6 @@
     const n = (room.indagini_usate || 0) + 1;
     await PARTITA.dbRef().from('rooms').update({ indagini_usate: n }).eq('id', PARTITA.getRoomId());
     room.indagini_usate = n;
-    if(bersaglioIndagine && el.indEsito.className.indexOf('no') !== -1){
-      aggiungiTabella(bersaglioIndagine.name);
-    }
     await resetClock();
     el.ind.hidden = true;
     aggiornaElimina();

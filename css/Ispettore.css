@@ -134,3 +134,7 @@
   .attesa-title{ font-size:1.05rem; }
   .jump-mute{ width:48px; height:48px; font-size:1.2rem; }
 }
+
+/* pulsanti-campo dell'indagine, piu compatti */
+.bersaglio-card.campo{ font-size:.9rem; padding:.7rem .5rem; }
+#indagineCampi{ margin-top:.2rem; }
