@@ -3,8 +3,8 @@
    Dashboard Supabase → Settings → API → copia
    "Project URL" e "anon public key" (MAI la service_role).
    ========================================================= */
-const SUPABASE_URL      = "https://xbzibdalrbknoagbfmak.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhiemliZGFscmJrbm9hZ2JmbWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEwMTEyOTUsImV4cCI6MjEwNjU4NzI5NX0.1jtXOyaoOU5JTm3prVC2wwgwoTIOMcOY0nmC2ihEF50";
+const SUPABASE_URL      = "https://amrutsqjzlkjllodqjjj.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFtcnV0c3Fqemxramxsb2RxampqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwNTI3MTIsImV4cCI6MjEwNzYyODcxMn0.MLfLTQ_ENcmJYnVxdjyO0hEmacGe3lmXUrikzKiYvoM";
 
 /* ---------- parametri heartbeat lobby ---------- */
 const HEARTBEAT_MS     = 500;  // lista lobby aggiornata ogni 0.5s
