@@ -165,3 +165,26 @@
    di morte restasse per errore visibile. */
 #overlayFine{ z-index:99; }
 #overlayFine .isp-stack{ position:relative; z-index:100; }
+
+/* ---------- FINE PARTITA: riga nome vero + ruolo + stato ---------- */
+.fine-voce{
+  display:flex; align-items:center; flex-wrap:wrap; gap:.6rem;
+  padding:.7rem .9rem; border:1px solid var(--line-soft); border-radius:10px;
+  background:rgba(9,27,21,.6); color:var(--ivory); text-align:left;
+}
+.fine-icona{ flex:none; width:1.6rem; text-align:center; font-size:1.25rem; }
+.fine-voce b{ flex:1 1 auto; font-family:var(--head); letter-spacing:.04em; }
+.fine-ruolo{
+  flex:none; font-family:var(--head); font-weight:700; font-size:.72rem;
+  letter-spacing:.14em; text-transform:uppercase;
+  padding:.25rem .6rem; border-radius:4px;
+}
+.fine-stato{ flex:none; font-size:.8rem; letter-spacing:.06em; }
+.fine-stato.vivo{ color:#9fd8a8; }
+.fine-stato.caduto{ color:var(--crimson-hot); }
+
+/* badge e bordo per ruolo: l'assassino risalta in rosso */
+.fine-voce.ruolo-assassino{ border-color:rgba(224,75,82,.55); }
+.fine-voce.ruolo-assassino .fine-ruolo{ color:#ffd9dc; background:linear-gradient(180deg,#7a141b,#3a0a0d); }
+.fine-voce.ruolo-detective .fine-ruolo{ color:#0d251c; background:linear-gradient(180deg,#9fd8a8,#58c470); }
+.fine-voce.ruolo-innocente .fine-ruolo{ color:var(--ivory); background:rgba(255,255,255,.08); border:1px solid var(--line-soft); }

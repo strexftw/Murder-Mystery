@@ -1,9 +1,10 @@
-// PARTITA.JS v2.5 - motore Step 5.
-// v2.5: alla fine partita nasconde DIRETTAMENTE jumpscare + overlayMorte
-// nel DOM e emette l'evento 'fine', cosi la vittima puo sempre cliccare
-// "Torna al tavolo" (overlayFine portato sopra tutto dal CSS).
+// PARTITA.JS v2.6 - motore Step 5.
+// v2.6: overlay fine partita con NOMI VERI (quelli del menu),
+// ordinati per ruolo (assassino -> ispettore -> innocenti),
+// badge colorato + stato vivo/caduto + re-fetch difensivo se la
+// lista arriva vuota. Nasconde anche jumpscare + overlayMorte.
 (function(){
-  console.log('[PARTITA] partita.js caricato v2.5');
+  console.log('[PARTITA] partita.js caricato v2.6');
   if(!guardConfig()) return;
 
   const uid    = getUid();
@@ -13,6 +14,10 @@
   const roomId = stored.id;
 
   const FIRST_KILL_MS = 20000;
+
+  // icone e ordine dei ruoli per la lista di fine partita
+  const RUOLO_ICONA  = { assassino:'🗡️', detective:'🔍', innocente:'🛡️' };
+  const RUOLO_ORDINE = { assassino:0, detective:1, innocente:2 };
 
   const el = {
     roomName:    document.getElementById('roomName'),
@@ -231,27 +236,61 @@
     setTimeout(function(){ location.replace('lobby.html'); }, 1500);
   }
 
-  // FINE PARTITA: nasconde DIRETTAMENTE jumpscare + overlayMorte nel DOM
-  // (doppia sicurezza, indipendente da Innocente.js) e porta overlayFine
-  // sopra tutto grazie al CSS (#overlayFine{ z-index:99 }).
+  // costruisce la lista dei ruoli con i NOMI VERI, ordinata
+  function rendiFineRuoli(players){
+    const lista = (players || []).slice();
+    lista.sort(function(a, b){
+      const ra = roleOf(a), rb = roleOf(b);
+      const oa = (RUOLO_ORDINE[ra] != null) ? RUOLO_ORDINE[ra] : 2;
+      const ob = (RUOLO_ORDINE[rb] != null) ? RUOLO_ORDINE[rb] : 2;
+      if(oa !== ob) return oa - ob;                 // assassino, ispettore, innocenti
+      const va = (a.alive === false) ? 1 : 0;
+      const vb = (b.alive === false) ? 1 : 0;
+      if(va !== vb) return va - vb;                 // vivi prima dei caduti
+      return String(a.name).localeCompare(String(b.name));
+    });
+    el.fineRuoli.innerHTML = lista.map(function(p){
+      const r     = roleOf(p);
+      const cls   = 'ruolo-' + r;
+      const icona = RUOLO_ICONA[r] || '👤';
+      const tag   = (ROLE_INFO[r] ? ROLE_INFO[r].tag : r);
+      const caduto = (p.alive === false);
+      const stato = caduto
+        ? '<span class="fine-stato caduto">† caduto</span>'
+        : '<span class="fine-stato vivo">vivo</span>';
+      return '<li class="fine-voce ' + cls + '">' +
+        '<span class="fine-icona">' + icona + '</span>' +
+        '<b>' + escapeHtml(p.name) + '</b>' +
+        '<span class="fine-ruolo">' + escapeHtml(tag) + '</span>' +
+        stato +
+        '</li>';
+    }).join('');
+    console.log('[PARTITA] fine: renderizzati', lista.length, 'ruoli (nomi veri)');
+  }
+
+  // FINE PARTITA: nasconde jumpscare + overlayMorte, mostra 🏆 con nomi veri,
+  // e se la lista arriva vuota la riprende dal DB (re-fetch difensivo).
   function mostraFine(){
     if(fineVista) return;
     fineVista = true;
     running = false;
 
-    const j = document.getElementById('jumpscare');
-    if(j) j.hidden = true;
-    const om = document.getElementById('overlayMorte');
-    if(om) om.hidden = true;
-
+    const j  = document.getElementById('jumpscare');    if(j)  j.hidden = true;
+    const om = document.getElementById('overlayMorte'); if(om) om.hidden = true;
     BUS.emit('fine');
 
     el.fineTitolo.textContent = winnerMsg(room.winner || 'assassino');
-    el.fineRuoli.innerHTML = (lastPlayers || []).map(function(p){
-      const r = roleOf(p);
-      return '<li class="fine-voce"><b>' + escapeHtml(p.name) + '</b> — ' + ROLE_INFO[r].tag + '</li>';
-    }).join('');
+    rendiFineRuoli(lastPlayers);
     el.overlayFine.hidden = false;
+
+    if(!lastPlayers || lastPlayers.length === 0){
+      db.from('players').select().eq('room_id', roomId).then(function(r){
+        if(r.data && r.data.length){
+          lastPlayers = r.data;
+          rendiFineRuoli(lastPlayers);
+        }
+      });
+    }
   }
 
   el.btnFine.addEventListener('click', async function(){
