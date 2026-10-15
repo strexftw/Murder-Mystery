@@ -1,10 +1,9 @@
-// ISPETTORE.JS v2.3 - flusso eliminazione completo.
+// ISPETTORE.JS v2.4 - flusso eliminazione completo SENZA auto-no.
 // Timer bloccato dalla vittima fino a NO o Fine ispezione.
+// Il detective decide con calma: solo Sì o No manuali.
 (function(){
   const KILL_MS = 12000;
-  const AUTO_NO_SEC = 10;
   let el = null, clue = null, seenKill = null;
-  let autoTick = null;
   let bersaglioIndagine = null, campoScelto = null, bersaglioElimina = null;
 
   const CAMPI = [
@@ -24,7 +23,6 @@
     PARTITA.on('room', onRoom);
     PARTITA.on('reset', function(){
       seenKill = null; bersaglioIndagine = null; campoScelto = null; bersaglioElimina = null;
-      if(autoTick) clearInterval(autoTick);
       if(el){
         el.notif.hidden = true;
         el.ind.hidden = true;
@@ -58,7 +56,6 @@
       btnElim:   document.getElementById('btnElimina'),
       notif:     document.getElementById('overlayNotifica'),
       notifTesto:document.getElementById('notifTesto'),
-      notifCount:document.getElementById('notifCount'),
       btnSi:     document.getElementById('btnNotifSi'),
       btnNo:     document.getElementById('btnNotifNo'),
       ind:       document.getElementById('overlayIndagine'),
@@ -87,7 +84,7 @@
     el.btnTab.addEventListener('click', function(){ el.tab.hidden = false; renderTabella(); });
     el.tabChiudi.addEventListener('click', function(){ el.tab.hidden = true; });
     el.btnSi.addEventListener('click', doSi);
-    el.btnNo.addEventListener('click', function(){ doNo(false); });
+    el.btnNo.addEventListener('click', doNo);
     el.indOk.addEventListener('click', commitIndagine);
     el.btnElim.addEventListener('click', apriElimina);
     el.elimAnn.addEventListener('click', function(){ el.elim.hidden = true; });
@@ -122,19 +119,6 @@
     el.btnSi.disabled = ind >= 3;
     el.btnNo.disabled = sk >= 2;
     el.notif.hidden = false;
-    let rest = AUTO_NO_SEC;
-    el.notifCount.textContent = 'Auto-No tra ' + rest + 's';
-    if(autoTick) clearInterval(autoTick);
-    autoTick = setInterval(function(){
-      rest--;
-      el.notifCount.textContent = 'Auto-No tra ' + Math.max(0, rest) + 's';
-      if(rest <= 0){ clearInterval(autoTick); doNo(true); }
-    }, 1000);
-  }
-
-  function chiudiNotifica(){
-    if(autoTick) clearInterval(autoTick);
-    el.notif.hidden = true;
   }
 
   // sblocca il timer (chiamato SOLO da No e Fine ispezione)
@@ -146,7 +130,7 @@
 
   // PASSO 1: scegli la persona. Timer ANCORA BLOCCATO.
   function doSi(){
-    chiudiNotifica();
+    el.notif.hidden = true;
     bersaglioIndagine = null; campoScelto = null;
     el.indEsito.textContent = 'Scegli una persona.';
     el.indEsito.className = 'indagine-esito';
@@ -216,18 +200,17 @@
       }
     }
 
-    // SOLO ORA il timer si sblocca
     await sbloccaTimer();
     el.ind.hidden = true;
     aggiornaElimina();
     showToast('Ispezione chiusa (' + n + '/3): timer sbloccato');
   }
 
-  // No / auto-No: il timer si sblocca subito
-  async function doNo(auto){
-    chiudiNotifica();
+  // No: il timer si sblocca subito, skip consumato
+  async function doNo(){
+    el.notif.hidden = true;
     const room = PARTITA.getRoom();
-    if(!auto && (room.skip_usati || 0) < 2){
+    if((room.skip_usati || 0) < 2){
       const n = (room.skip_usati || 0) + 1;
       await PARTITA.dbRef().from('rooms').update({ skip_usati: n }).eq('id', PARTITA.getRoomId());
       room.skip_usati = n;
