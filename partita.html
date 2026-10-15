@@ -8,12 +8,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400..900&family=Karla:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/base.css?v=16">
-  <link rel="stylesheet" href="css/lobby.css?v=16">
-  <link rel="stylesheet" href="css/partita.css?v=16">
-  <link rel="stylesheet" href="css/Ispettore.css?v=16">
-  <link rel="stylesheet" href="css/pc.css?v=16" media="(hover:hover) and (pointer:fine)">
-  <link rel="stylesheet" href="css/phone.css?v=16" media="(pointer:coarse)">
+  <link rel="stylesheet" href="css/base.css?v=17">
+  <link rel="stylesheet" href="css/lobby.css?v=17">
+  <link rel="stylesheet" href="css/partita.css?v=17">
+  <link rel="stylesheet" href="css/Ispettore.css?v=17">
+  <link rel="stylesheet" href="css/pc.css?v=17" media="(hover:hover) and (pointer:fine)">
+  <link rel="stylesheet" href="css/phone.css?v=17" media="(pointer:coarse)">
 </head>
 <body>
 
@@ -95,7 +95,7 @@
   </div>
 </div>
 
-<!-- notifica ispettore: nuova vittima, indagare? (il timer è FERMO finché non risponde) -->
+<!-- notifica ispettore: nuova vittima. Il timer è FERMO finché non decide -->
 <div class="overlay isp" id="overlayNotifica" hidden>
   <div class="isp-stack">
     <h2 class="isp-title">🕯 Nuova vittima al tavolo</h2>
@@ -108,19 +108,19 @@
   </div>
 </div>
 
-<!-- indagine: scegli la persona, poi QUALE informazione vedere -->
+<!-- indagine: persona -> informazione -> FINE ISPEZIONE (riparte il timer) -->
 <div class="overlay isp" id="overlayIndagine" hidden>
   <div class="isp-stack">
     <h2 class="isp-title">🔍 Indagine</h2>
-    <p class="isp-sub">Scegli chi indagare, poi quale informazione vedere.</p>
+    <p class="isp-sub">Scegli chi indagare, poi quale informazione vedere.<br>Il timer delle uccisioni riparte solo con FINE ISPEZIONE.</p>
     <div class="bersaglio-list" id="indagineList"></div>
     <div class="bersaglio-list" id="indagineCampi"></div>
     <p class="indagine-esito" id="indagineEsito"></p>
-    <div class="isp-actions"><button class="btn btn-blood" id="btnIndagineOk" type="button" disabled>Ho capito</button></div>
+    <div class="isp-actions"><button class="btn btn-blood" id="btnIndagineOk" type="button" disabled>Fine ispezione</button></div>
   </div>
 </div>
 
-<!-- tabella privata: chi NON è l'assassino -->
+<!-- tabella privata dell'ispettore: chi NON è l'assassino -->
 <div class="overlay isp" id="overlayTabella" hidden>
   <div class="isp-stack">
     <h2 class="isp-title">📋 Chi NON è l'assassino</h2>
@@ -129,7 +129,7 @@
   </div>
 </div>
 
-<!-- accusa finale (un solo tentativo) -->
+<!-- accusa finale: un solo tentativo -->
 <div class="overlay isp" id="overlayElimina" hidden>
   <div class="isp-stack">
     <h2 class="isp-title">⚖ Accusa finale</h2>
@@ -181,12 +181,12 @@
 <div id="toast" class="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/config.js?v=16"></script>
-<script src="js/utils.js?v=16"></script>
-<script src="js/Personaggi.js?v=16"></script>
-<script src="js/partita.js?v=16"></script>
-<script src="js/Sistema.js?v=16"></script>
-<script src="js/Ispettore.js?v=16"></script>
-<script src="js/Innocente.js?v=16"></script>
+<script src="js/config.js?v=17"></script>
+<script src="js/utils.js?v=17"></script>
+<script src="js/Personaggi.js?v=17"></script>
+<script src="js/partita.js?v=17"></script>
+<script src="js/Sistema.js?v=17"></script>
+<script src="js/Ispettore.js?v=17"></script>
+<script src="js/Innocente.js?v=17"></script>
 </body>
 </html>
