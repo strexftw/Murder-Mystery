@@ -119,6 +119,7 @@
     el.btnSi.disabled = ind >= 3;
     el.btnNo.disabled = sk >= 2;
     el.notif.hidden = false;
+    // NESSUN countdown, NESSUN autoTick
   }
 
   // sblocca il timer (chiamato SOLO da No e Fine ispezione)
