@@ -1,6 +1,6 @@
 // LOBBY.JS v4.1 - logica della lobby (lobby.html)
 // v4.1: rimossa promozione casuale del capo in beat().
-// Il capo viene promosso solo quando abbandona volontariamente (btnExit).
+// Il capo viene promosso SOLO quando abbandona volontariamente (btnExit).
 // Se il capo si disconnette, resta capo: quando rientra, la riga viene
 // ricreata con is_host: true.
 // heartbeat 0.5s · lista · chat · Politica A
@@ -41,7 +41,7 @@
     showToast(msg, false);
     const d = document.createElement('div');
     d.className = 'config-warning';
-    d.textContent = '⚠ ' + msg;
+    d.textContent = ' ' + msg;
     document.body.appendChild(d);
   }
 
@@ -73,7 +73,7 @@
   }
 
   function deviceText(p){
-    return p.device ? deviceLabel(p.device) : ' Sconosciuto';
+    return p.device ? deviceLabel(p.device) : '❓ Sconosciuto';
   }
 
   init();
@@ -406,7 +406,7 @@
       }).eq('id', roomId);
       if(rm.error) throw rm.error;
 
-      await sysMessage(roomId, ' La partita sta per iniziare…');
+      await sysMessage(roomId, '☠ La partita sta per iniziare…');
       console.log('[LOBBY] partita avviata con', mescolati.length, 'giocatori');
       startOverlay();
     }catch(err){
