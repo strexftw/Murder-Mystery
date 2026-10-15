@@ -187,4 +187,32 @@
 .fine-voce.ruolo-assassino{ border-color:rgba(224,75,82,.55); }
 .fine-voce.ruolo-assassino .fine-ruolo{ color:#ffd9dc; background:linear-gradient(180deg,#7a141b,#3a0a0d); }
 .fine-voce.ruolo-detective .fine-ruolo{ color:#0d251c; background:linear-gradient(180deg,#9fd8a8,#58c470); }
-.fine-voce.ruolo-innocente .fine-ruolo{ color:var(--ivory); background:rgba(255,255,255,.08); border:1px solid var(--line-soft); }
+.fine-voce.ruolo-innocente .fine-ruolo{ color:var(--ivory); background:rgba(255,255,255,.08); border:1px solid var(
+--line-soft); }
+
+/* ---------- INTRO VIDEO (schermo intero, si adatta sempre) ---------- */
+.overlay.intro{
+  position:fixed; inset:0; z-index:95; background:#000;
+  display:grid; place-items:center; overflow:hidden;
+}
+.overlay.intro[hidden]{ display:none; }
+.intro-video{
+  width:100%; height:100%; object-fit:contain; background:#000;
+  display:block;
+}
+/* per far COPRIRE tutto lo schermo (tagliando i bordi) invece di
+  contain, cambia la riga sopra in:  object-fit:cover;               */
+.intro-audio{
+  position:absolute; top:calc(.8rem + env(safe-area-inset-top));
+  right:calc(.8rem + env(safe-area-inset-right)); z-index:96;
+  width:52px; height:52px; border-radius:50%;
+  border:1px solid var(--line); background:rgba(9,27,21,.7);
+  color:var(--ivory); font-size:1.4rem; cursor:pointer;
+}
+.intro-skip{
+  position:absolute; bottom:calc(1rem + env(safe-area-inset-bottom));
+  left:50%; transform:translateX(-50%); z-index:96;
+}
+@media (pointer:coarse){
+  .intro-audio{ width:46px; height:46px; font-size:1.2rem; }
+}

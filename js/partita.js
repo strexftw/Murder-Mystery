@@ -1,10 +1,14 @@
-// PARTITA.JS v2.6 - motore Step 5.
-// v2.6: overlay fine partita con NOMI VERI (quelli del menu),
-// ordinati per ruolo (assassino -> ispettore -> innocenti),
-// badge colorato + stato vivo/caduto + re-fetch difensivo se la
-// lista arriva vuota. Nasconde anche jumpscare + overlayMorte.
+// PARTITA.JS v2.7 - motore Step 5 + intro video broadcast.
+// v2.7: all'ingresso in fase 'reveal', se lobby.js ha scritto intro_at
+// (e non e' gia' stato visto su questo dispositivo, e la partita e'
+// appena iniziata), mostra l'overlay video a schermo intero. Il video
+// parte automatico muto su mobile (autoplay con audio bloccato dopo
+// il redirect) con tasto per l'audio; su desktop parte con audio.
+// Alla fine (ended / skip / error / timeout di sicurezza) si chiude e
+// parte la rivelazione del ruolo. Il heartbeat NON gira durante
+// l'intro, cosi la fase live non puo' scattare a insaputa del giocatore.
 (function(){
-  console.log('[PARTITA] partita.js caricato v2.6');
+  console.log('[PARTITA] partita.js caricato v2.7');
   if(!guardConfig()) return;
 
   const uid    = getUid();
@@ -14,8 +18,9 @@
   const roomId = stored.id;
 
   const FIRST_KILL_MS = 20000;
+  const INTRO_WINDOW_MS = 90000;   // l'intro vale solo entro 90s dall'avvio
+  const INTRO_SAFETY_MS = 30000;   // se il video si impalla, forza la chiusura
 
-  // icone e ordine dei ruoli per la lista di fine partita
   const RUOLO_ICONA  = { assassino:'🗡️', detective:'🔍', innocente:'🛡️' };
   const RUOLO_ORDINE = { assassino:0, detective:1, innocente:2 };
 
@@ -54,15 +59,12 @@
   function loud(msg){
     console.error('[PARTITA]', msg);
     showToast(msg, false);
-    const d = document.createElement('div');
-    d.className = 'config-warning';
-    d.textContent = '⚠ ' + msg;
-    document.body.appendChild(d);
   }
 
   function explain(err){
     const m = (err && err.message) || String(err);
     if(/does not exist/i.test(m)) return 'tabelle mancanti: esegui database.txt.';
+    if(/intro_at/i.test(m)) return 'manca la colonna intro_at: esegui lo Step 8.';
     if(/clue|next_kill_at|indagini_usate|skip_usati|card/i.test(m)) return 'mancano le colonne Step 5: esegui database.txt.';
     if(/ready|phase|winner|clue_read_at/i.test(m)) return 'mancano le colonne Step 4/7: esegui database.txt.';
     if(/Failed to fetch|NetworkError/i.test(m)) return 'Supabase non raggiungibile.';
@@ -85,6 +87,9 @@
   let myRole = 'innocente', myCode = '—';
   let isHost = false, readySent = false, timerStarted = false, fineVista = false;
   const seenPlayers = new Set();
+
+  // stato intro
+  let introChiuso = false, introTimer = null, introMuto = false;
 
   const BUS = {
     map: {},
@@ -147,6 +152,7 @@
         return;
       }
 
+      let introNeeded = false;
       if(room.phase === 'live'){
         el.reveal.hidden = true;
         if(room.started_at){ startTimer(room.started_at); timerStarted = true; }
@@ -155,19 +161,101 @@
         el.reveal.hidden = true;
         el.overlayAttesa.hidden = false;
       } else {
-        fillReveal();
-        el.reveal.hidden = false;
-        setTimeout(function(){ el.flipCard.classList.add('flipped'); }, 650);
+        // fase reveal, non ancora pronto: valuta l'intro
+        const token  = room.intro_at ? String(room.intro_at) : '';
+        const visto  = token && sessionStorage.getItem('assassino_intro_' + roomId) === token;
+        const fresco = token && (Date.now() - Date.parse(room.intro_at)) <= INTRO_WINDOW_MS;
+        if(!visto && fresco){ introNeeded = true; }
+        else { mostraRevealIniziale(); }
       }
-      fillMyCard();
 
-      BUS.emit('ready', { role: myRole });
-      BUS.emit('room', room);
-      beat();
+      if(introNeeded){
+        sessionStorage.setItem('assassino_intro_' + roomId, String(room.intro_at));
+        apriIntro();
+        return; // il resto (reveal + motore) parte alla chiusura dell'intro
+      }
+
+      avviaMotore();
     }catch(err){
       console.error('[PARTITA] init fallita:', err);
       loud('Errore di connessione: ' + explain(err));
     }
+  }
+
+  // ------- INTRO VIDEO -------
+  function aggiornaIconaAudio(m){
+    const b = document.getElementById('btnIntroAudio');
+    if(b) b.textContent = m ? '🔇' : '🔊';
+  }
+
+  function apriIntro(){
+    const v  = document.getElementById('introVideo');
+    const ov = document.getElementById('overlayIntro');
+    const bA = document.getElementById('btnIntroAudio');
+    const bS = document.getElementById('btnIntroSkip');
+    introChiuso = false;
+    introMuto   = false;
+
+    if(!v || !ov){ chiudiIntro(); return; } // overlay mancante: procedi
+
+    ov.hidden = false;
+
+    // tenta play con audio; se il browser lo blocca (mobile dopo redirect),
+    // riprova muto e lascia il tasto per riattivare l'audio
+    try{ v.muted = false; }catch(e){}
+    const pr = v.play();
+    if(pr && pr.catch){
+      pr.catch(function(){
+        introMuto = true;
+        try{ v.muted = true; }catch(e){}
+        const pr2 = v.play();
+        if(pr2 && pr2.catch) pr2.catch(function(){});
+        aggiornaIconaAudio(true);
+      });
+    }
+    aggiornaIconaAudio(introMuto);
+
+    if(bA){
+      bA.onclick = function(){
+        introMuto = !introMuto;
+        try{ v.muted = introMuto; }catch(e){}
+        aggiornaIconaAudio(introMuto);
+        if(!introMuto){ const p = v.play(); if(p && p.catch) p.catch(function(){}); }
+      };
+    }
+    if(bS){ bS.onclick = function(){ chiudiIntro(); }; }
+
+    v.onended  = function(){ chiudiIntro(); };
+    v.onerror  = function(){ console.warn('[PARTITA] video intro errore, procedo'); chiudiIntro(); };
+
+    // rete di sicurezza: se il video non finisce mai, forza la chiusura
+    introTimer = setTimeout(function(){ chiudiIntro(); }, INTRO_SAFETY_MS);
+  }
+
+  function chiudiIntro(){
+    if(introChiuso) return;
+    introChiuso = true;
+    if(introTimer){ clearTimeout(introTimer); introTimer = null; }
+    const v = document.getElementById('introVideo');
+    if(v){ try{ v.pause(); }catch(e){} v.onended = null; v.onerror = null; }
+    const ov = document.getElementById('overlayIntro');
+    if(ov) ov.hidden = true;
+    mostraRevealIniziale();
+    avviaMotore();
+  }
+
+  // ------- RIVELAZIONE + MOTORE -------
+  function mostraRevealIniziale(){
+    fillReveal();
+    el.reveal.hidden = false;
+    setTimeout(function(){ el.flipCard.classList.add('flipped'); }, 650);
+  }
+
+  function avviaMotore(){
+    fillMyCard();
+    BUS.emit('ready', { role: myRole });
+    BUS.emit('room', room);
+    beat();
   }
 
   function fillReveal(){
@@ -236,17 +324,16 @@
     setTimeout(function(){ location.replace('lobby.html'); }, 1500);
   }
 
-  // costruisce la lista dei ruoli con i NOMI VERI, ordinata
   function rendiFineRuoli(players){
     const lista = (players || []).slice();
     lista.sort(function(a, b){
       const ra = roleOf(a), rb = roleOf(b);
       const oa = (RUOLO_ORDINE[ra] != null) ? RUOLO_ORDINE[ra] : 2;
       const ob = (RUOLO_ORDINE[rb] != null) ? RUOLO_ORDINE[rb] : 2;
-      if(oa !== ob) return oa - ob;                 // assassino, ispettore, innocenti
+      if(oa !== ob) return oa - ob;
       const va = (a.alive === false) ? 1 : 0;
       const vb = (b.alive === false) ? 1 : 0;
-      if(va !== vb) return va - vb;                 // vivi prima dei caduti
+      if(va !== vb) return va - vb;
       return String(a.name).localeCompare(String(b.name));
     });
     el.fineRuoli.innerHTML = lista.map(function(p){
@@ -268,8 +355,6 @@
     console.log('[PARTITA] fine: renderizzati', lista.length, 'ruoli (nomi veri)');
   }
 
-  // FINE PARTITA: nasconde jumpscare + overlayMorte, mostra 🏆 con nomi veri,
-  // e se la lista arriva vuota la riprende dal DB (re-fetch difensivo).
   function mostraFine(){
     if(fineVista) return;
     fineVista = true;
@@ -277,6 +362,7 @@
 
     const j  = document.getElementById('jumpscare');    if(j)  j.hidden = true;
     const om = document.getElementById('overlayMorte'); if(om) om.hidden = true;
+    const oi = document.getElementById('overlayIntro'); if(oi) oi.hidden = true;
     BUS.emit('fine');
 
     el.fineTitolo.textContent = winnerMsg(room.winner || 'assassino');
@@ -285,10 +371,7 @@
 
     if(!lastPlayers || lastPlayers.length === 0){
       db.from('players').select().eq('room_id', roomId).then(function(r){
-        if(r.data && r.data.length){
-          lastPlayers = r.data;
-          rendiFineRuoli(lastPlayers);
-        }
+        if(r.data && r.data.length){ lastPlayers = r.data; rendiFineRuoli(lastPlayers); }
       });
     }
   }
@@ -355,7 +438,7 @@
 
       if(beatN % PRESENCE_EVERY === 2){
         const st = await db.from('rooms')
-          .select('status, host_uid, phase, started_at, winner, clue, next_kill_at, last_kill_at, last_kill_uid, indagini_usate, skip_usati, clue_read_at, last_victim_clue, assassin_card')
+          .select('status, host_uid, phase, started_at, winner, clue, next_kill_at, last_kill_at, last_kill_uid, indagini_usate, skip_usati, clue_read_at, last_victim_clue, assassin_card, intro_at')
           .eq('id', roomId).maybeSingle();
         if(st.data){
           Object.assign(room, st.data);
