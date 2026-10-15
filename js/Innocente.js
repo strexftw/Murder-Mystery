@@ -1,14 +1,10 @@
-// INNOCENTE.JS v1.3 - jumpscare + indizio lasciato dall'assassino.
-// Quando la vittima muore, vede una caratteristica dell'assassino.
+// INNOCENTE.JS v1.4 - jumpscare + indizio dell'assassino dopo l'eliminazione.
+// Dopo il jumpscare (3s), mostra l'indizio dell'assassino con il messaggio
+// "Mostra questo indizio al detective". Niente modalità spettro.
 (function(){
   let el = null, visto = null, audioCtx = null;
-  let t1 = null, t2 = null;
+  let t1 = null;
   let muto = localStorage.getItem('assassino_muto') === '1';
-
-  window.entraInModalitaSpettro = window.entraInModalitaSpettro || function(){
-    console.log('[SPETTRO] TODO: modalita spettro non ancora implementata');
-    showToast('Sei eliminato: la modalita spettro arrivera con Spettro.js', false);
-  };
 
   function boot(){
     if(typeof PARTITA === 'undefined' || !PARTITA.on){ setTimeout(boot, 120); return; }
@@ -17,8 +13,10 @@
     PARTITA.on('reset', function(){
       visto = null;
       if(t1) clearTimeout(t1);
-      if(t2) clearTimeout(t2);
-      if(el) el.jump.hidden = true;
+      if(el){
+        el.jump.hidden = true;
+        el.overlayMorte.hidden = true;
+      }
     });
   }
 
@@ -26,7 +24,8 @@
     el = {
       jump: document.getElementById('jumpscare'),
       mute: document.getElementById('btnMute'),
-      jumpClue: document.getElementById('jumpClue')
+      overlayMorte: document.getElementById('overlayMorte'),
+      morteClue: document.getElementById('morteClue')
     };
     aggiornaMute();
     el.mute.addEventListener('click', function(){
@@ -43,7 +42,7 @@
     window.addEventListener('keydown', unlock);
   }
 
-  function aggiornaMute(){ if(el && el.mute) el.mute.textContent = muto ? '🔇' : '🔊'; }
+  function aggiornaMute(){ if(el && el.mute) el.mute.textContent = muto ? '🔇' : ''; }
 
   function ctx(){
     if(!audioCtx){
@@ -85,17 +84,23 @@
     if(room.last_kill_at === visto) return;
     visto = room.last_kill_at;
     
-    // Mostra l'indizio lasciato dall'assassino
-    if(el.jumpClue && room.last_victim_clue){
-      el.jumpClue.textContent = room.last_victim_clue;
-      el.jumpClue.hidden = false;
-    }
-    
+    // Jumpscare
     suono();
     el.jump.hidden = false;
+    el.overlayMorte.hidden = true;
+    
+    // Dopo 3 secondi: mostra l'indizio dell'assassino
     t1 = setTimeout(function(){
       el.jump.hidden = true;
-      if(typeof window.entraInModalitaSpettro === 'function') window.entraInModalitaSpettro();
+      
+      // Mostra l'indizio dell'assassino (da room.last_victim_clue)
+      if(el.morteClue && room.last_victim_clue){
+        el.morteClue.textContent = room.last_victim_clue;
+      } else {
+        el.morteClue.textContent = "L'assassino è tra voi.";
+      }
+      
+      el.overlayMorte.hidden = false;
     }, 3000);
   }
 

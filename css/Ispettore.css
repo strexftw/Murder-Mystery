@@ -138,3 +138,25 @@
 /* pulsanti-campo dell'indagine, piu compatti */
 .bersaglio-card.campo{ font-size:.9rem; padding:.7rem .5rem; }
 #indagineCampi{ margin-top:.2rem; }
+
+/* indizio lasciato alla vittima nel jumpscare */
+.jump-clue{
+  position:absolute; bottom:20%; left:50%; transform:translateX(-50%);
+  font-family:var(--head); font-size:clamp(1rem,3vw,1.4rem);
+  letter-spacing:.08em; color:var(--gold-bright);
+  background:rgba(9,27,21,.85); border:1px solid var(--gold);
+  padding:.8rem 1.4rem; border-radius:8px;
+  animation:rise .6s 1s ease both; max-width:90vw; text-align:center;
+}
+.jump-clue[hidden]{ display:none; }
+
+/* indizio mostrato dopo il jumpscare */
+.morte-clue{
+  font-family:var(--head); font-size:clamp(1.2rem,4vw,1.8rem);
+  letter-spacing:.08em; color:var(--gold-bright);
+  background:rgba(9,27,21,.85); border:2px solid var(--gold);
+  padding:1.2rem 2rem; border-radius:12px;
+  text-align:center; max-width:90vw;
+  box-shadow:0 0 40px rgba(217,172,78,.3);
+  animation:rise .6s ease both;
+}
