@@ -39,7 +39,7 @@
     showToast(msg, false);
     const d = document.createElement('div');
     d.className = 'config-warning';
-    d.textContent = ' ' + msg;
+    d.textContent = '⚠ ' + msg;
     document.body.appendChild(d);
   }
 
@@ -362,7 +362,7 @@
       }).eq('id', roomId);
       if(rm.error) throw rm.error;
 
-      await sysMessage(roomId, ' La partita sta per iniziare…');
+      await sysMessage(roomId, '☠ La partita sta per iniziare…');
       startOverlay();
     }catch(err){
       console.error('[LOBBY] avvio fallito:', err);
