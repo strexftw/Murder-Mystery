@@ -1,14 +1,12 @@
-// ISPETTORE.JS v2 - notifica vittima, indagine con scelta
-// dell'informazione, tabella, accusa finale.
-// Ogni risposta (Si o No) FA RIPARTIRE il clock uccisioni (12s).
+// ISPETTORE.JS v2.2 - timer FERMO dalla notifica fino a Fine ispezione.
+// doSi() NON chiama resetClock(). Solo Fine ispezione o No/auto-No lo fanno.
 (function(){
-  const KILL_MS = 12000;     // deve combaciare con Sistema.js
+  const KILL_MS = 12000;
   const AUTO_NO_SEC = 10;
   let el = null, clue = null, seenKill = null;
   let autoTick = null;
   let bersaglioIndagine = null, campoScelto = null, bersaglioElimina = null;
 
-  // etichette delle informazioni indagabili
   const CAMPI = [
     ['nascita', 'Anno di nascita'],
     ['luogo',   'Luogo di nascita'],
@@ -113,7 +111,7 @@
     if(vit) aggiungiTabella(vit.name);
 
     const ind = room.indagini_usate || 0, sk = room.skip_usati || 0;
-    if(ind >= 3 && sk >= 2) return;   // budget finito: niente notifica
+    if(ind >= 3 && sk >= 2) return;
     apriNotifica(vit ? vit.name : 'Qualcuno', ind, sk);
   }
 
@@ -139,17 +137,19 @@
     el.notif.hidden = true;
   }
 
-  // ogni risposta fa ripartire il clock uccisioni
+  // resetClock chiamato SOLO da Fine ispezione e No/auto-No
   async function resetClock(){
     await PARTITA.dbRef().from('rooms').update({
       next_kill_at: new Date(Date.now() + KILL_MS).toISOString()
     }).eq('id', PARTITA.getRoomId());
   }
 
+  // PASSO 1: scegli la persona. TIMER ANCORA FERMO.
   function doSi(){
     chiudiNotifica();
     bersaglioIndagine = null; campoScelto = null;
-    el.indEsito.textContent = '';
+    el.indEsito.textContent = 'Scegli una persona.';
+    el.indEsito.className = 'indagine-esito';
     el.indOk.disabled = true;
     el.indList.innerHTML = '';
     el.indCampi.innerHTML = '';
@@ -173,9 +173,9 @@
     el.ind.hidden = false;
   }
 
-  // scegli QUALE informazione vedere della carta
+  // PASSO 2: scegli QUALE informazione. TIMER ANCORA FERMO.
   function mostraCampi(p){
-    el.indEsito.textContent = 'Scegli quale informazione verificare.';
+    el.indEsito.textContent = 'Ora scegli quale informazione verificare.';
     el.indEsito.className = 'indagine-esito';
     el.indOk.disabled = true;
     el.indCampi.innerHTML = '';
@@ -200,17 +200,30 @@
     });
   }
 
+  // PASSO 3: FINE ISPEZIONE -> conta l'indagine e FA RIPARTIRE il timer
   async function commitIndagine(){
+    if(!bersaglioIndagine || !campoScelto) return;
     const room = PARTITA.getRoom();
     const n = (room.indagini_usate || 0) + 1;
     await PARTITA.dbRef().from('rooms').update({ indagini_usate: n }).eq('id', PARTITA.getRoomId());
     room.indagini_usate = n;
+
+    if(clue && campoScelto === clue.campo){
+      let card = null;
+      try{ card = JSON.parse(bersaglioIndagine.card || 'null'); }catch(e){ card = null; }
+      if(card && String(card[clue.campo]) !== String(clue.valore)){
+        aggiungiTabella(bersaglioIndagine.name);
+      }
+    }
+
+    // SOLO ORA il timer riparte
     await resetClock();
     el.ind.hidden = true;
     aggiornaElimina();
-    showToast('Indagine registrata (' + n + '/3)');
+    showToast('Ispezione chiusa (' + n + '/3): timer ripartito');
   }
 
+  // No / auto-No: il timer riparte subito
   async function doNo(auto){
     chiudiNotifica();
     const room = PARTITA.getRoom();

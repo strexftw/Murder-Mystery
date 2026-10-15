@@ -1,5 +1,5 @@
-// INNOCENTE.JS v1.2 - jumpscare per chi viene ucciso dal Sistema,
-// poi gancio spettro (TODO: Spettro.js).
+// INNOCENTE.JS v1.3 - jumpscare + indizio lasciato dall'assassino.
+// Quando la vittima muore, vede una caratteristica dell'assassino.
 (function(){
   let el = null, visto = null, audioCtx = null;
   let t1 = null, t2 = null;
@@ -25,7 +25,8 @@
   function setup(){
     el = {
       jump: document.getElementById('jumpscare'),
-      mute: document.getElementById('btnMute')
+      mute: document.getElementById('btnMute'),
+      jumpClue: document.getElementById('jumpClue')
     };
     aggiornaMute();
     el.mute.addEventListener('click', function(){
@@ -83,6 +84,13 @@
     if(room.last_kill_uid !== PARTITA.getUid()) return;
     if(room.last_kill_at === visto) return;
     visto = room.last_kill_at;
+    
+    // Mostra l'indizio lasciato dall'assassino
+    if(el.jumpClue && room.last_victim_clue){
+      el.jumpClue.textContent = room.last_victim_clue;
+      el.jumpClue.hidden = false;
+    }
+    
     suono();
     el.jump.hidden = false;
     t1 = setTimeout(function(){
