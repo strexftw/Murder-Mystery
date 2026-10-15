@@ -1,7 +1,9 @@
-// PARTITA.JS v2.4 - motore Step 5 con chiusura automatica overlay morte
-// quando il detective legge l'indizio (clue_read_at).
+// PARTITA.JS v2.5 - motore Step 5.
+// v2.5: alla fine partita nasconde DIRETTAMENTE jumpscare + overlayMorte
+// nel DOM e emette l'evento 'fine', cosi la vittima puo sempre cliccare
+// "Torna al tavolo" (overlayFine portato sopra tutto dal CSS).
 (function(){
-  console.log('[PARTITA] partita.js caricato v2.4');
+  console.log('[PARTITA] partita.js caricato v2.5');
   if(!guardConfig()) return;
 
   const uid    = getUid();
@@ -229,10 +231,21 @@
     setTimeout(function(){ location.replace('lobby.html'); }, 1500);
   }
 
+  // FINE PARTITA: nasconde DIRETTAMENTE jumpscare + overlayMorte nel DOM
+  // (doppia sicurezza, indipendente da Innocente.js) e porta overlayFine
+  // sopra tutto grazie al CSS (#overlayFine{ z-index:99 }).
   function mostraFine(){
     if(fineVista) return;
     fineVista = true;
     running = false;
+
+    const j = document.getElementById('jumpscare');
+    if(j) j.hidden = true;
+    const om = document.getElementById('overlayMorte');
+    if(om) om.hidden = true;
+
+    BUS.emit('fine');
+
     el.fineTitolo.textContent = winnerMsg(room.winner || 'assassino');
     el.fineRuoli.innerHTML = (lastPlayers || []).map(function(p){
       const r = roleOf(p);
@@ -302,7 +315,6 @@
       await refreshChat();
 
       if(beatN % PRESENCE_EVERY === 2){
-        // IMPORTANTE: legge anche clue_read_at per Innocente.js
         const st = await db.from('rooms')
           .select('status, host_uid, phase, started_at, winner, clue, next_kill_at, last_kill_at, last_kill_uid, indagini_usate, skip_usati, clue_read_at, last_victim_clue, assassin_card')
           .eq('id', roomId).maybeSingle();
