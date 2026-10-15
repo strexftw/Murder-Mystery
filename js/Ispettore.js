@@ -1,5 +1,5 @@
-// ISPETTORE.JS v2.2 - timer FERMO dalla notifica fino a Fine ispezione.
-// doSi() NON chiama resetClock(). Solo Fine ispezione o No/auto-No lo fanno.
+// ISPETTORE.JS v2.3 - flusso eliminazione completo.
+// Timer bloccato dalla vittima fino a NO o Fine ispezione.
 (function(){
   const KILL_MS = 12000;
   const AUTO_NO_SEC = 10;
@@ -116,7 +116,7 @@
   }
 
   function apriNotifica(nomeVittima, ind, sk){
-    el.notifTesto.textContent = 'Nuova vittima: ' + nomeVittima + '. Il tempo è FERMO finché non decidi.';
+    el.notifTesto.textContent = 'Nuova vittima: ' + nomeVittima + '. Il timer di eliminazione è BLOCCATO.';
     el.btnSi.textContent = 'Sì, indago (' + (3 - ind) + ' rimaste)';
     el.btnNo.textContent = 'No, skip (' + (2 - sk) + ' rimasti)';
     el.btnSi.disabled = ind >= 3;
@@ -137,14 +137,14 @@
     el.notif.hidden = true;
   }
 
-  // resetClock chiamato SOLO da Fine ispezione e No/auto-No
-  async function resetClock(){
+  // sblocca il timer (chiamato SOLO da No e Fine ispezione)
+  async function sbloccaTimer(){
     await PARTITA.dbRef().from('rooms').update({
       next_kill_at: new Date(Date.now() + KILL_MS).toISOString()
     }).eq('id', PARTITA.getRoomId());
   }
 
-  // PASSO 1: scegli la persona. TIMER ANCORA FERMO.
+  // PASSO 1: scegli la persona. Timer ANCORA BLOCCATO.
   function doSi(){
     chiudiNotifica();
     bersaglioIndagine = null; campoScelto = null;
@@ -173,7 +173,7 @@
     el.ind.hidden = false;
   }
 
-  // PASSO 2: scegli QUALE informazione. TIMER ANCORA FERMO.
+  // PASSO 2: scegli QUALE informazione. Timer ANCORA BLOCCATO.
   function mostraCampi(p){
     el.indEsito.textContent = 'Ora scegli quale informazione verificare.';
     el.indEsito.className = 'indagine-esito';
@@ -200,7 +200,7 @@
     });
   }
 
-  // PASSO 3: FINE ISPEZIONE -> conta l'indagine e FA RIPARTIRE il timer
+  // PASSO 3: FINE ISPEZIONE -> conta l'indagine e SBLOCCA il timer
   async function commitIndagine(){
     if(!bersaglioIndagine || !campoScelto) return;
     const room = PARTITA.getRoom();
@@ -216,14 +216,14 @@
       }
     }
 
-    // SOLO ORA il timer riparte
-    await resetClock();
+    // SOLO ORA il timer si sblocca
+    await sbloccaTimer();
     el.ind.hidden = true;
     aggiornaElimina();
-    showToast('Ispezione chiusa (' + n + '/3): timer ripartito');
+    showToast('Ispezione chiusa (' + n + '/3): timer sbloccato');
   }
 
-  // No / auto-No: il timer riparte subito
+  // No / auto-No: il timer si sblocca subito
   async function doNo(auto){
     chiudiNotifica();
     const room = PARTITA.getRoom();
@@ -232,7 +232,7 @@
       await PARTITA.dbRef().from('rooms').update({ skip_usati: n }).eq('id', PARTITA.getRoomId());
       room.skip_usati = n;
     }
-    await resetClock();
+    await sbloccaTimer();
   }
 
   function apriElimina(){

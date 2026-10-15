@@ -1,6 +1,6 @@
-// SISTEMA.JS v3.1 - loop uccisioni + indizio lasciato alla vittima.
-// Quando un innocente muore, il suo dispositivo vede una caratteristica
-// dell'assassino (presa dalla carta salvata in rooms.assassin_card).
+// SISTEMA.JS v3.2 - loop uccisioni con timer bloccato dopo ogni vittima.
+// Dopo ogni colpo: next_kill_at = null (timer bloccato).
+// Il timer si sblocca SOLO quando l'Ispettore clicca NO o Fine ispezione.
 (function(){
   const KILL_MS = 12000;
   const WATCHDOG_MS = 20000;
@@ -42,7 +42,9 @@
     });
     if(vittime.length === 0){ await fine('assassino'); return; }
 
+    // TIMER BLOCCATO: next_kill_at = null
     if(!room.next_kill_at){
+      // watchdog: se il detective non risponde in 20s, sblocco automatico
       if(room.last_kill_at && (now - Date.parse(room.last_kill_at)) > WATCHDOG_MS){
         const iso = new Date(now + KILL_MS).toISOString();
         await db.from('rooms').update({ next_kill_at: iso }).eq('id', roomId);
@@ -58,7 +60,6 @@
     crypto.getRandomValues(r);
     const vit = vittime[r[0] % vittime.length];
 
-    // Indizio lasciato alla vittima: una caratteristica dell'assassino
     let vittimaClue = '';
     try{
       const assassinCard = JSON.parse(room.assassin_card || '{}');
@@ -86,6 +87,8 @@
 
     await db.from('players').update({ alive: false }).eq('id', vit.id);
     const ora = new Date(now).toISOString();
+    
+    // TIMER BLOCCATO: next_kill_at = null
     await db.from('rooms').update({
       last_kill_uid: vit.uid,
       last_kill_at:  ora,
