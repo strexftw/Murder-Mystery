@@ -1,5 +1,5 @@
 // UTILS.JS v4 - identita, codici, toast, messaggi, reset.
-// Stile anti-manomissione: commenti //, niente entita letterali.
+// Stile anti-manomissione: niente entita letterali, niente backslash.
 
 function getUid(){
   let u = localStorage.getItem('assassino_uid');
