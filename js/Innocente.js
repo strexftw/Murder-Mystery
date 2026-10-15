@@ -1,17 +1,17 @@
-// INNOCENTE.JS v1.4 - jumpscare + indizio dell'assassino dopo l'eliminazione.
-// Dopo il jumpscare (3s), mostra l'indizio dell'assassino con il messaggio
-// "Mostra questo indizio al detective". Niente modalità spettro.
+// INNOCENTE.JS v1.5 - jumpscare + indizio + chiusura automatica
+// quando il detective clicca "Hai letto?".
 (function(){
   let el = null, visto = null, audioCtx = null;
   let t1 = null;
   let muto = localStorage.getItem('assassino_muto') === '1';
+  let clueLetto = false;
 
   function boot(){
     if(typeof PARTITA === 'undefined' || !PARTITA.on){ setTimeout(boot, 120); return; }
     PARTITA.on('ready', setup);
     PARTITA.on('room', onRoom);
     PARTITA.on('reset', function(){
-      visto = null;
+      visto = null; clueLetto = false;
       if(t1) clearTimeout(t1);
       if(el){
         el.jump.hidden = true;
@@ -42,7 +42,7 @@
     window.addEventListener('keydown', unlock);
   }
 
-  function aggiornaMute(){ if(el && el.mute) el.mute.textContent = muto ? '🔇' : ''; }
+  function aggiornaMute(){ if(el && el.mute) el.mute.textContent = muto ? 'MUTO' : 'AUDIO'; }
 
   function ctx(){
     if(!audioCtx){
@@ -79,27 +79,32 @@
   }
 
   function onRoom(room){
-    if(!el || !room || !room.last_kill_at) return;
+    if(!el) return;
+
+    // Se il detective ha letto l'indizio, chiudi l'overlay morte
+    if(room && room.clue_read_at && !clueLetto){
+      clueLetto = true;
+      el.overlayMorte.hidden = true;
+    }
+
+    // Gestione jumpscare (solo se sono io la vittima)
+    if(!room || !room.last_kill_at) return;
     if(room.last_kill_uid !== PARTITA.getUid()) return;
     if(room.last_kill_at === visto) return;
     visto = room.last_kill_at;
-    
-    // Jumpscare
+    clueLetto = false;
+
     suono();
     el.jump.hidden = false;
     el.overlayMorte.hidden = true;
-    
-    // Dopo 3 secondi: mostra l'indizio dell'assassino
+
     t1 = setTimeout(function(){
       el.jump.hidden = true;
-      
-      // Mostra l'indizio dell'assassino (da room.last_victim_clue)
       if(el.morteClue && room.last_victim_clue){
         el.morteClue.textContent = room.last_victim_clue;
       } else {
-        el.morteClue.textContent = "L'assassino è tra voi.";
+        el.morteClue.textContent = "L'assassino e tra voi.";
       }
-      
       el.overlayMorte.hidden = false;
     }, 3000);
   }
