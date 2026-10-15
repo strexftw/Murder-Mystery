@@ -8,24 +8,20 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400..900&family=Karla:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
-  
-  <!-- CSS con cache-buster per forzare l'aggiornamento -->
-  <link rel="stylesheet" href="css/base.css?v=18">
-  <link rel="stylesheet" href="css/lobby.css?v=18">
-  <link rel="stylesheet" href="css/partita.css?v=18">
-  <link rel="stylesheet" href="css/Ispettore.css?v=18">
-  <link rel="stylesheet" href="css/pc.css?v=18" media="(hover:hover) and (pointer:fine)">
-  <link rel="stylesheet" href="css/phone.css?v=18" media="(pointer:coarse)">
+  <link rel="stylesheet" href="css/base.css?v=20">
+  <link rel="stylesheet" href="css/lobby.css?v=20">
+  <link rel="stylesheet" href="css/partita.css?v=20">
+  <link rel="stylesheet" href="css/Ispettore.css?v=20">
+  <link rel="stylesheet" href="css/pc.css?v=20" media="(hover:hover) and (pointer:fine)">
+  <link rel="stylesheet" href="css/phone.css?v=20" media="(pointer:coarse)">
 </head>
 <body>
 
-<!-- Sfondo decorativo -->
 <div class="suits" aria-hidden="true">
   <span class="s s1">♠</span><span class="s s2">♥</span>
   <span class="s s3">♣</span><span class="s s4">♦</span>
 </div>
 
-<!-- Barra superiore -->
 <header class="topbar">
   <div class="brand">
     <span class="brand-mark">†</span>
@@ -35,10 +31,7 @@
     </div>
   </div>
   <div class="topbar-right">
-    <div class="timer-chip">
-      <span class="timer-label">Tempo</span>
-      <span id="timerText">00:00</span>
-    </div>
+    <div class="timer-chip"><span class="timer-label">Tempo</span><span id="timerText">00:00</span></div>
     <button class="code-chip" id="codeChip" title="Clicca per copiare il codice">
       <span class="code-label">Codice</span>
       <span id="codeText">······</span>
@@ -50,49 +43,39 @@
 
 <main class="lobby-grid">
 
-  <!-- Colonna sinistra: la tua carta + il tavolo -->
   <section class="players-col panel-col">
     <div class="col-head">
       <h2>❖ La tua carta</h2>
       <span class="count role-tag" id="roleTag">…</span>
     </div>
-    
     <div class="my-card">
       <div class="my-role" id="myRole">…</div>
-      
       <div class="my-secret-row">
         <span class="my-secret-label">Codice di riconoscimento</span>
         <span class="my-code" id="myCode">—</span>
       </div>
-      
-      <!-- Riga indizio: visibile SOLO al detective -->
       <div class="my-secret-row" id="clueRow" hidden>
         <span class="my-secret-label">Indizio (solo tuo)</span>
         <span class="my-word" id="clueText">…</span>
       </div>
-      
-      <!-- Pulsanti azione: visibili SOLO al detective -->
       <div class="my-actions">
         <button class="btn btn-sm" id="btnTabella" type="button" hidden>📋 Tabella sospetti</button>
-        <button class="btn btn-sm btn-blood" id="btnElimina" type="button" hidden disabled>⚖ Elimina</button>
+        <button class="btn btn-sm btn-blood" id="btnElimina" type="button" hidden disabled> Elimina</button>
       </div>
-      
+      <div class="my-secret-label" id="myCardLabel" hidden>La tua identità segreta</div>
+      <div class="tabella-list" id="myCardId" hidden></div>
       <p class="my-hint" id="myHint"></p>
     </div>
 
     <div class="col-head second">
-      <h2>❖ Il tavolo</h2>
+      <h2> Il tavolo</h2>
       <span class="count" id="playerCount">0 agenti</span>
     </div>
     <ul id="playerList" class="player-list"></ul>
   </section>
 
-  <!-- Colonna destra: chat di partita -->
   <section class="chat-col panel-col">
-    <div class="col-head">
-      <h2>❖ Canale sicuro</h2>
-      <span class="count">In partita</span>
-    </div>
+    <div class="col-head"><h2>❖ Canale sicuro</h2><span class="count">In partita</span></div>
     <div id="chatLog" class="chat-log"></div>
     <form id="chatForm" class="chat-form" autocomplete="off">
       <input id="chatInput" maxlength="200" placeholder="Scrivi al tavolo…">
@@ -102,11 +85,6 @@
 
 </main>
 
-<!-- ========================================== -->
-<!-- OVERLAY DI GIOCO                           -->
-<!-- ========================================== -->
-
-<!-- 1. Attesa sincronizzata (tutti devono confermare) -->
 <div class="overlay attesa" id="overlayAttesa" hidden>
   <div class="attesa-stack">
     <div class="attesa-spin">✦</div>
@@ -116,7 +94,6 @@
   </div>
 </div>
 
-<!-- 2. Notifica al detective: nuova vittima -->
 <div class="overlay isp" id="overlayNotifica" hidden>
   <div class="isp-stack">
     <h2 class="isp-title">🕯 Nuova vittima al tavolo</h2>
@@ -129,7 +106,6 @@
   </div>
 </div>
 
-<!-- 3. Indagine: scelta persona e informazione -->
 <div class="overlay isp" id="overlayIndagine" hidden>
   <div class="isp-stack">
     <h2 class="isp-title">🔍 Indagine</h2>
@@ -137,27 +113,21 @@
     <div class="bersaglio-list" id="indagineList"></div>
     <div class="bersaglio-list" id="indagineCampi"></div>
     <p class="indagine-esito" id="indagineEsito"></p>
-    <div class="isp-actions">
-      <button class="btn btn-blood" id="btnIndagineOk" type="button" disabled>Fine ispezione</button>
-    </div>
+    <div class="isp-actions"><button class="btn btn-blood" id="btnIndagineOk" type="button" disabled>Fine ispezione</button></div>
   </div>
 </div>
 
-<!-- 4. Tabella privata del detective -->
 <div class="overlay isp" id="overlayTabella" hidden>
   <div class="isp-stack">
     <h2 class="isp-title">📋 Chi NON è l'assassino</h2>
     <ul class="tabella-list" id="tabellaList"></ul>
-    <div class="isp-actions">
-      <button class="btn" id="btnTabellaChiudi" type="button">Chiudi</button>
-    </div>
+    <div class="isp-actions"><button class="btn" id="btnTabellaChiudi" type="button">Chiudi</button></div>
   </div>
 </div>
 
-<!-- 5. Accusa finale -->
 <div class="overlay isp" id="overlayElimina" hidden>
   <div class="isp-stack">
-    <h2 class="isp-title">⚖ Accusa finale</h2>
+    <h2 class="isp-title"> Accusa finale</h2>
     <p class="isp-sub">Un solo tentativo: se sbagli, vince l'assassino.</p>
     <div class="bersaglio-list" id="eliminaList"></div>
     <div class="isp-actions">
@@ -167,18 +137,14 @@
   </div>
 </div>
 
-<!-- 6. Fine partita -->
 <div class="overlay isp" id="overlayFine" hidden>
   <div class="isp-stack">
     <h2 class="isp-title fine" id="fineTitolo">🏆</h2>
     <ul class="tabella-list" id="fineRuoli"></ul>
-    <div class="isp-actions">
-      <button class="btn btn-blood" id="btnFine" type="button">Torna al tavolo</button>
-    </div>
+    <div class="isp-actions"><button class="btn btn-blood" id="btnFine" type="button">Torna al tavolo</button></div>
   </div>
 </div>
 
-<!-- 7. Rivelazione iniziale del ruolo (carta che si gira) -->
 <div class="overlay reveal" id="reveal" hidden>
   <div class="reveal-stack">
     <p class="reveal-over">✦ &nbsp;Il tuo destino, solo per i tuoi occhi&nbsp; ✦</p>
@@ -186,13 +152,10 @@
       <div class="flip-card" id="flipCard">
         <div class="flip-back"><span>†</span></div>
         <div class="flip-front">
-          <div class="orn dark">✦ ✦ </div>
+          <div class="orn dark"> ✦ </div>
           <h2 class="reveal-role" id="revealRole">…</h2>
           <p class="reveal-desc" id="revealDesc"></p>
-          <div class="reveal-row">
-            <span>Codice</span>
-            <span class="reveal-code" id="revealCode">—</span>
-          </div>
+          <div class="reveal-row"><span>Codice</span><span class="reveal-code" id="revealCode">—</span></div>
         </div>
       </div>
     </div>
@@ -201,14 +164,12 @@
   </div>
 </div>
 
-<!-- 8. Jumpscare della vittima -->
 <div class="jumpscare" id="jumpscare" hidden>
   <button class="jump-mute" id="btnMute" type="button" title="Audio on/off">🔊</button>
   <div class="jump-face">👹</div>
   <p class="jump-text">Sei stato trovato senza vita</p>
 </div>
 
-<!-- 9. Overlay post-jumpscare: indizio dell'assassino per la vittima -->
 <div class="overlay isp" id="overlayMorte" hidden>
   <div class="isp-stack">
     <h2 class="isp-title">☠ Sei stato eliminato</h2>
@@ -217,20 +178,15 @@
   </div>
 </div>
 
-<!-- Toast per notifiche rapide -->
 <div id="toast" class="toast"></div>
 
-<!-- ========================================== -->
-<!-- SCRIPTS                                    -->
-<!-- ========================================== -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/config.js?v=18"></script>
-<script src="js/utils.js?v=18"></script>
-<script src="js/Personaggi.js?v=18"></script>
-<script src="js/partita.js?v=18"></script>
-<script src="js/Sistema.js?v=18"></script>
-<script src="js/Ispettore.js?v=18"></script>
-<script src="js/Innocente.js?v=18"></script>
-
+<script src="js/config.js?v=20"></script>
+<script src="js/utils.js?v=20"></script>
+<script src="js/Personaggi.js?v=20"></script>
+<script src="js/partita.js?v=20"></script>
+<script src="js/Sistema.js?v=20"></script>
+<script src="js/Ispettore.js?v=20"></script>
+<script src="js/Innocente.js?v=20"></script>
 </body>
 </html>
