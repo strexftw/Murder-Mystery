@@ -1,5 +1,7 @@
-// INNOCENTE.JS v1.6 - jumpscare + indizio + chiusura automatica
-// quando il detective clicca "Hai letto?" (legge clue_read_at).
+// INNOCENTE.JS v1.7 - jumpscare + indizio + chiusura automatica
+// quando il detective clicca "Hai letto?" (clue_read_at).
+// v1.7: se il detective legge PRIMA che finisca il jumpscare,
+// l'overlay non viene mostrato (evita che resti appeso).
 (function(){
   let el = null, visto = null, audioCtx = null;
   let t1 = null;
@@ -42,7 +44,7 @@
     window.addEventListener('keydown', unlock);
   }
 
-  function aggiornaMute(){ if(el && el.mute) el.mute.textContent = muto ? '🔇' : ''; }
+  function aggiornaMute(){ if(el && el.mute) el.mute.textContent = muto ? '🔇' : '🔊'; }
 
   function ctx(){
     if(!audioCtx){
@@ -81,19 +83,21 @@
   function onRoom(room){
     if(!el) return;
 
-    // Se il detective ha letto l'indizio, chiudi l'overlay morte
+    // Il detective ha letto l'indizio di QUESTO turno: chiudi l'overlay
     if(room && room.clue_read_at && !clueLetto){
       clueLetto = true;
       el.overlayMorte.hidden = true;
       console.log('[INNOCENTE] overlay morte chiuso (clue_read_at letto)');
     }
 
-    // Gestione jumpscare (solo se sono io la vittima)
     if(!room || !room.last_kill_at) return;
     if(room.last_kill_uid !== PARTITA.getUid()) return;
     if(room.last_kill_at === visto) return;
     visto = room.last_kill_at;
     clueLetto = false;
+
+    // cattura il testo ORA, cosi il timeout non dipende da riferimenti vecchi
+    const clueTesto = room.last_victim_clue || "L'assassino è tra voi.";
 
     suono();
     el.jump.hidden = false;
@@ -101,11 +105,12 @@
 
     t1 = setTimeout(function(){
       el.jump.hidden = true;
-      if(el.morteClue && room.last_victim_clue){
-        el.morteClue.textContent = room.last_victim_clue;
-      } else {
-        el.morteClue.textContent = "L'assassino è tra voi.";
+      // guardia: se nel frattempo il detective ha gia letto, non mostrare
+      if(clueLetto){
+        console.log('[INNOCENTE] detective ha gia letto: overlay non mostrato');
+        return;
       }
+      if(el.morteClue) el.morteClue.textContent = clueTesto;
       el.overlayMorte.hidden = false;
     }, 3000);
   }

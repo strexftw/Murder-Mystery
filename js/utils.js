@@ -1,5 +1,6 @@
-// UTILS.JS v4.1 - identita, codici, toast, messaggi, reset.
-// Niente entita letterali, niente backslash: anti-manomissione.
+// UTILS.JS v4.2 - identita, codici, toast, messaggi, reset.
+// Stile anti-manomissione: solo commenti //, niente entita letterali,
+// niente backslash. Richiede il database.txt completo Step 1 -> 7.
 
 function getUid(){
   let u = localStorage.getItem('assassino_uid');
@@ -22,6 +23,7 @@ function getCurrentRoom(){
 }
 function clearCurrentRoom(){ sessionStorage.removeItem('assassino_room'); }
 
+// codice stanza: niente caratteri ambigui (0/O, 1/I)
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function generateRoomCode(len = 6){
   const a = new Uint32Array(len);
@@ -31,14 +33,15 @@ function generateRoomCode(len = 6){
   return s;
 }
 
-const CODE_SUITS = ['♠','♥','♣','♦'];
+// codice personale del giocatore (seme + 2 caratteri)
+const CODE_SUITS = ['\u2660','\u2665','\u2663','\u2666'];
 function generatePlayerCode(){
   const r = new Uint32Array(1);
   crypto.getRandomValues(r);
   return CODE_SUITS[r[0] % CODE_SUITS.length] + generateRoomCode(2);
 }
 
-// offuscamento XOR+base64 (solo ASCII)
+// offuscamento XOR + base64 (solo ASCII: ruoli e indizi)
 function scramble(text, key){
   const k = String(key || '');
   if(!k) return btoa(text);
@@ -59,7 +62,7 @@ function unscramble(enc, key){
   }catch(e){ return null; }
 }
 
-// escape HTML senza entita letterali
+// escape HTML senza entita letterali (immune al copia-incolla)
 function escapeHtml(s){
   let t = String(s == null ? '' : s);
   t = t.split('&').join('&' + 'amp;');
@@ -76,7 +79,7 @@ function showToast(msg, ok = true){
   t.textContent = msg;
   t.className = 'toast show ' + (ok ? 'ok' : 'ko');
   clearTimeout(t._h);
-  t._h = setTimeout(() => t.classList.remove('show'), 2400);
+  t._h = setTimeout(function(){ t.classList.remove('show'); }, 2400);
 }
 
 function configReady(){
@@ -92,16 +95,17 @@ function guardConfig(){
   const d = document.createElement('div');
   d.className = 'config-warning';
   if (typeof SUPABASE_URL === 'undefined'){
-    d.innerHTML = '⚠ <b>js/config.js</b> non risulta caricato: controlla percorso e nome del file.';
+    d.innerHTML = '\u26a0 <b>js/config.js</b> non risulta caricato: controlla percorso e nome del file.';
   } else if (!configReady()){
-    d.innerHTML = '⚠ Compila <b>js/config.js</b> con URL e anon key del tuo progetto Supabase, poi ricarica.';
+    d.innerHTML = '\u26a0 Compila <b>js/config.js</b> con URL e anon key del tuo progetto Supabase, poi ricarica.';
   } else {
-    d.innerHTML = '⚠ Libreria Supabase non disponibile: controlla la connessione (CDN) e ricarica.';
+    d.innerHTML = '\u26a0 Libreria Supabase non disponibile: controlla la connessione (CDN) e ricarica.';
   }
   document.body.appendChild(d);
   return false;
 }
 
+// messaggio di sistema nella chat
 async function sysMessage(roomId, text){
   if (typeof db === 'undefined' || !db) return;
   await db.from('chat_messages').insert({
@@ -109,6 +113,7 @@ async function sysMessage(roomId, text){
   });
 }
 
+// riconoscimento dispositivo: pc / phone / tablet
 function getDeviceType(){
   const ua = navigator.userAgent || '';
   const touch = navigator.maxTouchPoints || 0;
@@ -122,13 +127,14 @@ function getDeviceType(){
 }
 
 function deviceLabel(type){
-  if(type === 'phone')  return '📱 Telefono';
-  if(type === 'tablet') return '📟 Tablet';
-  return '💻 PC';
+  if(type === 'phone')  return '\ud83d\udcf1 Telefono';
+  if(type === 'tablet') return '\ud83d\udfdf Tablet';
+  return '\ud83d\udcbb PC';
 }
 
-// RESET UNICO partita (DB): vivi, conferme, ruoli, carte,
-// indizio, timer, fase. Winner resta fino al prossimo avvio.
+// RESET UNICO partita (DB).
+// v4.2: azzera anche last_victim_clue e clue_read_at, cosi il segnale
+// "il detective ha letto" non resta sporco tra una partita e l'altra.
 async function resetPartita(roomId){
   if (typeof db === 'undefined' || !db) return;
   await db.from('players').update({
@@ -137,6 +143,7 @@ async function resetPartita(roomId){
   await db.from('rooms').update({
     started_at: null, phase: 'reveal', winner: null,
     clue: null, next_kill_at: null, last_kill_at: null, last_kill_uid: null,
+    last_victim_clue: null, clue_read_at: null,
     indagini_usate: 0, skip_usati: 0
   }).eq('id', roomId);
   console.log('[UTILS] resetPartita eseguito per', roomId);

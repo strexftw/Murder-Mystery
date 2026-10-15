@@ -1,5 +1,7 @@
-// SISTEMA.JS v3.3 - loop uccisioni con indizio vittima.
-// Fallback robusto: se assassin_card manca, usa un indizio generico.
+// SISTEMA.JS v3.4 - loop uccisioni + indizio vittima.
+// v3.4: a OGNI nuova uccisione azzera clue_read_at, cosi il segnale
+// "il detective ha letto" non resta sporco dal turno precedente
+// (bug: dalla 2a eliminazione l'overlay della vittima non chiudeva piu).
 (function(){
   const KILL_MS = 12000;
   const WATCHDOG_MS = 20000;
@@ -57,7 +59,6 @@
     crypto.getRandomValues(r);
     const vit = vittime[r[0] % vittime.length];
 
-    // Indizio vittima: legge assassin_card con fallback
     let vittimaClue = "L'assassino è tra voi.";
     try{
       const assassinCard = room.assassin_card ? JSON.parse(room.assassin_card) : null;
@@ -87,18 +88,22 @@
 
     await db.from('players').update({ alive: false }).eq('id', vit.id);
     const ora = new Date(now).toISOString();
+
+    // CHIAVE DELLA FIX: clue_read_at torna a null a ogni nuovo colpo
     await db.from('rooms').update({
       last_kill_uid: vit.uid,
       last_kill_at:  ora,
       next_kill_at:  null,
-      last_victim_clue: vittimaClue
+      last_victim_clue: vittimaClue,
+      clue_read_at:  null
     }).eq('id', roomId);
 
     Object.assign(roomLocal, {
       last_kill_uid: vit.uid,
       last_kill_at:  ora,
       next_kill_at:  null,
-      last_victim_clue: vittimaClue
+      last_victim_clue: vittimaClue,
+      clue_read_at:  null
     });
     ultimaVittimaTs = now;
 
