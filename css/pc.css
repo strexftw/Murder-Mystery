@@ -1,0 +1,28 @@
+/* =========================================================
+   PC.CSS v1 — caricato SOLO su schermi con mouse
+   (media="(hover:hover) and (pointer:fine)")
+   ========================================================= */
+
+/* ---------- respiro su monitor grandi ---------- */
+body{ font-size:18px; }
+
+.table{ max-width:1250px; }
+.lobby-grid{ max-width:1320px; }
+
+@media (min-width:1500px){
+  body{ font-size:19px; }
+  .lobby-grid{ max-width:1560px; }
+  .player-list{ grid-template-columns:repeat(auto-fill, minmax(210px,1fr)); }
+  .avatar{ width:74px; height:74px; font-size:2.2rem; }
+}
+
+/* ---------- micro-interazioni tipiche del mouse ---------- */
+.code-chip:active{ transform:translateY(0) scale(.98); }
+
+.player-list .player{ will-change:transform; }
+
+/* sulla chat del PC la barra di scorrimento è più fine */
+.chat-log::-webkit-scrollbar{ width:8px; }
+
+/* il cursore cambia sugli elementi cliccabili */
+.code-chip, .btn{ user-select:none; }

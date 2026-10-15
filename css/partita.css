@@ -1,0 +1,164 @@
+/* =========================================================
+   PARTITA.CSS v1 — grafica di partita.html
+   Riusa base.css + lobby.css; qui solo ciò che è nuovo:
+   timer · la tua carta · overlay rivelazione · eliminati
+   ========================================================= */
+
+/* ---------- chip timer nella topbar ---------- */
+.timer-chip{
+  display:flex; align-items:center; gap:.8rem;
+  padding:.6rem 1.1rem; border-radius:6px; border:1px solid var(--gold-dark);
+  background:linear-gradient(180deg, rgba(217,172,78,.14), rgba(217,172,78,.04));
+}
+.timer-label{
+  font-family:var(--head); font-size:.9rem; letter-spacing:.22em;
+  text-transform:uppercase; color:var(--ivory-dim);
+}
+#timerText{
+  font-family:var(--head); font-weight:700; font-size:1.6rem; letter-spacing:.18em;
+  color:var(--ivory); font-variant-numeric:tabular-nums;
+  text-shadow:0 0 14px rgba(217,172,78,.35);
+}
+
+/* ---------- la tua carta (segreta) ---------- */
+.my-card{
+  border:1px solid var(--line); border-radius:10px;
+  background:linear-gradient(170deg, #163e2f, #0d251c);
+  box-shadow:0 12px 24px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.03);
+  padding:1.4rem 1.5rem; text-align:center;
+  display:flex; flex-direction:column; gap:.9rem; align-items:center;
+}
+.my-role{
+  font-family:var(--display); font-weight:900; text-transform:uppercase;
+  font-size:2.4rem; line-height:1.1; letter-spacing:.06em;
+}
+.my-role.assassino{ color:var(--crimson-hot); text-shadow:0 0 34px rgba(224,75,82,.45); }
+.my-role.detective{ color:var(--gold-bright); text-shadow:0 0 34px rgba(242,207,127,.4); }
+.my-role.innocente{ color:var(--ivory);       text-shadow:0 0 24px rgba(243,234,214,.25); }
+
+.my-secret-row{
+  display:flex; align-items:center; justify-content:space-between; gap:1rem;
+  width:100%; padding:.6rem .9rem;
+  border:1px dashed rgba(217,172,78,.3); border-radius:8px;
+}
+.my-secret-label{
+  font-family:var(--head); font-size:.9rem; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--ivory-dim);
+}
+.my-code{
+  font-family:var(--head); font-weight:700; font-size:1.5rem; letter-spacing:.25em;
+  color:var(--gold-bright); text-shadow:0 0 12px rgba(217,172,78,.35);
+}
+.my-word{
+  font-family:var(--head); font-weight:700; font-size:1.5rem; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--gold-bright);
+}
+.my-hint{
+  font-style:italic; color:var(--ivory-dim); font-size:1.05rem; line-height:1.5;
+  max-width:46ch;
+}
+
+/* tag ruolo nella testata della colonna */
+.role-tag.assassino{ border-color:rgba(224,75,82,.55); color:var(--crimson-hot); background:rgba(179,32,47,.12); }
+.role-tag.detective{ border-color:rgba(242,207,127,.55); color:var(--gold-bright); }
+.role-tag.innocente{ border-color:var(--line-soft); color:var(--ivory); }
+
+/* seconda testata (il tavolo) dentro la stessa colonna */
+.col-head.second{ margin-top:1.5rem; }
+
+/* ---------- giocatori eliminati (gancio per le fasi future) ---------- */
+.player.eliminated{ opacity:.5; filter:grayscale(.8); }
+.player.eliminated:hover{ transform:none; }
+.badge-dead{
+  font-family:var(--head); font-weight:700; font-size:.85rem; letter-spacing:.18em;
+  color:var(--ivory-dim); border:1px solid var(--line-soft); border-radius:3px;
+  padding:.25rem .6rem;
+}
+
+/* ---------- overlay rivelazione ---------- */
+.overlay.reveal{
+  position:fixed; inset:0; z-index:70; display:grid; place-items:center;
+  background:radial-gradient(ellipse at center, rgba(15,46,36,.97), rgba(4,10,8,.99));
+  animation:fadeIn .5s ease both;
+  padding:1.2rem; overflow-y:auto;
+}
+.overlay.reveal[hidden]{ display:none; }
+.reveal-stack{
+  display:grid; gap:1.5rem; justify-items:center; text-align:center;
+  animation:rise .55s .1s ease both; max-width:560px; width:100%;
+}
+.reveal-over{
+  font-family:var(--head); letter-spacing:.28em; text-transform:uppercase;
+  font-size:1rem; color:var(--gold);
+}
+.reveal-warn{
+  font-style:italic; color:var(--ivory-dim); font-size:1rem;
+}
+
+/* carta che si gira */
+.flip-scene{ perspective:1200px; }
+.flip-card{
+  position:relative; width:min(330px,78vw); aspect-ratio:5/7;
+  transform-style:preserve-3d;
+  transition:transform 1s cubic-bezier(.2,.8,.3,1);
+}
+.flip-card.flipped{ transform:rotateY(180deg); }
+.flip-back, .flip-front{
+  position:absolute; inset:0; border-radius:14px;
+  backface-visibility:hidden; -webkit-backface-visibility:hidden;
+}
+.flip-back{
+  display:grid; place-items:center;
+  background:repeating-linear-gradient(45deg, #12352a 0 9px, #0e2a21 9px 18px);
+  border:2px solid var(--gold-dark);
+  box-shadow:0 30px 60px rgba(0,0,0,.6);
+}
+.flip-back span{ font-size:4rem; color:var(--gold); }
+.flip-front{
+  transform:rotateY(180deg);
+  background:linear-gradient(160deg, #f7efdd, #e8dcc0);
+  border:2px solid #cbb87f; color:#241703;
+  box-shadow:0 30px 60px rgba(0,0,0,.6);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:.9rem; padding:1.6rem 1.4rem;
+}
+.orn.dark{ color:var(--gold-dark); }
+.reveal-role{
+  font-family:var(--display); font-weight:900; text-transform:uppercase;
+  font-size:2.3rem; line-height:1.1;
+}
+.reveal-role.assassino{ color:#8e1622; }
+.reveal-role.detective{ color:#9a742c; }
+.reveal-role.innocente{ color:#123125; }
+.reveal-desc{ font-size:1.05rem; line-height:1.5; color:#3d3428; }
+.reveal-row{
+  display:flex; align-items:center; justify-content:space-between; gap:1rem;
+  width:100%; padding:.55rem .8rem;
+  border:1px dashed rgba(60,45,20,.4); border-radius:8px;
+  font-family:var(--head); font-size:.9rem; letter-spacing:.16em; text-transform:uppercase;
+}
+.reveal-code{
+  font-weight:700; font-size:1.4rem; letter-spacing:.25em; color:#8e1622;
+}
+.reveal-word{
+  font-weight:700; font-size:1.3rem; letter-spacing:.1em; color:#8e1622;
+}
+
+/* ---------- telefono: compatto ---------- */
+@media (pointer:coarse){
+  #timerText{ font-size:1.05rem; }
+  .timer-label{ font-size:.65rem; }
+  .timer-chip{ padding:.4rem .6rem; gap:.45rem; }
+  .my-card{ padding:.9rem; gap:.6rem; }
+  .my-role{ font-size:1.6rem; }
+  .my-code, .my-word{ font-size:1.05rem; }
+  .my-secret-label{ font-size:.7rem; }
+  .my-hint{ font-size:.85rem; }
+  .col-head.second{ margin-top:.9rem; }
+  .reveal-role{ font-size:1.7rem; }
+  .reveal-desc{ font-size:.9rem; }
+  .reveal-row{ font-size:.75rem; padding:.45rem .6rem; }
+  .reveal-code, .reveal-word{ font-size:1.05rem; }
+  .reveal-over{ font-size:.75rem; letter-spacing:.18em; }
+  .reveal-stack{ gap:1rem; }
+}

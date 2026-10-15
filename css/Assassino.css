@@ -1,0 +1,142 @@
+/* =========================================================
+   ASSASSINO.CSS v1 — grafica dell'eliminazione:
+   mano con carta coltello · scelta vittima · chip countdown
+   taglio · jumpscare. Responsive PC + telefono.
+   ========================================================= */
+
+/* ---------- mano dell'assassino ---------- */
+.mano-assassino{
+  position:fixed; left:50%; bottom:calc(1rem + env(safe-area-inset-bottom));
+  transform:translateX(-50%); z-index:30;
+}
+.carta-coltello{
+  display:flex; flex-direction:column; align-items:center; gap:.4rem;
+  width:110px; padding:.9rem .6rem; border-radius:12px; cursor:pointer;
+  background:linear-gradient(160deg, #f7efdd, #e8dcc0);
+  border:2px solid #cbb87f;
+  box-shadow:0 14px 30px rgba(0,0,0,.55);
+  transition:transform .2s ease, box-shadow .2s ease;
+  animation:dealIn .5s ease both;
+}
+.carta-coltello:hover{ transform:translateY(-10px) rotate(-2deg); box-shadow:0 22px 40px rgba(0,0,0,.6); }
+.coltello{ font-size:2.6rem; filter:drop-shadow(0 4px 6px rgba(0,0,0,.4)); }
+.carta-label{
+  font-family:var(--head); font-weight:700; font-size:.85rem;
+  letter-spacing:.18em; text-transform:uppercase; color:#8e1622;
+}
+/* prima animazione: la carta esce di scena */
+.carta-coltello.usata{ animation:cartaEsce .9s ease both; pointer-events:none; }
+@keyframes cartaEsce{
+  0%{ opacity:1; transform:translateY(0) rotate(0); }
+  100%{ opacity:0; transform:translateY(45vh) rotate(18deg); }
+}
+
+/* ---------- overlay scelta vittima ---------- */
+.overlay.bersaglio{
+  position:fixed; inset:0; z-index:75; display:grid; place-items:center;
+  background:rgba(4,10,8,.92); padding:1.2rem; overflow-y:auto;
+  animation:fadeIn .25s ease both;
+}
+.overlay.bersaglio[hidden]{ display:none; }
+.bersaglio-stack{ width:min(600px,100%); display:grid; gap:1rem; }
+.bersaglio-title{
+  font-family:var(--display); font-weight:900; text-transform:uppercase;
+  font-size:clamp(1.6rem,5vw,2.4rem); color:var(--crimson-hot); text-align:center;
+}
+.bersaglio-sub{ text-align:center; color:var(--ivory-dim); font-size:1.05rem; }
+.bersaglio-list{
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(150px,1fr)); gap:.8rem;
+}
+.bersaglio-card{
+  display:flex; flex-direction:column; gap:.3rem; align-items:center;
+  padding:1rem .7rem; border-radius:10px; cursor:pointer;
+  border:1px solid var(--line); color:var(--ivory);
+  background:linear-gradient(170deg, #163e2f, #0d251c);
+  transition:transform .18s, border-color .18s, box-shadow .18s;
+}
+.bersaglio-card:hover{ transform:translateY(-3px); border-color:var(--gold); }
+.bersaglio-card.scelto{
+  border-color:var(--crimson-hot);
+  box-shadow:0 0 0 3px rgba(224,75,82,.25);
+  background:linear-gradient(170deg, #3a1418, #200a0c);
+}
+.b-name{ font-family:var(--head); font-weight:700; font-size:1.1rem; }
+.b-device{ font-size:.8rem; color:var(--ivory-dim); }
+.bersaglio-void{ color:var(--ivory-dim); font-style:italic; text-align:center; }
+.bersaglio-actions{ display:flex; gap:.8rem; justify-content:flex-end; flex-wrap:wrap; }
+
+/* ---------- chip countdown del colpo ---------- */
+.colpo-chip{
+  position:fixed; top:calc(4.8rem + env(safe-area-inset-top)); left:50%;
+  transform:translateX(-50%); z-index:40;
+  display:flex; gap:.5rem; align-items:center;
+  padding:.5rem 1.1rem; border-radius:99px;
+  border:1px solid rgba(224,75,82,.5); background:rgba(179,32,47,.18);
+  color:var(--crimson-hot); font-family:var(--head);
+  font-size:1rem; letter-spacing:.12em; text-transform:uppercase;
+}
+#colpoTimer{ font-weight:700; font-size:1.25rem; font-variant-numeric:tabular-nums; }
+
+/* ---------- seconda animazione: il taglio ---------- */
+.slash-overlay{
+  position:fixed; inset:0; z-index:85; pointer-events:none;
+  display:grid; place-items:center;
+  background:radial-gradient(ellipse at center, rgba(179,32,47,.25), rgba(4,10,8,.85));
+  animation:fadeIn .2s ease both;
+}
+.slash-overlay[hidden]{ display:none; }
+.slash-blade{
+  font-size:clamp(6rem,20vw,12rem);
+  filter:drop-shadow(0 0 30px rgba(224,75,82,.8));
+  animation:slash 1.5s cubic-bezier(.2,.8,.3,1) both;
+}
+@keyframes slash{
+  0%{ transform:translate(-60vw,-40vh) rotate(-40deg) scale(.6); opacity:0; }
+  30%{ opacity:1; }
+  100%{ transform:translate(60vw,40vh) rotate(20deg) scale(1.4); opacity:0; }
+}
+
+/* ---------- jumpscare della vittima ---------- */
+.jumpscare{
+  position:fixed; inset:0; z-index:90; display:grid; place-items:center;
+  background:#000; animation:jumpFlash .5s steps(2) 3;
+}
+.jumpscare[hidden]{ display:none; }
+.jump-face{
+  font-size:clamp(10rem,45vw,26rem);
+  filter:drop-shadow(0 0 60px rgba(224,75,82,.9));
+  animation:jumpZoom 1.2s cubic-bezier(.1,.9,.2,1) both, jumpShake .12s linear 12;
+}
+.jump-text{
+  position:absolute; bottom:12%;
+  font-family:var(--head); font-size:clamp(1.4rem,5vw,2.4rem);
+  letter-spacing:.3em; text-transform:uppercase; color:var(--crimson-hot);
+  animation:rise .6s .8s ease both;
+}
+.jump-mute{
+  position:absolute; top:calc(.8rem + env(safe-area-inset-top));
+  right:calc(.8rem + env(safe-area-inset-right)); z-index:91;
+  width:56px; height:56px; border-radius:50%;
+  border:1px solid var(--line); background:rgba(9,27,21,.7);
+  color:var(--ivory); font-size:1.5rem; cursor:pointer;
+}
+@keyframes jumpFlash{ 0%{ background:#000; } 50%{ background:#3a0508; } 100%{ background:#000; } }
+@keyframes jumpZoom{ 0%{ transform:scale(.1); opacity:0; } 60%{ transform:scale(1.15); opacity:1; } 100%{ transform:scale(1); } }
+@keyframes jumpShake{ 0%{ margin-left:0; } 25%{ margin-left:-14px; } 75%{ margin-left:14px; } 100%{ margin-left:0; } }
+
+/* ---------- telefono ---------- */
+@media (pointer:coarse){
+  .carta-coltello{ width:92px; padding:.7rem .5rem; }
+  .coltello{ font-size:2.1rem; }
+  .carta-label{ font-size:.7rem; }
+  .bersaglio-list{ grid-template-columns:repeat(auto-fill, minmax(120px,1fr)); }
+  .b-name{ font-size:.95rem; }
+  .colpo-chip{ top:calc(3.6rem + env(safe-area-inset-top)); font-size:.85rem; }
+  #colpoTimer{ font-size:1rem; }
+  .jump-mute{ width:48px; height:48px; font-size:1.2rem; }
+}
+@media (orientation:landscape) and (pointer:coarse){
+  .mano-assassino{ bottom:calc(.6rem + env(safe-area-inset-bottom)); }
+  .carta-coltello{ width:80px; }
+  .coltello{ font-size:1.8rem; }
+}
