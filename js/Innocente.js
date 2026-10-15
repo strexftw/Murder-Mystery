@@ -1,19 +1,21 @@
-// INNOCENTE.JS v1.7 - jumpscare + indizio + chiusura automatica
+// INNOCENTE.JS v1.8 - jumpscare + indizio + chiusura automatica
 // quando il detective clicca "Hai letto?" (clue_read_at).
-// v1.7: se il detective legge PRIMA che finisca il jumpscare,
-// l'overlay non viene mostrato (evita che resti appeso).
+// v1.8: NUOVO - quando la partita finisce (phase 'fine' o winner
+// impostato), chiude jumpscare + overlay morte cosi la vittima
+// puo vedere l'overlay di fine partita e tornare in lobby.
 (function(){
   let el = null, visto = null, audioCtx = null;
   let t1 = null;
   let muto = localStorage.getItem('assassino_muto') === '1';
   let clueLetto = false;
+  let finita = false;   // true quando la partita e conclusa
 
   function boot(){
     if(typeof PARTITA === 'undefined' || !PARTITA.on){ setTimeout(boot, 120); return; }
     PARTITA.on('ready', setup);
     PARTITA.on('room', onRoom);
     PARTITA.on('reset', function(){
-      visto = null; clueLetto = false;
+      visto = null; clueLetto = false; finita = false;
       if(t1) clearTimeout(t1);
       if(el){
         el.jump.hidden = true;
@@ -80,8 +82,28 @@
     osc.start(t0); osc.stop(t0 + 1.15);
   }
 
+  // chiude tutto cio che riguarda morte/jumpscare
+  function chiudiTutto(){
+    if(t1) clearTimeout(t1);
+    if(el){
+      el.jump.hidden = true;
+      el.overlayMorte.hidden = true;
+    }
+  }
+
   function onRoom(room){
     if(!el) return;
+
+    // FINE PARTITA: la vittima deve poter tornare in lobby.
+    // Chiudo jumpscare + overlay morte, cosi overlayFine e cliccabile.
+    if(room && (room.phase === 'fine' || room.winner)){
+      if(!finita){
+        finita = true;
+        chiudiTutto();
+        console.log('[INNOCENTE] fine partita: overlay morte chiuso');
+      }
+      return;
+    }
 
     // Il detective ha letto l'indizio di QUESTO turno: chiudi l'overlay
     if(room && room.clue_read_at && !clueLetto){
@@ -96,7 +118,9 @@
     visto = room.last_kill_at;
     clueLetto = false;
 
-    // cattura il testo ORA, cosi il timeout non dipende da riferimenti vecchi
+    // se per qualche motivo la partita e gia finita, non mostrare niente
+    if(finita) return;
+
     const clueTesto = room.last_victim_clue || "L'assassino è tra voi.";
 
     suono();
@@ -105,9 +129,9 @@
 
     t1 = setTimeout(function(){
       el.jump.hidden = true;
-      // guardia: se nel frattempo il detective ha gia letto, non mostrare
-      if(clueLetto){
-        console.log('[INNOCENTE] detective ha gia letto: overlay non mostrato');
+      // guardia: se nel frattempo il detective ha letto o la partita e finita, non mostrare
+      if(clueLetto || finita){
+        console.log('[INNOCENTE] salto overlay morte (letto o finita)');
         return;
       }
       if(el.morteClue) el.morteClue.textContent = clueTesto;
