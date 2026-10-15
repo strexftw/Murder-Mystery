@@ -1,4 +1,4 @@
-// INNOCENTE.JS v1.5 - jumpscare + indizio + chiusura automatica
+// INNOCENTE.JS v1.6 - jumpscare + indizio + chiusura automatica
 // quando il detective clicca "Hai letto?" (legge clue_read_at).
 (function(){
   let el = null, visto = null, audioCtx = null;
@@ -42,7 +42,7 @@
     window.addEventListener('keydown', unlock);
   }
 
-  function aggiornaMute(){ if(el && el.mute) el.mute.textContent = muto ? 'MUTO' : 'AUDIO'; }
+  function aggiornaMute(){ if(el && el.mute) el.mute.textContent = muto ? '🔇' : ''; }
 
   function ctx(){
     if(!audioCtx){
@@ -85,6 +85,7 @@
     if(room && room.clue_read_at && !clueLetto){
       clueLetto = true;
       el.overlayMorte.hidden = true;
+      console.log('[INNOCENTE] overlay morte chiuso (clue_read_at letto)');
     }
 
     // Gestione jumpscare (solo se sono io la vittima)
@@ -103,7 +104,7 @@
       if(el.morteClue && room.last_victim_clue){
         el.morteClue.textContent = room.last_victim_clue;
       } else {
-        el.morteClue.textContent = "L'assassino e tra voi.";
+        el.morteClue.textContent = "L'assassino è tra voi.";
       }
       el.overlayMorte.hidden = false;
     }, 3000);

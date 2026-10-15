@@ -1,7 +1,7 @@
-// PARTITA.JS v2.3 - motore Step 5 con chiusura automatica overlay morte
+// PARTITA.JS v2.4 - motore Step 5 con chiusura automatica overlay morte
 // quando il detective legge l'indizio (clue_read_at).
 (function(){
-  console.log('[PARTITA] partita.js caricato v2.3');
+  console.log('[PARTITA] partita.js caricato v2.4');
   if(!guardConfig()) return;
 
   const uid    = getUid();
@@ -75,7 +75,7 @@
 
   let running = true, beatN = 0, lastChatId = 0;
   let room = null, lastPlayers = [], myCard = null;
-  let myRole = 'innocente', myCode = '--';
+  let myRole = 'innocente', myCode = '—';
   let isHost = false, readySent = false, timerStarted = false, fineVista = false;
   const seenPlayers = new Set();
 
@@ -90,9 +90,9 @@
   };
 
   function isFresh(p){ return (Date.now() - Date.parse(p.last_seen)) <= OFFLINE_AFTER_MS; }
-  function deviceText(p){ return p.device ? deviceLabel(p.device) : 'Sconosciuto'; }
+  function deviceText(p){ return p.device ? deviceLabel(p.device) : '❓ Sconosciuto'; }
   function roleOf(p){ return unscramble(p.role, p.uid) || 'innocente'; }
-  function winnerMsg(w){ return (w === 'assassino') ? "Vince l'Assassino!" : "Vince l'Ispettore!"; }
+  function winnerMsg(w){ return (w === 'assassino') ? "🏆 Vince l'Assassino!" : "🏆 Vince l'Ispettore!"; }
 
   window.PARTITA = {
     getRoomId: function(){ return roomId; },
@@ -127,7 +127,7 @@
       isHost = room.host_uid === uid;
       myRole = roleOf(meRes.data) || 'innocente';
       if(!ROLE_INFO[myRole]) myRole = 'innocente';
-      myCode = meRes.data.code || '--';
+      myCode = meRes.data.code || '—';
       try{ myCard = JSON.parse(meRes.data.card || 'null'); }catch(e){ myCard = null; }
 
       el.roomName.textContent = room.name;
@@ -186,7 +186,7 @@
       el.myCardId.hidden = false;
       el.myCardId.innerHTML =
         '<div class="tab-voce">Nome: ' + escapeHtml(myCard.nome) + '</div>' +
-        '<div class="tab-voce">Nascita: ' + escapeHtml(myCard.nascita) + ' -- ' + escapeHtml(myCard.luogo) + '</div>' +
+        '<div class="tab-voce">Nascita: ' + escapeHtml(myCard.nascita) + ' — ' + escapeHtml(myCard.luogo) + '</div>' +
         '<div class="tab-voce">Lavoro: ' + escapeHtml(myCard.lavoro) + '</div>' +
         '<div class="tab-voce">Hobby: ' + escapeHtml(myCard.hobby) + '</div>' +
         '<div class="tab-voce">Altezza: ' + escapeHtml(myCard.altezza) + '</div>' +
@@ -221,7 +221,7 @@
     running = false;
     try{
       await db.from('rooms').update({ status: 'lobby' }).eq('id', roomId);
-      await sysMessage(roomId, 'Troppo pochi agenti al tavolo: partita annullata, si torna in lobby.');
+      await sysMessage(roomId, '⚠ Troppo pochi agenti al tavolo: partita annullata, si torna in lobby.');
     }catch(e){}
     BUS.emit('reset');
     await resetPartita(roomId);
@@ -236,7 +236,7 @@
     el.fineTitolo.textContent = winnerMsg(room.winner || 'assassino');
     el.fineRuoli.innerHTML = (lastPlayers || []).map(function(p){
       const r = roleOf(p);
-      return '<li class="fine-voce"><b>' + escapeHtml(p.name) + '</b> -- ' + ROLE_INFO[r].tag + '</li>';
+      return '<li class="fine-voce"><b>' + escapeHtml(p.name) + '</b> — ' + ROLE_INFO[r].tag + '</li>';
     }).join('');
     el.overlayFine.hidden = false;
   }
@@ -281,7 +281,7 @@
                 next_kill_at: new Date(Date.now() + FIRST_KILL_MS).toISOString()
               }).eq('id', roomId);
               room.phase = 'live'; room.started_at = ora;
-              await sysMessage(roomId, 'Tutti pronti: la caccia comincia!');
+              await sysMessage(roomId, '⚔ Tutti pronti: la caccia comincia!');
             }
           }
           BUS.emit('cleaner', players);
@@ -302,9 +302,10 @@
       await refreshChat();
 
       if(beatN % PRESENCE_EVERY === 2){
+        // IMPORTANTE: legge anche clue_read_at per Innocente.js
         const st = await db.from('rooms')
-         .select('status, host_uid, phase, started_at, winner, clue, next_kill_at, last_kill_at, last_kill_uid, indagini_usate, skip_usati, clue_read_at, last_victim_clue, assassin_card')
-         .eq('id', roomId).maybeSingle();
+          .select('status, host_uid, phase, started_at, winner, clue, next_kill_at, last_kill_at, last_kill_uid, indagini_usate, skip_usati, clue_read_at, last_victim_clue, assassin_card')
+          .eq('id', roomId).maybeSingle();
         if(st.data){
           Object.assign(room, st.data);
           if(room.phase === 'fine'){ mostraFine(); BUS.emit('room', room); return; }
@@ -317,7 +318,7 @@
           BUS.emit('room', room);
         } else {
           running = false;
-          showToast('La stanza e stata chiusa', false);
+          showToast('La stanza è stata chiusa', false);
           clearCurrentRoom();
           setTimeout(function(){ location.replace('index.html'); }, 1800);
           return;
@@ -441,7 +442,7 @@
       ta.select(); document.execCommand('copy'); ta.remove();
     }
     el.codeChip.classList.add('copied');
-    el.copyHint.textContent = 'COPIATO';
+    el.copyHint.textContent = 'COPIATO ✓';
     showToast('Codice ' + code + ' copiato');
     setTimeout(function(){ el.codeChip.classList.remove('copied'); el.copyHint.textContent = 'Copia'; }, 1600);
   });

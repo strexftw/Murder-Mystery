@@ -1,6 +1,7 @@
-// ISPETTORE.JS v2.5 - overlay "Hai letto l'indizio?" prima della notifica.
+// ISPETTORE.JS v2.6 - overlay "Hai letto l'indizio?" prima della notifica.
 // Quando il detective clicca "Hai letto?", scrive clue_read_at nel DB
 // per segnalare alla vittima di chiudere l'overlay.
+// Il timer si sblocca SOLO con "Fine ispezione" o "No, skip".
 (function(){
   const KILL_MS = 12000;
   let el = null, clue = null, seenKill = null;
@@ -44,7 +45,7 @@
   function renderTabella(){
     const t = leggiTabella();
     el.tabList.innerHTML = t.length
-      ? t.map(function(n){ return '<li class="tab-voce">OK ' + escapeHtml(n) + '</li>'; }).join('')
+      ? t.map(function(n){ return '<li class="tab-voce">✓ ' + escapeHtml(n) + '</li>'; }).join('')
       : '<li class="tab-voce">Nessun sospetto escluso.</li>';
   }
 
@@ -122,9 +123,10 @@
   }
 
   // PASSO 2: dopo "Hai letto?", scrive clue_read_at e mostra la notifica Si/No
+  // TIMER ANCORA BLOCCATO.
   async function mostraNotifica(){
     el.leggi.hidden = true;
-    // SCRIVE clue_read_at per segnalare alla vittima di chiudere l'overlay
+    // SCRIVE clue_read_at per far scomparire l'indizio alla vittima
     try{
       await PARTITA.dbRef().from('rooms').update({
         clue_read_at: new Date().toISOString()
@@ -132,14 +134,15 @@
     }catch(e){ console.warn('[ISPETTORE] clue_read_at:', e); }
     const room = PARTITA.getRoom();
     const ind = room.indagini_usate || 0, sk = room.skip_usati || 0;
-    el.notifTesto.textContent = 'Nuova vittima. Il timer di eliminazione e BLOCCATO.';
-    el.btnSi.textContent = 'Si, indago (' + (3 - ind) + ' rimaste)';
+    el.notifTesto.textContent = 'Nuova vittima. Il timer di eliminazione è BLOCCATO.';
+    el.btnSi.textContent = 'Sì, indago (' + (3 - ind) + ' rimaste)';
     el.btnNo.textContent = 'No, skip (' + (2 - sk) + ' rimasti)';
     el.btnSi.disabled = ind >= 3;
     el.btnNo.disabled = sk >= 2;
     el.notif.hidden = false;
   }
 
+  // sblocca il timer (chiamato SOLO da No e Fine ispezione)
   async function sbloccaTimer(){
     await PARTITA.dbRef().from('rooms').update({
       next_kill_at: new Date(Date.now() + KILL_MS).toISOString()
@@ -191,8 +194,8 @@
         const tots = el.indCampi.querySelectorAll('.bersaglio-card');
         for(let i = 0; i < tots.length; i++){ tots[i].classList.remove('scelto'); }
         b.classList.add('scelto');
-        const val = card ? String(card[c[0]] || '--') : '--';
-        el.indEsito.textContent = p.name + ' -- ' + c[1] + ': ' + val;
+        const val = card ? String(card[c[0]] || '—') : '—';
+        el.indEsito.textContent = p.name + ' — ' + c[1] + ': ' + val;
         el.indEsito.className = 'indagine-esito no';
         el.indOk.disabled = false;
       });
@@ -215,6 +218,7 @@
       }
     }
 
+    // SOLO ORA il timer si sblocca
     await sbloccaTimer();
     el.ind.hidden = true;
     aggiornaElimina();
@@ -266,7 +270,7 @@
       winner: winner, phase: 'fine'
     }).eq('id', PARTITA.getRoomId());
     await sysMessage(PARTITA.getRoomId(),
-      (winner === 'assassino') ? "Vince l'Assassino!" : "Vince l'Ispettore!");
+      (winner === 'assassino') ? " Vince l'Assassino!" : " Vince l'Ispettore!");
   }
 
   boot();
