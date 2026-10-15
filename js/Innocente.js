@@ -1,5 +1,5 @@
 // INNOCENTE.JS v1.5 - jumpscare + indizio + chiusura automatica
-// quando il detective clicca "Hai letto?".
+// quando il detective clicca "Hai letto?" (legge clue_read_at).
 (function(){
   let el = null, visto = null, audioCtx = null;
   let t1 = null;

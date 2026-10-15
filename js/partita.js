@@ -303,8 +303,8 @@
 
       if(beatN % PRESENCE_EVERY === 2){
         const st = await db.from('rooms')
-          .select('status, host_uid, phase, started_at, winner, clue, next_kill_at, last_kill_at, last_kill_uid, indagini_usate, skip_usati, clue_read_at, last_victim_clue, assassin_card')
-          .eq('id', roomId).maybeSingle();
+         .select('status, host_uid, phase, started_at, winner, clue, next_kill_at, last_kill_at, last_kill_uid, indagini_usate, skip_usati, clue_read_at, last_victim_clue, assassin_card')
+         .eq('id', roomId).maybeSingle();
         if(st.data){
           Object.assign(room, st.data);
           if(room.phase === 'fine'){ mostraFine(); BUS.emit('room', room); return; }

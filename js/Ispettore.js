@@ -1,6 +1,6 @@
 // ISPETTORE.JS v2.5 - overlay "Hai letto l'indizio?" prima della notifica.
-// Flusso: vittima -> overlay "Vai a leggere l'indizio" -> click "Hai letto?" -> notifica Si/No.
-// Il timer si sblocca SOLO con "Fine ispezione" o "No, skip". Mai con "Hai letto?".
+// Quando il detective clicca "Hai letto?", scrive clue_read_at nel DB
+// per segnalare alla vittima di chiudere l'overlay.
 (function(){
   const KILL_MS = 12000;
   let el = null, clue = null, seenKill = null;
@@ -86,7 +86,6 @@
 
     el.btnTab.addEventListener('click', function(){ el.tab.hidden = false; renderTabella(); });
     el.tabChiudi.addEventListener('click', function(){ el.tab.hidden = true; });
-    // "Hai letto?" mostra solo la notifica, NON sblocca il timer
     el.btnLeggi.addEventListener('click', mostraNotifica);
     el.btnSi.addEventListener('click', doSi);
     el.btnNo.addEventListener('click', doNo);
@@ -117,17 +116,15 @@
     apriLeggiIndizio();
   }
 
-  // PASSO 1: overlay "Vai a leggere l'indizio"
   function apriLeggiIndizio(){
     el.leggi.hidden = false;
     el.notif.hidden = true;
   }
 
-  // PASSO 2: dopo "Hai letto?", mostra la notifica Si/No. TIMER ANCORA BLOCCATO.
-  // Scrive clue_read_at per segnalare agli innocenti eliminati di chiudere l'overlay.
+  // PASSO 2: dopo "Hai letto?", scrive clue_read_at e mostra la notifica Si/No
   async function mostraNotifica(){
     el.leggi.hidden = true;
-    // Segnala agli innocenti eliminati di chiudere l'overlay indizio
+    // SCRIVE clue_read_at per segnalare alla vittima di chiudere l'overlay
     try{
       await PARTITA.dbRef().from('rooms').update({
         clue_read_at: new Date().toISOString()
@@ -143,14 +140,12 @@
     el.notif.hidden = false;
   }
 
-  // sblocca il timer (chiamato SOLO da No e Fine ispezione)
   async function sbloccaTimer(){
     await PARTITA.dbRef().from('rooms').update({
       next_kill_at: new Date(Date.now() + KILL_MS).toISOString()
     }).eq('id', PARTITA.getRoomId());
   }
 
-  // PASSO 3: scegli la persona. Timer ANCORA BLOCCATO.
   function doSi(){
     el.notif.hidden = true;
     bersaglioIndagine = null; campoScelto = null;
@@ -179,7 +174,6 @@
     el.ind.hidden = false;
   }
 
-  // PASSO 4: scegli QUALE informazione. Timer ANCORA BLOCCATO.
   function mostraCampi(p){
     el.indEsito.textContent = 'Ora scegli quale informazione verificare.';
     el.indEsito.className = 'indagine-esito';
@@ -206,7 +200,6 @@
     });
   }
 
-  // PASSO 5: FINE ISPEZIONE -> conta l'indagine e SBLOCCA il timer
   async function commitIndagine(){
     if(!bersaglioIndagine || !campoScelto) return;
     const room = PARTITA.getRoom();
@@ -222,14 +215,12 @@
       }
     }
 
-    // SOLO ORA il timer si sblocca
     await sbloccaTimer();
     el.ind.hidden = true;
     aggiornaElimina();
     showToast('Ispezione chiusa (' + n + '/3): timer sbloccato');
   }
 
-  // No: il timer si sblocca subito, skip consumato
   async function doNo(){
     el.notif.hidden = true;
     const room = PARTITA.getRoom();
