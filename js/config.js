@@ -1,10 +1,10 @@
 // =========================================================
-// CONFIG.JS v2.3 - credenziali Supabase + costanti globali.
+// CONFIG.JS v2.4 - credenziali Supabase + costanti globali.
+// Dashboard Supabase -> Settings -> API -> "Project URL" e
+// "anon public key" (MAI la service_role).
+// ATTENZIONE: ogni costante e' dichiarata UNA SOLA volta.
 // =========================================================
-
-// log di controllo: se NON vedi questa riga in console, il file
-// non e' stato caricato (cache vecchia o SyntaxError).
-console.log('[CONFIG] config.js v2.3 in caricamento');
+console.log('[CONFIG] config.js v2.4 in caricamento');
 
 // ---------- credenziali Supabase ----------
 const SUPABASE_URL      = "https://amrutsqjzlkjllodqjjj.supabase.co";
@@ -20,7 +20,16 @@ const OFFLINE_AFTER_MS = 5000;
 const MAX_NAME_LENGTH  = 20;
 
 // ---------- intro video ----------
+// nome ESATTO del file nel bucket Storage 'video' (con estensione)
 const INTRO_FILE = 'intro.mp4';
+
+// ---------- ritmo di caccia (CENTRALIZZATO) ----------
+// Seconds tra un'uccisione e l'altra (dopo Chiudi / No / sblocco).
+// Durante l'indagine il timer e' BLOCCATO, quindi questo valore
+// regola solo ritmo e pressione, non il tempo di pensiero.
+const CONFIG_KILL_MS = 18000;        // 18s tra le vittime
+// Attesa della PRIMA vittima dall'inizio della fase live.
+const CONFIG_FIRST_KILL_MS = 20000;  // 20s avvio morbido
 
 // ---------- client Supabase (globale: db) ----------
 let db = null;
@@ -34,4 +43,5 @@ if (typeof window.supabase === "undefined") {
   } catch (e) {
     console.error("[CONFIG] Impossibile creare il client Supabase:", e);
   }
+}
 }

@@ -1,11 +1,7 @@
-// PARTITA.JS v2.10 - motore Step 5 + intro + VIDEO DI VITTORIA.
-// v2.10: alla fine partita, PRIMA del tabellone, riproduce il video
-// del vincitore dal bucket Storage 'video':
-//   vince assassino  -> Vittoria-assassino
-//   vince ispettore  -> Vittoria-ispettore
-// Solo a video concluso (o saltato) compare overlayFine con i nomi.
+// PARTITA.JS v2.11 - motore Step 5 + intro + video di vittoria.
+// Ritmo prima vittima letto da config.js (CONFIG_FIRST_KILL_MS).
+console.log('[PARTITA] partita.js caricato v2.11');
 (function(){
-  console.log('[PARTITA] partita.js caricato v2.10');
   if(!guardConfig()) return;
 
   const uid    = getUid();
@@ -14,9 +10,9 @@
   if(!stored){ location.replace('index.html'); return; }
   const roomId = stored.id;
 
-  const FIRST_KILL_MS = 20000;
+  const FIRST_KILL_MS = (typeof CONFIG_FIRST_KILL_MS !== 'undefined') ? CONFIG_FIRST_KILL_MS : 20000;
 
-  // nomi ESATTI dei video di vittoria nel bucket 'video' (con estensione)
+  // nomi ESATTI dei video di vittoria nel bucket 'video'
   const WIN_VIDEO_ASSASSINO = 'Vittoria-assassino.mp4';
   const WIN_VIDEO_ISPETTORE = 'Vittoria-ispettore.mp4';
 
@@ -120,7 +116,6 @@
     on:        function(evt, fn){ BUS.on(evt, fn); }
   };
 
-  // ricrea la riga giocatore se manca (transizioni/pulizie)
   async function ensurePresence(){
     const me = await db.from('players')
       .select('id, role, code, card, ready').eq('room_id', roomId).eq('uid', uid).maybeSingle();
@@ -210,8 +205,6 @@
   }
 
   // ---------------- VIDEO DI VITTORIA ----------------
-  // stesso stile dell'intro (classi .overlay.intro / .intro-btn),
-  // ma con IDs propri per non confliggere.
   function costruisciVideoFine(){
     const wrap = document.createElement('div');
     wrap.className = 'overlay intro';
@@ -226,7 +219,6 @@
     return wrap;
   }
 
-  // riproduce il video del vincitore e poi chiama done()
   async function avviaVideoFine(winner, done){
     const wrap    = costruisciVideoFine();
     const video   = document.getElementById('fineVideo');
@@ -437,7 +429,6 @@
     console.log('[PARTITA] fine: renderizzati', lista.length, 'ruoli (nomi veri)');
   }
 
-  // FINE: prima il VIDEO del vincitore, POI il tabellone.
   function mostraFine(){
     if(fineVista) return;
     fineVista = true;
@@ -448,7 +439,6 @@
     const oi = document.getElementById('overlayIntro'); if(oi) oi.hidden = true;
     BUS.emit('fine');
 
-    // preparo il tabellone ma NON lo mostro ancora
     el.fineTitolo.textContent = winnerMsg(room.winner || 'assassino');
     rendiFineRuoli(lastPlayers);
     if(!lastPlayers || lastPlayers.length === 0){
@@ -460,7 +450,6 @@
       });
     }
 
-    // video del vincitore, poi tabellone
     avviaVideoFine(room.winner || 'assassino', function(){
       el.overlayFine.hidden = false;
     });

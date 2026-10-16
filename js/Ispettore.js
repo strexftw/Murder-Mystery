@@ -1,12 +1,8 @@
-// ISPETTORE.JS v2.9 - indagine "cieca" + timer sbloccato SOLO da Chiudi
-// (o da No/skip).
-// Flusso: vittima -> "Hai letto?" -> Si -> scegli persona -> scegli
-// caratteristica (SENZA valore) -> FINE ISPEZIONE (esce il valore,
-// timer ANCORA bloccato, messaggio "l'assassino continua la sua
-// caccia") -> CHIUDI (timer PARTE, messaggio "Assassino a caccia").
-console.log('[ISPETTORE] caricato v2.9');
+// ISPETTORE.JS v2.10 - indagine "cieca" + timer sbloccato SOLO da
+// Chiudi (o No/skip). Ritmo letto da config.js (CONFIG_KILL_MS).
+console.log('[ISPETTORE] caricato v2.10');
 (function(){
-  const KILL_MS = 12000;
+  const KILL_MS = (typeof CONFIG_KILL_MS !== 'undefined') ? CONFIG_KILL_MS : 18000;
   let el = null, clue = null, seenKill = null;
   let bersaglioIndagine = null, campoScelto = null, bersaglioElimina = null;
   let faseEsito = false;   // true dopo Fine ispezione: il bottone diventa Chiudi
@@ -202,10 +198,9 @@ console.log('[ISPETTORE] caricato v2.9');
       b.addEventListener('click', function(){
         if(faseEsito) return;
         campoScelto = c[0];
-        const tots = el.indCampi.querySelectorAll('.bersargo-card, .bersaglio-card');
+        const tots = el.indCampi.querySelectorAll('.bersaglio-card');
         for(let i = 0; i < tots.length; i++){ tots[i].classList.remove('scelto'); }
         b.classList.add('scelto');
-        // NON mostro il valore: solo conferma della scelta
         el.indEsito.textContent = p.name + ' — ' + c[1] + ' selezionata. Premi FINE ISPEZIONE per rivelare.';
         el.indEsito.className = 'indagine-esito';
         el.indOk.disabled = false;
@@ -222,7 +217,6 @@ console.log('[ISPETTORE] caricato v2.9');
     await PARTITA.dbRef().from('rooms').update({ indagini_usate: n }).eq('id', PARTITA.getRoomId());
     room.indagini_usate = n;
 
-    // legge il valore SOLO adesso
     let card = null;
     try{ card = JSON.parse(bersaglioIndagine.card || 'null'); }catch(e){ card = null; }
     const val = card ? String(card[campoScelto] || '—') : '—';
@@ -234,7 +228,6 @@ console.log('[ISPETTORE] caricato v2.9');
       }
     }
 
-    // mostra il risultato e nasconde le scelte
     faseEsito = true;
     el.indList.hidden = true;
     el.indCampi.hidden = true;

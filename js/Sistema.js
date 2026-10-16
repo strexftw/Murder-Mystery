@@ -1,10 +1,10 @@
-// SISTEMA.JS v3.5 - loop uccisioni + indizio vittima.
-// v3.5: RIMOSSO il watchdog a tempo che sbloccava il timer da solo.
-// Dopo una vittima next_kill_at = null e RESTA null finche l'Ispettore
-// non preme Fine ispezione o No. Unica eccezione: se il detective e
-// DISCONNESSO, il tavolo si sblocca per non restare fermo per sempre.
+// SISTEMA.JS v3.6 - loop uccisioni + indizio vittima.
+// Ritmo letto da config.js (CONFIG_KILL_MS). Niente watchdog a tempo:
+// dopo una vittima il timer RESTA bloccato finche l'Ispettore non
+// decide (Chiudi/No). Sblocco d'ufficio SOLO se il detective e assente.
+console.log('[SISTEMA] caricato v3.6');
 (function(){
-  const KILL_MS = 12000;
+  const KILL_MS = (typeof CONFIG_KILL_MS !== 'undefined') ? CONFIG_KILL_MS : 18000;
   let ultimaVittimaTs = 0;
 
   function boot(){
@@ -43,8 +43,8 @@
     });
     if(vittime.length === 0){ await fine('assassino'); return; }
 
-    // TIMER BLOCCATO (next_kill_at null): resta bloccato finche
-    // l'Ispettore non decide. Sblocco SOLO se il detective e assente.
+    // TIMER BLOCCATO: resta tale finche l'Ispettore non decide.
+    // Sblocco d'ufficio SOLO se il detective e disconnesso/morto.
     if(!room.next_kill_at){
       const det = players.find(function(p){ return roleOf(p) === 'detective'; });
       const detAttivo = det && det.alive !== false && PARTITA.isFresh(det);
