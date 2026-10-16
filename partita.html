@@ -8,12 +8,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400..900&family=Karla:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/base.css?v=36">
-  <link rel="stylesheet" href="css/lobby.css?v=36">
-  <link rel="stylesheet" href="css/partita.css?v=36">
-  <link rel="stylesheet" href="css/Ispettore.css?v=36">
-  <link rel="stylesheet" href="css/pc.css?v=36" media="(hover:hover) and (pointer:fine)">
-  <link rel="stylesheet" href="css/phone.css?v=36" media="(pointer:coarse)">
+  <link rel="stylesheet" href="css/base.css?v=38">
+  <link rel="stylesheet" href="css/lobby.css?v=38">
+  <link rel="stylesheet" href="css/partita.css?v=38">
+  <link rel="stylesheet" href="css/Ispettore.css?v=38">
+  <link rel="stylesheet" href="css/pc.css?v=38" media="(hover:hover) and (pointer:fine)">
+  <link rel="stylesheet" href="css/phone.css?v=38" media="(pointer:coarse)">
 </head>
 <body>
 
@@ -128,11 +128,11 @@
   </div>
 </div>
 
-<!-- 4. Indagine -->
+<!-- 4. Indagine (cieca: valore solo al Fine ispezione) -->
 <div class="overlay isp" id="overlayIndagine" hidden>
   <div class="isp-stack">
     <h2 class="isp-title">🔍 Indagine</h2>
-    <p class="isp-sub">Scegli chi indagare, poi quale informazione vedere.<br>Il timer delle uccisioni riparte solo con FINE ISPEZIONE.</p>
+    <p class="isp-sub">Scegli chi indagare, poi quale informazione vedere.<br>Il valore esce solo con FINE ISPEZIONE; il timer riparte con CHIUDI.</p>
     <div class="bersaglio-list" id="indagineList"></div>
     <div class="bersaglio-list" id="indagineCampi"></div>
     <p class="indagine-esito" id="indagineEsito"></p>
@@ -198,7 +198,7 @@
   </div>
 </div>
 
-<!-- 10. FINE PARTITA: ultimo nel DOM, sempre sopra -->
+<!-- 10. FINE PARTITA: ULTIMO nel DOM + z-index:99 = sempre sopra e cliccabile -->
 <div class="overlay isp" id="overlayFine" hidden>
   <div class="isp-stack">
     <h2 class="isp-title fine" id="fineTitolo">🏆</h2>
@@ -210,12 +210,12 @@
 <div id="toast" class="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/config.js?v=35"></script>
-<script src="js/utils.js?v=35"></script>
-<script src="js/Personaggi.js?v=35"></script>
-<script src="js/partita.js?v=35"></script>
-<script src="js/Sistema.js?v=35"></script>
-<script src="js/Ispettore.js?v=35"></script>
-<script src="js/Innocente.js?v=35"></script>
+<script src="js/config.js?v=38"></script>
+<script src="js/utils.js?v=38"></script>
+<script src="js/Personaggi.js?v=38"></script>
+<script src="js/partita.js?v=38"></script>
+<script src="js/Sistema.js?v=38"></script>
+<script src="js/Ispettore.js?v=38"></script>
+<script src="js/Innocente.js?v=38"></script>
 </body>
 </html>

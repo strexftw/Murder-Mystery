@@ -1,8 +1,9 @@
-// ISPETTORE.JS v2.8 - indagine "cieca" + timer sbloccato SOLO da
+// ISPETTORE.JS v2.8.1 - indagine "cieca" + timer sbloccato SOLO da
 // Chiudi (dopo aver visto il valore) o da No/skip.
 // Flusso: vittima -> "Hai letto?" -> Si -> scegli persona -> scegli
 // caratteristica (SENZA valore) -> FINE ISPEZIONE (esce il valore,
 // timer ANCORA bloccato) -> CHIUDI (il timer PARTE).
+console.log('[ISPETTORE] caricato v2.8.1');
 (function(){
   const KILL_MS = 12000;
   let el = null, clue = null, seenKill = null;
