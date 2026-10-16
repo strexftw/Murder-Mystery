@@ -1,13 +1,13 @@
-// ISPETTORE.JS v2.7 - indagine "cieca" + timer sbloccato SOLO da
-// Fine ispezione o No.
+// ISPETTORE.JS v2.8 - indagine "cieca" + timer sbloccato SOLO da
+// Chiudi (dopo aver visto il valore) o da No/skip.
 // Flusso: vittima -> "Hai letto?" -> Si -> scegli persona -> scegli
-// caratteristica (SENZA vedere il valore) -> FINE ISPEZIONE ->
-// SOLO ORA esce il valore E parte il timer -> Chiudi.
+// caratteristica (SENZA valore) -> FINE ISPEZIONE (esce il valore,
+// timer ANCORA bloccato) -> CHIUDI (il timer PARTE).
 (function(){
   const KILL_MS = 12000;
   let el = null, clue = null, seenKill = null;
   let bersaglioIndagine = null, campoScelto = null, bersaglioElimina = null;
-  let faseEsito = false;   // true dopo Fine ispezione (il bottone diventa Chiudi)
+  let faseEsito = false;   // true dopo Fine ispezione: il bottone diventa Chiudi
 
   const CAMPI = [
     ['nascita', 'Anno di nascita'],
@@ -146,7 +146,7 @@
     el.notif.hidden = false;
   }
 
-  // sblocca il timer: chiamato SOLO da Fine ispezione e da No
+  // sblocca il timer: chiamato SOLO da Chiudi e da No
   async function sbloccaTimer(){
     await PARTITA.dbRef().from('rooms').update({
       next_kill_at: new Date(Date.now() + KILL_MS).toISOString()
@@ -212,7 +212,7 @@
     });
   }
 
-  // FINE ISPEZIONE: RIVELA il valore E sblocca il timer. Poi Chiudi.
+  // FINE ISPEZIONE: rivela il valore ma NON sblocca ancora il timer.
   async function commitIndagine(){
     if(!bersaglioIndagine || !campoScelto) return;
     const room = PARTITA.getRoom();
@@ -241,16 +241,18 @@
     el.indOk.textContent = 'Chiudi';
     el.indOk.disabled = false;
 
-    // SOLO ORA il timer parte
-    await sbloccaTimer();
+    // TIMER ANCORA BLOCCATO: partira solo con Chiudi
     aggiornaElimina();
-    showToast('Ispezione chiusa (' + n + '/3): timer sbloccato');
+    showToast('Ispezione (' + n + '/3): premi Chiudi per far ripartire il timer');
   }
 
-  function chiudiIndagine(){
+  // CHIUDI: chiude il referto E SBLOCCA il timer.
+  async function chiudiIndagine(){
     faseEsito = false;
     el.ind.hidden = true;
     el.indOk.textContent = 'Fine ispezione';
+    await sbloccaTimer();
+    showToast('Timer sbloccato');
   }
 
   // No: sblocca subito, skip consumato
