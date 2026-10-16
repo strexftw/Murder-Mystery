@@ -1,10 +1,10 @@
-// SISTEMA.JS v3.4 - loop uccisioni + indizio vittima.
-// v3.4: a OGNI nuova uccisione azzera clue_read_at, cosi il segnale
-// "il detective ha letto" non resta sporco dal turno precedente
-// (bug: dalla 2a eliminazione l'overlay della vittima non chiudeva piu).
+// SISTEMA.JS v3.5 - loop uccisioni + indizio vittima.
+// v3.5: RIMOSSO il watchdog a tempo che sbloccava il timer da solo.
+// Dopo una vittima next_kill_at = null e RESTA null finche l'Ispettore
+// non preme Fine ispezione o No. Unica eccezione: se il detective e
+// DISCONNESSO, il tavolo si sblocca per non restare fermo per sempre.
 (function(){
   const KILL_MS = 12000;
-  const WATCHDOG_MS = 20000;
   let ultimaVittimaTs = 0;
 
   function boot(){
@@ -43,11 +43,16 @@
     });
     if(vittime.length === 0){ await fine('assassino'); return; }
 
+    // TIMER BLOCCATO (next_kill_at null): resta bloccato finche
+    // l'Ispettore non decide. Sblocco SOLO se il detective e assente.
     if(!room.next_kill_at){
-      if(room.last_kill_at && (now - Date.parse(room.last_kill_at)) > WATCHDOG_MS){
+      const det = players.find(function(p){ return roleOf(p) === 'detective'; });
+      const detAttivo = det && det.alive !== false && PARTITA.isFresh(det);
+      if(!detAttivo){
         const iso = new Date(now + KILL_MS).toISOString();
         await db.from('rooms').update({ next_kill_at: iso }).eq('id', roomId);
         Object.assign(roomLocal, { next_kill_at: iso });
+        console.log('[SISTEMA] detective assente: timer sbloccato d ufficio');
       }
       return;
     }
@@ -88,8 +93,6 @@
 
     await db.from('players').update({ alive: false }).eq('id', vit.id);
     const ora = new Date(now).toISOString();
-
-    // CHIAVE DELLA FIX: clue_read_at torna a null a ogni nuovo colpo
     await db.from('rooms').update({
       last_kill_uid: vit.uid,
       last_kill_at:  ora,

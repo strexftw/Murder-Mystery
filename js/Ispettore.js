@@ -1,11 +1,13 @@
-// ISPETTORE.JS v2.6 - overlay "Hai letto l'indizio?" prima della notifica.
-// Quando il detective clicca "Hai letto?", scrive clue_read_at nel DB
-// per segnalare alla vittima di chiudere l'overlay.
-// Il timer si sblocca SOLO con "Fine ispezione" o "No, skip".
+// ISPETTORE.JS v2.7 - indagine "cieca" + timer sbloccato SOLO da
+// Fine ispezione o No.
+// Flusso: vittima -> "Hai letto?" -> Si -> scegli persona -> scegli
+// caratteristica (SENZA vedere il valore) -> FINE ISPEZIONE ->
+// SOLO ORA esce il valore E parte il timer -> Chiudi.
 (function(){
   const KILL_MS = 12000;
   let el = null, clue = null, seenKill = null;
   let bersaglioIndagine = null, campoScelto = null, bersaglioElimina = null;
+  let faseEsito = false;   // true dopo Fine ispezione (il bottone diventa Chiudi)
 
   const CAMPI = [
     ['nascita', 'Anno di nascita'],
@@ -24,6 +26,7 @@
     PARTITA.on('room', onRoom);
     PARTITA.on('reset', function(){
       seenKill = null; bersaglioIndagine = null; campoScelto = null; bersaglioElimina = null;
+      faseEsito = false;
       if(el){
         el.leggi.hidden = true;
         el.notif.hidden = true;
@@ -90,7 +93,10 @@
     el.btnLeggi.addEventListener('click', mostraNotifica);
     el.btnSi.addEventListener('click', doSi);
     el.btnNo.addEventListener('click', doNo);
-    el.indOk.addEventListener('click', commitIndagine);
+    // il bottone fa due cose: Fine ispezione, poi Chiudi
+    el.indOk.addEventListener('click', function(){
+      if(faseEsito){ chiudiIndagine(); } else { commitIndagine(); }
+    });
     el.btnElim.addEventListener('click', apriElimina);
     el.elimAnn.addEventListener('click', function(){ el.elim.hidden = true; });
     el.elimConf.addEventListener('click', confermaElimina);
@@ -122,11 +128,9 @@
     el.notif.hidden = true;
   }
 
-  // PASSO 2: dopo "Hai letto?", scrive clue_read_at e mostra la notifica Si/No
-  // TIMER ANCORA BLOCCATO.
+  // "Hai letto?": mostra solo la notifica. TIMER RESTA BLOCCATO.
   async function mostraNotifica(){
     el.leggi.hidden = true;
-    // SCRIVE clue_read_at per far scomparire l'indizio alla vittima
     try{
       await PARTITA.dbRef().from('rooms').update({
         clue_read_at: new Date().toISOString()
@@ -142,19 +146,23 @@
     el.notif.hidden = false;
   }
 
-  // sblocca il timer (chiamato SOLO da No e Fine ispezione)
+  // sblocca il timer: chiamato SOLO da Fine ispezione e da No
   async function sbloccaTimer(){
     await PARTITA.dbRef().from('rooms').update({
       next_kill_at: new Date(Date.now() + KILL_MS).toISOString()
     }).eq('id', PARTITA.getRoomId());
   }
 
+  // PASSO: scegli persona. TIMER BLOCCATO.
   function doSi(){
     el.notif.hidden = true;
-    bersaglioIndagine = null; campoScelto = null;
+    bersaglioIndagine = null; campoScelto = null; faseEsito = false;
     el.indEsito.textContent = 'Scegli una persona.';
     el.indEsito.className = 'indagine-esito';
     el.indOk.disabled = true;
+    el.indOk.textContent = 'Fine ispezione';
+    el.indList.hidden = false;
+    el.indCampi.hidden = false;
     el.indList.innerHTML = '';
     el.indCampi.innerHTML = '';
     const ps = (PARTITA.getPlayers() || []).filter(function(p){
@@ -166,6 +174,7 @@
       b.className = 'bersaglio-card';
       b.textContent = p.name;
       b.addEventListener('click', function(){
+        if(faseEsito) return;
         bersaglioIndagine = p; campoScelto = null;
         const tots = el.indList.querySelectorAll('.bersaglio-card');
         for(let i = 0; i < tots.length; i++){ tots[i].classList.remove('scelto'); }
@@ -177,32 +186,33 @@
     el.ind.hidden = false;
   }
 
+  // PASSO: scegli caratteristica SENZA vedere il valore. TIMER BLOCCATO.
   function mostraCampi(p){
-    el.indEsito.textContent = 'Ora scegli quale informazione verificare.';
+    el.indEsito.textContent = 'Ora scegli quale informazione verificare. Il valore uscirà solo con FINE ISPEZIONE.';
     el.indEsito.className = 'indagine-esito';
     el.indOk.disabled = true;
     el.indCampi.innerHTML = '';
-    let card = null;
-    try{ card = JSON.parse(p.card || 'null'); }catch(e){ card = null; }
     CAMPI.forEach(function(c){
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'bersaglio-card campo';
       b.textContent = c[1];
       b.addEventListener('click', function(){
+        if(faseEsito) return;
         campoScelto = c[0];
         const tots = el.indCampi.querySelectorAll('.bersaglio-card');
         for(let i = 0; i < tots.length; i++){ tots[i].classList.remove('scelto'); }
         b.classList.add('scelto');
-        const val = card ? String(card[c[0]] || '—') : '—';
-        el.indEsito.textContent = p.name + ' — ' + c[1] + ': ' + val;
-        el.indEsito.className = 'indagine-esito no';
+        // NON mostro il valore: solo conferma della scelta
+        el.indEsito.textContent = p.name + ' — ' + c[1] + ' selezionata. Premi FINE ISPEZIONE per rivelare.';
+        el.indEsito.className = 'indagine-esito';
         el.indOk.disabled = false;
       });
       el.indCampi.appendChild(b);
     });
   }
 
+  // FINE ISPEZIONE: RIVELA il valore E sblocca il timer. Poi Chiudi.
   async function commitIndagine(){
     if(!bersaglioIndagine || !campoScelto) return;
     const room = PARTITA.getRoom();
@@ -210,21 +220,40 @@
     await PARTITA.dbRef().from('rooms').update({ indagini_usate: n }).eq('id', PARTITA.getRoomId());
     room.indagini_usate = n;
 
+    // legge il valore SOLO adesso
+    let card = null;
+    try{ card = JSON.parse(bersaglioIndagine.card || 'null'); }catch(e){ card = null; }
+    const val = card ? String(card[campoScelto] || '—') : '—';
+    const etichetta = (CAMPI.find(function(c){ return c[0] === campoScelto; }) || [,''])[1];
+
     if(clue && campoScelto === clue.campo){
-      let card = null;
-      try{ card = JSON.parse(bersaglioIndagine.card || 'null'); }catch(e){ card = null; }
       if(card && String(card[clue.campo]) !== String(clue.valore)){
         aggiungiTabella(bersaglioIndagine.name);
       }
     }
 
-    // SOLO ORA il timer si sblocca
+    // mostra il risultato e nasconde le scelte
+    faseEsito = true;
+    el.indList.hidden = true;
+    el.indCampi.hidden = true;
+    el.indEsito.textContent = bersaglioIndagine.name + ' — ' + etichetta + ': ' + val;
+    el.indEsito.className = 'indagine-esito si';
+    el.indOk.textContent = 'Chiudi';
+    el.indOk.disabled = false;
+
+    // SOLO ORA il timer parte
     await sbloccaTimer();
-    el.ind.hidden = true;
     aggiornaElimina();
     showToast('Ispezione chiusa (' + n + '/3): timer sbloccato');
   }
 
+  function chiudiIndagine(){
+    faseEsito = false;
+    el.ind.hidden = true;
+    el.indOk.textContent = 'Fine ispezione';
+  }
+
+  // No: sblocca subito, skip consumato
   async function doNo(){
     el.notif.hidden = true;
     const room = PARTITA.getRoom();
@@ -270,7 +299,7 @@
       winner: winner, phase: 'fine'
     }).eq('id', PARTITA.getRoomId());
     await sysMessage(PARTITA.getRoomId(),
-      (winner === 'assassino') ? " Vince l'Assassino!" : " Vince l'Ispettore!");
+      (winner === 'assassino') ? "🏆 Vince l'Assassino!" : "🏆 Vince l'Ispettore!");
   }
 
   boot();
