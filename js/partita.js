@@ -1,12 +1,11 @@
-// PARTITA.JS v2.9 - motore Step 5 + INTRO VIDEO BLOCCANTE.
-// v2.9 FIX: durante reveal/intro il cleaner NON cancella nessuno
-// (prima cancellava i giocatori lenti nel passaggio lobby->partita
-// e questi venivano spediti al menu con il video a meta).
-// Se la propria riga players manca, viene RICREATA (ensurePresence)
-// invece di rimandare al menu.
-// Flusso: Avvia -> video intero -> pronti -> live.
+// PARTITA.JS v2.10 - motore Step 5 + intro + VIDEO DI VITTORIA.
+// v2.10: alla fine partita, PRIMA del tabellone, riproduce il video
+// del vincitore dal bucket Storage 'video':
+//   vince assassino  -> Vittoria-assassino
+//   vince ispettore  -> Vittoria-ispettore
+// Solo a video concluso (o saltato) compare overlayFine con i nomi.
 (function(){
-  console.log('[PARTITA] partita.js caricato v2.9');
+  console.log('[PARTITA] partita.js caricato v2.10');
   if(!guardConfig()) return;
 
   const uid    = getUid();
@@ -16,6 +15,10 @@
   const roomId = stored.id;
 
   const FIRST_KILL_MS = 20000;
+
+  // nomi ESATTI dei video di vittoria nel bucket 'video' (con estensione)
+  const WIN_VIDEO_ASSASSINO = 'Vittoria-assassino.mp4';
+  const WIN_VIDEO_ISPETTORE = 'Vittoria-ispettore.mp4';
 
   const RUOLO_ICONA  = { assassino:'🗡️', detective:'🔍', innocente:'🛡️' };
   const RUOLO_ORDINE = { assassino:0, detective:1, innocente:2 };
@@ -117,8 +120,7 @@
     on:        function(evt, fn){ BUS.on(evt, fn); }
   };
 
-  // RICREA la riga giocatore se e stata cancellata (transizione
-  // lobby->partita o pulizie aggressive). Non manda al menu.
+  // ricrea la riga giocatore se manca (transizioni/pulizie)
   async function ensurePresence(){
     const me = await db.from('players')
       .select('id, role, code, card, ready').eq('room_id', roomId).eq('uid', uid).maybeSingle();
@@ -140,7 +142,7 @@
     return again.data || null;
   }
 
-  // ---------------- INTRO VIDEO (bucket Storage 'video') ----------------
+  // ---------------- INTRO VIDEO ----------------
   function costruisciIntro(){
     const wrap = document.createElement('div');
     wrap.className = 'overlay intro';
@@ -185,21 +187,16 @@
     });
     video.addEventListener('ended', chiudi);
     video.addEventListener('error', function(){
-      console.warn('[PARTITA] intro: errore video (nome file o bucket?), salto');
+      console.warn('[PARTITA] intro: errore video, salto');
       chiudi();
     });
-
     setTimeout(chiudi, 120000);
 
     try{
       const nomeIntro = (typeof INTRO_FILE !== 'undefined' && INTRO_FILE) ? INTRO_FILE : 'intro.mp4';
       const res = db.storage.from('video').getPublicUrl(nomeIntro);
       const url = (res && res.data) ? res.data.publicUrl : null;
-      if(!url){
-        console.warn('[PARTITA] intro: URL non disponibile, salto');
-        chiudi();
-        return;
-      }
+      if(!url){ chiudi(); return; }
       video.src = url;
       video.muted = true;
       wrap.hidden = false;
@@ -208,6 +205,74 @@
       if(p && p.catch) p.catch(function(){ tap.hidden = false; });
     }catch(e){
       console.warn('[PARTITA] intro: storage non raggiungibile, salto', e);
+      chiudi();
+    }
+  }
+
+  // ---------------- VIDEO DI VITTORIA ----------------
+  // stesso stile dell'intro (classi .overlay.intro / .intro-btn),
+  // ma con IDs propri per non confliggere.
+  function costruisciVideoFine(){
+    const wrap = document.createElement('div');
+    wrap.className = 'overlay intro';
+    wrap.id = 'overlayVideoFine';
+    wrap.hidden = true;
+    wrap.innerHTML =
+      '<video id="fineVideo" playsinline preload="auto"></video>' +
+      '<button class="intro-btn intro-skip" id="btnSaltaFine" type="button">Salta ›</button>' +
+      '<button class="intro-btn intro-mute" id="btnFineMute" type="button">🔇 Attiva audio</button>' +
+      '<button class="intro-tap" id="fineTap" type="button" hidden>▶ Tocca per riprodurre</button>';
+    document.body.appendChild(wrap);
+    return wrap;
+  }
+
+  // riproduce il video del vincitore e poi chiama done()
+  async function avviaVideoFine(winner, done){
+    const wrap    = costruisciVideoFine();
+    const video   = document.getElementById('fineVideo');
+    const btnSkip = document.getElementById('btnSaltaFine');
+    const btnMute = document.getElementById('btnFineMute');
+    const tap     = document.getElementById('fineTap');
+    let chiuso = false;
+
+    const chiudi = function(){
+      if(chiuso) return;
+      chiuso = true;
+      try{ video.pause(); }catch(e){}
+      wrap.hidden = true;
+      done();
+    };
+
+    btnSkip.addEventListener('click', chiudi);
+    btnMute.addEventListener('click', function(){
+      video.muted = !video.muted;
+      btnMute.textContent = video.muted ? '🔇 Attiva audio' : '🔊 Audio attivo';
+    });
+    tap.addEventListener('click', function(){
+      tap.hidden = true;
+      const p = video.play();
+      if(p && p.catch) p.catch(function(){ chiudi(); });
+    });
+    video.addEventListener('ended', chiudi);
+    video.addEventListener('error', function(){
+      console.warn('[PARTITA] video vittoria: errore (nome file?), salto al tabellone');
+      chiudi();
+    });
+    setTimeout(chiudi, 120000);
+
+    try{
+      const nome = (winner === 'assassino') ? WIN_VIDEO_ASSASSINO : WIN_VIDEO_ISPETTORE;
+      const res = db.storage.from('video').getPublicUrl(nome);
+      const url = (res && res.data) ? res.data.publicUrl : null;
+      if(!url){ chiudi(); return; }
+      video.src = url;
+      video.muted = true;
+      wrap.hidden = false;
+      console.log('[PARTITA] video vittoria: riproduzione', nome);
+      const p = video.play();
+      if(p && p.catch) p.catch(function(){ tap.hidden = false; });
+    }catch(e){
+      console.warn('[PARTITA] video vittoria: storage non raggiungibile, salto', e);
       chiudi();
     }
   }
@@ -227,8 +292,6 @@
 
       let meRes = await db.from('players').select()
         .eq('room_id', roomId).eq('uid', uid).maybeSingle();
-
-      // FIX v2.9: se la riga manca, la ricreo invece di andare in lobby
       if(meRes.error || !meRes.data){
         const recreated = await ensurePresence();
         if(!recreated){ location.replace('lobby.html'); return; }
@@ -374,6 +437,7 @@
     console.log('[PARTITA] fine: renderizzati', lista.length, 'ruoli (nomi veri)');
   }
 
+  // FINE: prima il VIDEO del vincitore, POI il tabellone.
   function mostraFine(){
     if(fineVista) return;
     fineVista = true;
@@ -384,10 +448,9 @@
     const oi = document.getElementById('overlayIntro'); if(oi) oi.hidden = true;
     BUS.emit('fine');
 
+    // preparo il tabellone ma NON lo mostro ancora
     el.fineTitolo.textContent = winnerMsg(room.winner || 'assassino');
     rendiFineRuoli(lastPlayers);
-    el.overlayFine.hidden = false;
-
     if(!lastPlayers || lastPlayers.length === 0){
       db.from('players').select().eq('room_id', roomId).then(function(r){
         if(r.data && r.data.length){
@@ -396,6 +459,11 @@
         }
       });
     }
+
+    // video del vincitore, poi tabellone
+    avviaVideoFine(room.winner || 'assassino', function(){
+      el.overlayFine.hidden = false;
+    });
   }
 
   el.btnFine.addEventListener('click', async function(){
@@ -415,7 +483,6 @@
           .update({ online: true, device: getDeviceType(), last_seen: new Date().toISOString() })
           .eq('room_id', roomId).eq('uid', uid).select('id');
         if(!t.error && t.data && t.data.length === 0){
-          // FIX v2.9: riga mancante -> la ricreo, NON vado al menu
           console.warn('[PARTITA] riga mancante: la ricreo');
           const rec = await ensurePresence();
           if(!rec){
@@ -432,7 +499,6 @@
       if(!pl.error && pl.data){
         let players = pl.data;
         if(iAmCleaner(players)){
-          // FIX v2.9: pulizie (cancellazioni) SOLO in fase live
           if(room && room.phase === 'live'){
             players = await cleanup(players);
           }
