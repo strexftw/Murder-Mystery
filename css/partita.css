@@ -1,0 +1,209 @@
+/* =========================================================
+   PARTITA.CSS v5 — grafica della schermata partita con la
+   PALETTE HORROR del menu/lobby: nero cripta, sangue, osso.
+   Classi e IDs invariati: nessuna funzione toccata.
+   (topbar/pannelli/chat/atmosfera arrivano da lobby.css v4;
+    overlay ispezione/jumpscare/fine da Ispettore.css.)
+   ========================================================= */
+
+/* ---------- timer: orologio da cripta ---------- */
+.timer-chip{
+  display:flex; align-items:center; gap:.6rem;
+  padding:.5rem 1rem; border-radius:8px;
+  border:1px solid rgba(194,24,31,.45);
+  background:linear-gradient(180deg, rgba(20,8,10,.85), rgba(8,4,5,.9));
+  box-shadow:inset 0 0 18px rgba(0,0,0,.6), 0 4px 14px rgba(0,0,0,.5);
+}
+.timer-chip .timer-label{
+  font-family:var(--head); font-size:.8rem; letter-spacing:.22em;
+  text-transform:uppercase; color:#8f887b;
+}
+#timerText{
+  font-family:var(--head); font-weight:700; font-size:1.5rem; letter-spacing:.12em;
+  color:#d9d2c4; font-variant-numeric:tabular-nums;
+  text-shadow:0 0 16px rgba(217,210,196,.25);
+  animation:timerBreath 3s ease-in-out infinite;
+}
+@keyframes timerBreath{
+  0%,100%{ text-shadow:0 0 10px rgba(217,210,196,.18); }
+  50%    { text-shadow:0 0 22px rgba(194,24,31,.45); }
+}
+
+/* ---------- la tua carta: lapide personale ---------- */
+.my-card{
+  position:relative;
+  display:grid; gap:.8rem; justify-items:center; text-align:center;
+  padding:1.5rem 1.2rem 1.3rem;
+  background:
+    repeating-linear-gradient(92deg, rgba(255,255,255,.02) 0 2px, transparent 2px 8px),
+    linear-gradient(175deg, #171310, #0a0806 60%, #060404);
+  border:1px solid rgba(217,210,196,.14);
+  border-left:3px solid rgba(194,24,31,.55);
+  border-radius:14px 10px 16px 8px / 10px 16px 8px 14px;
+  box-shadow:0 0 0 1px rgba(0,0,0,.85), 0 18px 44px rgba(0,0,0,.65), inset 0 0 40px rgba(0,0,0,.55);
+  animation:cardRise .6s cubic-bezier(.2,.9,.3,1) both;
+}
+@keyframes cardRise{
+  0%{ opacity:0; transform:translateY(20px); filter:blur(6px); }
+  100%{ opacity:1; transform:translateY(0); filter:blur(0); }
+}
+.my-card::before{
+  content:'†'; position:absolute; top:.5rem; left:.7rem;
+  color:rgba(194,24,31,.5); font-family:var(--head); font-size:1rem;
+}
+.my-card::after{
+  content:'†'; position:absolute; bottom:.5rem; right:.7rem;
+  color:rgba(194,24,31,.35); font-family:var(--head); font-size:1rem;
+}
+
+.my-role{
+  font-family:'UnifrakturMaguntia', var(--display); font-weight:400;
+  font-size:clamp(1.6rem,5vw,2.3rem); line-height:1.1;
+  color:#d9d2c4;
+  text-shadow:0 0 26px rgba(217,210,196,.18);
+}
+.my-role.detective{ color:#86e29b; text-shadow:0 0 26px rgba(134,226,155,.35); }
+.my-role.innocente{ color:#d9d2c4; }
+
+.role-tag{ border-color:rgba(194,24,31,.45); color:#c2181f; background:rgba(124,13,18,.12); }
+.role-tag.detective{ border-color:rgba(134,226,155,.45); color:#86e29b; background:rgba(134,226,155,.1); }
+.role-tag.innocente{ border-color:rgba(217,210,196,.3); color:#d9d2c4; background:rgba(217,210,196,.06); }
+
+.my-secret-row{
+  width:100%; display:flex; flex-direction:column; gap:.3rem; align-items:center;
+  padding:.7rem .8rem; border-radius:10px;
+  background:rgba(0,0,0,.4);
+  border:1px solid rgba(217,210,196,.1);
+}
+.my-secret-label{
+  font-family:var(--head); font-size:.72rem; letter-spacing:.22em;
+  text-transform:uppercase; color:#8f887b;
+}
+.my-code{
+  font-family:var(--head); font-weight:700; font-size:1.7rem; letter-spacing:.24em;
+  color:#d9d2c4; text-shadow:0 0 18px rgba(217,210,196,.3);
+}
+.my-word{
+  font-family:var(--head); font-weight:700; font-size:1.15rem; letter-spacing:.06em;
+  color:#ff8f95; text-shadow:0 0 20px rgba(194,24,31,.5);
+}
+.my-hint{
+  color:#8f887b; font-style:italic; font-size:1rem; line-height:1.6; max-width:46ch;
+}
+
+.my-actions{ display:flex; gap:.7rem; flex-wrap:wrap; justify-content:center; }
+.my-actions .btn{
+  background:linear-gradient(180deg, rgba(30,36,32,.9), rgba(12,16,14,.95));
+  border:1px solid rgba(217,210,196,.22); color:#d9d2c4;
+  font-family:var(--head); letter-spacing:.14em; text-transform:uppercase;
+  transition:transform .2s, border-color .2s, box-shadow .2s;
+}
+.my-actions .btn:hover{ transform:translateY(-2px); border-color:rgba(194,24,31,.6); box-shadow:0 8px 22px rgba(0,0,0,.5), 0 0 18px rgba(194,24,31,.2); }
+.my-actions .btn-blood{
+  background:linear-gradient(180deg, #c2181f, #7c0d12 70%);
+  border-color:rgba(194,24,31,.7); color:#ffe9e6;
+}
+.my-actions .btn:disabled{ opacity:.4; cursor:not-allowed; transform:none; box-shadow:none; }
+
+/* ---------- badge tavolo ---------- */
+.badge-dead{
+  font-family:var(--head); font-weight:700; font-size:.8rem; letter-spacing:.18em;
+  color:#ffe9e6; background:linear-gradient(180deg, #c2181f, #7c0d12);
+  padding:.22rem .55rem; border-radius:3px;
+}
+.badge-ready{
+  font-family:var(--head); font-weight:700; font-size:.8rem; letter-spacing:.18em;
+  color:#0d251c; background:linear-gradient(180deg, #9fd8a8, #58c470);
+  padding:.22rem .55rem; border-radius:3px;
+}
+.player.eliminated{
+  opacity:.5; filter:grayscale(.8);
+  border-left-color:rgba(140,140,140,.4);
+}
+.player.eliminated .avatar{ border-color:rgba(140,140,140,.4); color:#8f887b; }
+
+/* ---------- rivelazione ruolo: carta che si gira ---------- */
+.overlay.reveal{
+  position:fixed; inset:0; z-index:80; display:grid; place-items:center;
+  background:radial-gradient(ellipse at center, rgba(18,6,8,.96), rgba(2,3,4,.99));
+  animation:fadeIn .5s ease both;
+}
+.overlay.reveal[hidden]{ display:none; }
+.reveal-stack{ display:grid; gap:1.2rem; justify-items:center; text-align:center; padding:1.4rem; }
+.reveal-over{
+  font-family:var(--head); font-size:.8rem; letter-spacing:.34em;
+  text-transform:uppercase; color:#8f887b;
+  animation:fadeDown 1s ease both;
+}
+.flip-scene{ perspective:1400px; }
+.flip-card{
+  position:relative; width:min(320px, 78vw); height:min(440px, 60vh);
+  transform-style:preserve-3d;
+  transition:transform .9s cubic-bezier(.3,.8,.3,1);
+}
+.flip-card.flipped{ transform:rotateY(180deg); }
+.flip-back, .flip-front{
+  position:absolute; inset:0; backface-visibility:hidden; -webkit-backface-visibility:hidden;
+  border-radius:16px 10px 18px 8px / 10px 18px 8px 16px;
+  display:grid; place-items:center; overflow:hidden;
+}
+.flip-back{
+  background:
+    repeating-radial-gradient(circle at 50% 50%, rgba(124,13,18,.28) 0 2px, transparent 2px 10px),
+    linear-gradient(160deg, #1a0b0d, #0a0506);
+  border:1px solid rgba(194,24,31,.45);
+  box-shadow:0 24px 60px rgba(0,0,0,.8), inset 0 0 40px rgba(0,0,0,.6);
+}
+.flip-back span{
+  font-family:'UnifrakturMaguntia', var(--display); font-size:5rem; color:rgba(194,24,31,.6);
+  text-shadow:0 0 30px rgba(194,24,31,.5);
+  animation:markPulse 3s ease-in-out infinite;
+}
+.flip-front{
+  transform:rotateY(180deg);
+  background:
+    repeating-linear-gradient(92deg, rgba(255,255,255,.02) 0 2px, transparent 2px 8px),
+    linear-gradient(175deg, #171310, #0a0806 60%, #060404);
+  border:1px solid rgba(217,210,196,.2);
+  box-shadow:0 24px 60px rgba(0,0,0,.8), inset 0 0 40px rgba(0,0,0,.55);
+  padding:1.6rem 1.2rem;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.9rem;
+}
+.flip-front .orn.dark{ color:rgba(194,24,31,.5); letter-spacing:.4em; }
+.reveal-role{
+  font-family:'UnifrakturMaguntia', var(--display); font-weight:400;
+  font-size:clamp(2rem,7vw,3rem); line-height:1.05; color:#d9d2c4;
+  text-shadow:0 0 30px rgba(217,210,196,.2);
+}
+.reveal-role.detective{ color:#86e29b; text-shadow:0 0 30px rgba(134,226,155,.4); }
+.reveal-role.innocente{ color:#d9d2c4; }
+.reveal-desc{ color:#8f887b; font-size:1.05rem; line-height:1.6; max-width:30ch; }
+.reveal-row{
+  width:100%; display:flex; align-items:center; justify-content:space-between;
+  padding-top:.8rem; border-top:1px solid rgba(217,210,196,.14);
+  font-family:var(--head); font-size:.85rem; letter-spacing:.2em;
+  text-transform:uppercase; color:#8f887b;
+}
+.reveal-code{
+  font-family:var(--head); font-weight:700; font-size:1.4rem; letter-spacing:.2em;
+  color:#d9d2c4; text-shadow:0 0 16px rgba(217,210,196,.3);
+}
+.reveal-warn{
+  color:#c2181f; font-style:italic; font-size:.95rem; letter-spacing:.06em;
+  animation:waitPulse 2.2s ease-in-out infinite;
+}
+
+/* ---------- telefono ---------- */
+@media (pointer:coarse), (max-width:700px){
+  .my-card{ padding:1.2rem .9rem 1.1rem; }
+  .my-role{ font-size:1.5rem; }
+  .my-code{ font-size:1.4rem; }
+  .flip-card{ height:min(400px, 56vh); }
+  #timerText{ font-size:1.2rem; }
+}
+
+/* rispetto per chi disattiva le animazioni */
+@media (prefers-reduced-motion:reduce){
+  #timerText, .my-card, .flip-back span, .reveal-over, .reveal-warn,
+  .flip-card{ animation:none; transition:none; }
+}

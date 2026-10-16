@@ -7,16 +7,26 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗡️</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400..900&family=Karla:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/base.css?v=30">
-  <link rel="stylesheet" href="css/lobby.css?v=30">
-  <link rel="stylesheet" href="css/partita.css?v=30">
-  <link rel="stylesheet" href="css/Ispettore.css?v=30">
-  <link rel="stylesheet" href="css/pc.css?v=30" media="(hover:hover) and (pointer:fine)">
-  <link rel="stylesheet" href="css/phone.css?v=30" media="(pointer:coarse)">
+  <link href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400..900&family=Karla:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/base.css?v=36">
+  <link rel="stylesheet" href="css/lobby.css?v=36">
+  <link rel="stylesheet" href="css/partita.css?v=36">
+  <link rel="stylesheet" href="css/Ispettore.css?v=36">
+  <link rel="stylesheet" href="css/pc.css?v=36" media="(hover:hover) and (pointer:fine)">
+  <link rel="stylesheet" href="css/phone.css?v=36" media="(pointer:coarse)">
 </head>
 <body>
 
+<!-- atmosfera (stilizzata da lobby.css v4) -->
+<div class="fog f1" aria-hidden="true"></div>
+<div class="fog f2" aria-hidden="true"></div>
+<div class="lightning" aria-hidden="true"></div>
+<div class="vignette" aria-hidden="true"></div>
+<div class="embers" aria-hidden="true">
+  <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+</div>
+<div class="eyes e1" aria-hidden="true"><i></i><i></i></div>
+<div class="eyes e2" aria-hidden="true"><i></i><i></i></div>
 <div class="suits" aria-hidden="true">
   <span class="s s1">♠</span><span class="s s2">♥</span>
   <span class="s s3">♣</span><span class="s s4">♦</span>
@@ -188,7 +198,7 @@
   </div>
 </div>
 
-<!-- 10. FINE PARTITA: ULTIMO nel DOM + z-index:99 nel CSS = sempre sopra e cliccabile -->
+<!-- 10. FINE PARTITA: ultimo nel DOM, sempre sopra -->
 <div class="overlay isp" id="overlayFine" hidden>
   <div class="isp-stack">
     <h2 class="isp-title fine" id="fineTitolo">🏆</h2>
@@ -200,12 +210,12 @@
 <div id="toast" class="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/config.js?v=30"></script>
-<script src="js/utils.js?v=30"></script>
-<script src="js/Personaggi.js?v=30"></script>
-<script src="js/partita.js?v=30"></script>
-<script src="js/Sistema.js?v=30"></script>
-<script src="js/Ispettore.js?v=30"></script>
-<script src="js/Innocente.js?v=30"></script>
+<script src="js/config.js?v=35"></script>
+<script src="js/utils.js?v=35"></script>
+<script src="js/Personaggi.js?v=35"></script>
+<script src="js/partita.js?v=35"></script>
+<script src="js/Sistema.js?v=35"></script>
+<script src="js/Ispettore.js?v=35"></script>
+<script src="js/Innocente.js?v=35"></script>
 </body>
 </html>
