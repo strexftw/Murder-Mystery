@@ -1,12 +1,14 @@
-// PARTITA.JS v2.7 - motore Step 5 + INTRO VIDEO.
-// v2.7: quando si arriva in partita con fase 'reveal' e ruolo non
-// ancora confermato, riproduce il video 'intro' del bucket Storage
-// 'video' su OGNI dispositivo, prima della carta che si gira.
+// PARTITA.JS v2.7.1 - motore Step 5 + INTRO VIDEO.
+// v2.7.1: l intro si prende con getPublicUrl(INTRO_FILE), niente list():
+// quindi il bucket video NON richiede alcuna policy su storage.objects
+// (warning "Clients can list all files" risolto).
+// Il video parte su OGNI dispositivo all ingresso in partita (fase
+// reveal, ruolo non confermato), prima della carta che si gira.
 // Controlli: Salta, attiva audio, tocca-per-riprodurre.
-// Sicurezza: se lo storage non risponde o il video erra, si salta
-// e la partita prosegue (mai bloccata).
+// Sicurezza: se lo storage non risponde o il video erra, si salta e
+// la partita prosegue (mai bloccata).
 (function(){
-  console.log('[PARTITA] partita.js caricato v2.7');
+  console.log('[PARTITA] partita.js caricato v2.7.1');
   if(!guardConfig()) return;
 
   const uid    = getUid();
@@ -131,7 +133,8 @@
     return wrap;
   }
 
-  // riproduce l'intro e poi chiama done(); non blocca MAI la partita
+  // riproduce l intro e poi chiama done(); non blocca MAI la partita.
+  // v2.7.1: niente list() -> niente policy broad -> warning storage risolto.
   async function avviaIntro(done){
     const wrap    = costruisciIntro();
     const video   = document.getElementById('introVideo');
@@ -160,7 +163,7 @@
     });
     video.addEventListener('ended', chiudi);
     video.addEventListener('error', function(){
-      console.warn('[PARTITA] intro: errore video, salto');
+      console.warn('[PARTITA] intro: errore video (nome file o bucket?), salto');
       chiudi();
     });
 
@@ -174,23 +177,18 @@
     setTimeout(chiudi, 180000);
 
     try{
-      const list = await db.storage.from('video').list('', { limit: 100 });
-      let nome = null;
-      if(list.data){
-        for(const f of list.data){
-          if(f.name && f.name.toLowerCase().indexOf('intro') === 0){ nome = f.name; break; }
-        }
-      }
-      if(!nome){
-        console.warn('[PARTITA] intro: nessun file intro nel bucket video, salto');
+      const nomeIntro = (typeof INTRO_FILE !== 'undefined' && INTRO_FILE) ? INTRO_FILE : 'intro.mp4';
+      const res = db.storage.from('video').getPublicUrl(nomeIntro);
+      const url = (res && res.data) ? res.data.publicUrl : null;
+      if(!url){
+        console.warn('[PARTITA] intro: URL non disponibile, salto');
         chiudi();
         return;
       }
-      const url = db.storage.from('video').getPublicUrl(nome).publicUrl;
       video.src = url;
-      video.muted = true;   // autoplay consentito solo muto: c'e il bottone audio
+      video.muted = true;   // autoplay consentito solo muto: c e il bottone audio
       wrap.hidden = false;
-      console.log('[PARTITA] intro: riproduzione', nome);
+      console.log('[PARTITA] intro: riproduzione', nomeIntro);
       const p = video.play();
       if(p && p.catch) p.catch(function(){ tap.hidden = false; });
     }catch(e){

@@ -26,3 +26,13 @@ if (typeof window.supabase === "undefined") {
     console.error("[CONFIG] Impossibile creare il client Supabase:", e);
   }
 }
+
+// heartbeat client: 0.5s (coerente con "In diretta 0.5s" della lobby)
+const HEARTBEAT_MS = 500;
+// ogni quanti beat si riscrive la presenza (2 = circa 1s)
+const PRESENCE_EVERY = 2;
+// oltre questo tempo senza battito il giocatore e offline (5s)
+const OFFLINE_AFTER_MS = 5000;
+
+// nome esatto del file intro nell bucket Storage video
+const INTRO_FILE = 'intro.mp4';
