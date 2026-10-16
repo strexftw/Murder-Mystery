@@ -1,14 +1,12 @@
-// PARTITA.JS v2.7.1 - motore Step 5 + INTRO VIDEO.
-// v2.7.1: l intro si prende con getPublicUrl(INTRO_FILE), niente list():
-// quindi il bucket video NON richiede alcuna policy su storage.objects
-// (warning "Clients can list all files" risolto).
-// Il video parte su OGNI dispositivo all ingresso in partita (fase
-// reveal, ruolo non confermato), prima della carta che si gira.
-// Controlli: Salta, attiva audio, tocca-per-riprodurre.
-// Sicurezza: se lo storage non risponde o il video erra, si salta e
-// la partita prosegue (mai bloccata).
+// PARTITA.JS v2.8 - motore Step 5 + INTRO VIDEO BLOCCANTE.
+// v2.8: finche l'intro e in corso (introInCorso = true) il motore
+// NON annulla la partita e NON fa scattare la fase live: il video
+// puo finire tranquillo su tutti i dispositivi.
+// Il bottone "Ho letto il mio ruolo" (pronto) compare SOLO a video
+// concluso; la partita parte solo quando tutti hanno confermato.
+// Flusso: Avvia -> video intero -> pronti -> live.
 (function(){
-  console.log('[PARTITA] partita.js caricato v2.7.1');
+  console.log('[PARTITA] partita.js caricato v2.8');
   if(!guardConfig()) return;
 
   const uid    = getUid();
@@ -87,6 +85,7 @@
   let room = null, lastPlayers = [], myCard = null;
   let myRole = 'innocente', myCode = '—';
   let isHost = false, readySent = false, timerStarted = false, fineVista = false;
+  let introInCorso = false;   // CANCELLETTO: true finche il video non e finito
   const seenPlayers = new Set();
 
   const BUS = {
@@ -133,9 +132,12 @@
     return wrap;
   }
 
-  // riproduce l intro e poi chiama done(); non blocca MAI la partita.
-  // v2.7.1: niente list() -> niente policy broad -> warning storage risolto.
+  // riproduce l'intro PER INTERO e poi chiama done().
+  // Mentre e in corso: introInCorso = true -> il motore non annulla
+  // e non parte. Niente timeout da 8s: il video finisce da solo.
+  // Uniche vie d'uscita: fine naturale, Salta, errore, hard-cap 120s.
   async function avviaIntro(done){
+    introInCorso = true;
     const wrap    = costruisciIntro();
     const video   = document.getElementById('introVideo');
     const btnSkip = document.getElementById('btnSaltaIntro');
@@ -146,6 +148,7 @@
     const chiudi = function(){
       if(chiuso) return;
       chiuso = true;
+      introInCorso = false;
       try{ video.pause(); }catch(e){}
       wrap.hidden = true;
       done();
@@ -167,14 +170,8 @@
       chiudi();
     });
 
-    // sicurezze: se non carica entro 8s, o dura oltre 3 minuti, salto
-    setTimeout(function(){
-      if(!chiuso && (!video.readyState || video.readyState < 2)){
-        console.warn('[PARTITA] intro: caricamento lento, salto');
-        chiudi();
-      }
-    }, 8000);
-    setTimeout(chiudi, 180000);
+    // hard-cap di sicurezza: mai oltre 2 minuti (evita schermi neri eterni)
+    setTimeout(chiudi, 120000);
 
     try{
       const nomeIntro = (typeof INTRO_FILE !== 'undefined' && INTRO_FILE) ? INTRO_FILE : 'intro.mp4';
@@ -186,7 +183,7 @@
         return;
       }
       video.src = url;
-      video.muted = true;   // autoplay consentito solo muto: c e il bottone audio
+      video.muted = true;   // autoplay consentito solo muto: c'e il bottone audio
       wrap.hidden = false;
       console.log('[PARTITA] intro: riproduzione', nomeIntro);
       const p = video.play();
@@ -237,7 +234,7 @@
         el.reveal.hidden = true;
         el.overlayAttesa.hidden = false;
       } else {
-        // INTRO VIDEO prima della rivelazione (solo chi deve ancora confermare)
+        // INTRO VIDEO prima della rivelazione: il pronto arriva DOPO
         avviaIntro(function(){
           fillReveal();
           el.reveal.hidden = false;
@@ -289,6 +286,7 @@
 
   el.btnEnter.addEventListener('click', async function(){
     if(readySent) return;
+    if(introInCorso) return;   // doppia sicurezza: niente pronto durante il video
     readySent = true;
     el.btnEnter.disabled = true;
     await db.from('players').update({ ready: true })
@@ -309,7 +307,9 @@
     setInterval(function(){ if(running) tick(); }, 1000);
   }
 
+  // annulla SOLO in fase live: durante reveal/intro non si torna in lobby
   async function cancelGame(){
+    if(!room || room.phase !== 'live') return;
     running = false;
     try{
       await db.from('rooms').update({ status: 'lobby' }).eq('id', roomId);
@@ -405,24 +405,29 @@
         let players = pl.data;
         if(iAmCleaner(players)){
           players = await cleanup(players);
-          if(room && room.phase === 'reveal'){
-            const freschi = players.filter(isFresh);
-            const pronti = freschi.filter(function(p){ return p.ready === true; });
-            if(freschi.length > 0 && pronti.length >= freschi.length){
-              const ora = new Date().toISOString();
-              await db.from('rooms').update({
-                phase: 'live', started_at: ora,
-                next_kill_at: new Date(Date.now() + FIRST_KILL_MS).toISOString()
-              }).eq('id', roomId);
-              room.phase = 'live'; room.started_at = ora;
-              await sysMessage(roomId, '⚔ Tutti pronti: la caccia comincia!');
+
+          // flip reveal->live e annullamento: SOLO se l'intro e finito
+          if(!introInCorso){
+            if(room && room.phase === 'reveal'){
+              const freschi = players.filter(isFresh);
+              const pronti = freschi.filter(function(p){ return p.ready === true; });
+              if(freschi.length > 0 && pronti.length >= freschi.length){
+                const ora = new Date().toISOString();
+                await db.from('rooms').update({
+                  phase: 'live', started_at: ora,
+                  next_kill_at: new Date(Date.now() + FIRST_KILL_MS).toISOString()
+                }).eq('id', roomId);
+                room.phase = 'live'; room.started_at = ora;
+                await sysMessage(roomId, '⚔ Tutti pronti: la caccia comincia!');
+              }
+            }
+            if(room && room.phase !== 'fine' && !room.winner){
+              const connessi = players.filter(isFresh);
+              if(connessi.length < 3){ await cancelGame(); }
             }
           }
+
           BUS.emit('cleaner', players);
-          if(room && room.phase !== 'fine' && !room.winner){
-            const connessi = players.filter(isFresh);
-            if(connessi.length < 3){ await cancelGame(); return; }
-          }
         }
         lastPlayers = players;
         if(!document.hidden){
