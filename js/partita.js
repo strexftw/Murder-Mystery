@@ -1,12 +1,12 @@
-// PARTITA.JS v2.8 - motore Step 5 + INTRO VIDEO BLOCCANTE.
-// v2.8: finche l'intro e in corso (introInCorso = true) il motore
-// NON annulla la partita e NON fa scattare la fase live: il video
-// puo finire tranquillo su tutti i dispositivi.
-// Il bottone "Ho letto il mio ruolo" (pronto) compare SOLO a video
-// concluso; la partita parte solo quando tutti hanno confermato.
+// PARTITA.JS v2.9 - motore Step 5 + INTRO VIDEO BLOCCANTE.
+// v2.9 FIX: durante reveal/intro il cleaner NON cancella nessuno
+// (prima cancellava i giocatori lenti nel passaggio lobby->partita
+// e questi venivano spediti al menu con il video a meta).
+// Se la propria riga players manca, viene RICREATA (ensurePresence)
+// invece di rimandare al menu.
 // Flusso: Avvia -> video intero -> pronti -> live.
 (function(){
-  console.log('[PARTITA] partita.js caricato v2.8');
+  console.log('[PARTITA] partita.js caricato v2.9');
   if(!guardConfig()) return;
 
   const uid    = getUid();
@@ -85,7 +85,7 @@
   let room = null, lastPlayers = [], myCard = null;
   let myRole = 'innocente', myCode = '—';
   let isHost = false, readySent = false, timerStarted = false, fineVista = false;
-  let introInCorso = false;   // CANCELLETTO: true finche il video non e finito
+  let introInCorso = false;
   const seenPlayers = new Set();
 
   const BUS = {
@@ -117,6 +117,29 @@
     on:        function(evt, fn){ BUS.on(evt, fn); }
   };
 
+  // RICREA la riga giocatore se e stata cancellata (transizione
+  // lobby->partita o pulizie aggressive). Non manda al menu.
+  async function ensurePresence(){
+    const me = await db.from('players')
+      .select('id, role, code, card, ready').eq('room_id', roomId).eq('uid', uid).maybeSingle();
+    if(me.error){ console.warn('[PARTITA] ensurePresence select:', me.error); return null; }
+    if(me.data){
+      await db.from('players').update({
+        online: true, device: getDeviceType(), last_seen: new Date().toISOString()
+      }).eq('id', me.data.id);
+      return me.data;
+    }
+    const ins = await db.from('players').insert({
+      room_id: roomId, uid: uid, name: myName, is_host: isHost,
+      device: getDeviceType(), online: true, last_seen: new Date().toISOString()
+    });
+    if(ins.error){ console.warn('[PARTITA] ensurePresence insert:', ins.error); return null; }
+    console.log('[PARTITA] riga giocatore ricreata in partita');
+    const again = await db.from('players')
+      .select('id, role, code, card, ready').eq('room_id', roomId).eq('uid', uid).maybeSingle();
+    return again.data || null;
+  }
+
   // ---------------- INTRO VIDEO (bucket Storage 'video') ----------------
   function costruisciIntro(){
     const wrap = document.createElement('div');
@@ -132,10 +155,6 @@
     return wrap;
   }
 
-  // riproduce l'intro PER INTERO e poi chiama done().
-  // Mentre e in corso: introInCorso = true -> il motore non annulla
-  // e non parte. Niente timeout da 8s: il video finisce da solo.
-  // Uniche vie d'uscita: fine naturale, Salta, errore, hard-cap 120s.
   async function avviaIntro(done){
     introInCorso = true;
     const wrap    = costruisciIntro();
@@ -170,7 +189,6 @@
       chiudi();
     });
 
-    // hard-cap di sicurezza: mai oltre 2 minuti (evita schermi neri eterni)
     setTimeout(chiudi, 120000);
 
     try{
@@ -183,7 +201,7 @@
         return;
       }
       video.src = url;
-      video.muted = true;   // autoplay consentito solo muto: c'e il bottone audio
+      video.muted = true;
       wrap.hidden = false;
       console.log('[PARTITA] intro: riproduzione', nomeIntro);
       const p = video.play();
@@ -206,9 +224,16 @@
         location.replace(room.status === 'lobby' ? 'lobby.html' : 'index.html');
         return;
       }
-      const meRes = await db.from('players').select()
+
+      let meRes = await db.from('players').select()
         .eq('room_id', roomId).eq('uid', uid).maybeSingle();
-      if(meRes.error || !meRes.data){ location.replace('lobby.html'); return; }
+
+      // FIX v2.9: se la riga manca, la ricreo invece di andare in lobby
+      if(meRes.error || !meRes.data){
+        const recreated = await ensurePresence();
+        if(!recreated){ location.replace('lobby.html'); return; }
+        meRes = { data: recreated, error: null };
+      }
 
       isHost = room.host_uid === uid;
       myRole = roleOf(meRes.data) || 'innocente';
@@ -234,7 +259,6 @@
         el.reveal.hidden = true;
         el.overlayAttesa.hidden = false;
       } else {
-        // INTRO VIDEO prima della rivelazione: il pronto arriva DOPO
         avviaIntro(function(){
           fillReveal();
           el.reveal.hidden = false;
@@ -286,7 +310,7 @@
 
   el.btnEnter.addEventListener('click', async function(){
     if(readySent) return;
-    if(introInCorso) return;   // doppia sicurezza: niente pronto durante il video
+    if(introInCorso) return;
     readySent = true;
     el.btnEnter.disabled = true;
     await db.from('players').update({ ready: true })
@@ -307,7 +331,6 @@
     setInterval(function(){ if(running) tick(); }, 1000);
   }
 
-  // annulla SOLO in fase live: durante reveal/intro non si torna in lobby
   async function cancelGame(){
     if(!room || room.phase !== 'live') return;
     running = false;
@@ -392,11 +415,16 @@
           .update({ online: true, device: getDeviceType(), last_seen: new Date().toISOString() })
           .eq('room_id', roomId).eq('uid', uid).select('id');
         if(!t.error && t.data && t.data.length === 0){
-          running = false;
-          showToast('Sei stato rimosso dal tavolo', false);
-          clearCurrentRoom();
-          setTimeout(function(){ location.replace('index.html'); }, 1800);
-          return;
+          // FIX v2.9: riga mancante -> la ricreo, NON vado al menu
+          console.warn('[PARTITA] riga mancante: la ricreo');
+          const rec = await ensurePresence();
+          if(!rec){
+            running = false;
+            showToast('Sei stato rimosso dal tavolo', false);
+            clearCurrentRoom();
+            setTimeout(function(){ location.replace('index.html'); }, 1800);
+            return;
+          }
         }
       }
 
@@ -404,9 +432,10 @@
       if(!pl.error && pl.data){
         let players = pl.data;
         if(iAmCleaner(players)){
-          players = await cleanup(players);
-
-          // flip reveal->live e annullamento: SOLO se l'intro e finito
+          // FIX v2.9: pulizie (cancellazioni) SOLO in fase live
+          if(room && room.phase === 'live'){
+            players = await cleanup(players);
+          }
           if(!introInCorso){
             if(room && room.phase === 'reveal'){
               const freschi = players.filter(isFresh);
@@ -426,7 +455,6 @@
               if(connessi.length < 3){ await cancelGame(); }
             }
           }
-
           BUS.emit('cleaner', players);
         }
         lastPlayers = players;
