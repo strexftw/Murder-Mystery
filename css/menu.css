@@ -1,138 +1,268 @@
 /* =========================================================
-   MENU.CSS v3 — grafica di index.html con SCRITTE GRANDI
+   MENU.CSS v3 - restyling HORROR del solo index.html.
+   Caricato SOLO dal menu: lobby e partita restano identici.
+   Nessuna funzione toccata: IDs invariati per menu.js.
    ========================================================= */
-.table{
-  min-height:100svh; max-width:1250px; margin:auto;
-  padding:clamp(1.4rem,4vw,3rem); display:flex; flex-direction:column;
+
+/* palette horror locale (override solo per il menu) */
+:root{
+  --bone:      #d9d2c4;
+  --bone-dim:  #8f887b;
+  --blood:     #7c0d12;
+  --blood-hot: #c2181f;
+  --night:     #04060a;
+  --crypt:     #0b0f0d;
+  --wax:       #e8dcc0;
 }
 
-/* ---------- stemma / titolo ---------- */
-.crest{ text-align:center; animation:rise .6s ease both; }
-.overline{
-  font-family:var(--head); letter-spacing:.3em; text-transform:uppercase;
-  font-size:1.05rem; color:var(--gold);
+.menu-body{
+  background:
+    radial-gradient(ellipse 90% 60% at 50% 115%, rgba(124,13,18,.16), transparent 60%),
+    radial-gradient(ellipse 70% 50% at 50% -10%, rgba(30,44,38,.35), transparent 65%),
+    var(--night);
+  overflow-x:hidden;
 }
-.title{
-  font-family:var(--display); font-weight:900; text-transform:uppercase;
-  font-size:clamp(3.2rem,8vw,6rem); line-height:1.05; color:var(--ivory);
-  margin:.8rem 0 .7rem;
-  text-shadow:0 3px 0 rgba(0,0,0,.3), 0 0 46px rgba(217,172,78,.18);
-}
-.title .blood{ color:var(--crimson-hot); text-shadow:0 0 34px rgba(224,75,82,.45); }
-.crest .orn{ font-size:1.2rem; }
 
-/* ---------- area a due colonne ---------- */
-.table-area{
-  flex:1; display:grid; grid-template-columns:1fr minmax(360px,500px);
-  gap:clamp(2rem,5vw,4.5rem); align-items:center;
-  margin-top:clamp(1.6rem,4vw,3rem);
+/* ---------- nebbia e vignetta ---------- */
+.fog{
+  position:fixed; inset:-20%; pointer-events:none; z-index:0;
+  background:
+    radial-gradient(circle 340px at 20% 70%, rgba(190,200,190,.07), transparent 70%),
+    radial-gradient(circle 420px at 75% 30%, rgba(160,175,165,.06), transparent 70%),
+    radial-gradient(circle 300px at 55% 85%, rgba(124,13,18,.05), transparent 70%);
+  filter:blur(6px);
 }
-.left{ animation:rise .6s .12s ease both; }
+.fog.f1{ animation:fogDrift 46s linear infinite alternate; }
+.fog.f2{ animation:fogDrift 63s linear infinite alternate-reverse; opacity:.7; }
+@keyframes fogDrift{
+  0%  { transform:translate3d(-4%, 2%, 0) scale(1); }
+  50% { transform:translate3d(3%, -3%, 0) scale(1.08); }
+  100%{ transform:translate3d(5%, 3%, 0) scale(1.02); }
+}
+.vignette{
+  position:fixed; inset:0; pointer-events:none; z-index:1;
+  background:radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,.78) 100%);
+}
 
-/* ---------- ventaglio di carte ---------- */
-.fan{ position:relative; width:min(380px,90%); aspect-ratio:4/3; margin:0 auto; }
-.card-back, .card-face{
-  position:absolute; bottom:0; left:50%; width:132px; height:186px; border-radius:10px;
-  transform-origin:50% 135%; box-shadow:0 18px 34px rgba(0,0,0,.5);
-  transition:transform .55s cubic-bezier(.2,.85,.25,1);
+/* semi di carte spettrali */
+.menu-body .suits .s{
+  color:rgba(124,13,18,.20);
+  text-shadow:0 0 26px rgba(194,24,31,.25);
+  animation-duration:26s;
 }
-.card-back{
-  background:repeating-linear-gradient(45deg, #12352a 0 7px, #0e2a21 7px 14px);
-  border:2px solid var(--gold-dark);
-}
-.card-back::after{
-  content:''; position:absolute; inset:7px;
-  border:1px solid rgba(217,172,78,.35); border-radius:6px;
-}
-.c1{ transform:translateX(-50%) rotate(-19deg); }
-.c2{ transform:translateX(-50%) rotate(-7deg); }
-.c3{ transform:translateX(-50%) rotate(5deg); }
-.card-face{
-  transform:translateX(-50%) rotate(17deg);
-  background:linear-gradient(160deg, #f7efdd, #e8dcc0);
-  border:2px solid #cbb87f; display:grid; place-items:center;
-}
-.sigil{ font-size:4rem; color:var(--crimson); font-family:var(--head); text-shadow:0 2px 4px rgba(0,0,0,.15); }
-.pip{
-  position:absolute; font-family:var(--head); font-weight:700; font-size:1rem;
-  color:var(--crimson); display:flex; flex-direction:column; align-items:center; line-height:1;
-}
-.pip i{ font-style:normal; font-size:1.05rem; }
-.pip.top{ top:9px; left:11px; }
-.pip.bot{ bottom:9px; right:11px; transform:rotate(180deg); }
-.fan:hover .c1{ transform:translateX(-50%) rotate(-28deg); }
-.fan:hover .c2{ transform:translateX(-50%) rotate(-10deg); }
-.fan:hover .c3{ transform:translateX(-50%) rotate(9deg); }
-.fan:hover .card-face{ transform:translateX(-50%) rotate(24deg) translateY(-6px); }
 
-/* ---------- regole ---------- */
-.rules{ list-style:none; display:grid; gap:.8rem; margin-top:2.4rem; }
-.rules li{
-  display:flex; align-items:center; gap:1rem; padding:.85rem 1.2rem;
-  border:1px solid rgba(217,172,78,.22); border-radius:8px;
-  background:rgba(9,27,21,.5); color:var(--ivory-dim); font-size:1.15rem;
-  transition:border-color .2s, color .2s, transform .2s;
+/* ---------- titolo blackletter con flicker e sangue ---------- */
+.crest{ position:relative; z-index:2; }
+.crest .overline{
+  color:var(--bone-dim); letter-spacing:.42em;
+  font-family:var(--head); font-size:.72rem; text-transform:uppercase;
 }
-.rules li:hover{ border-color:var(--gold); color:var(--ivory); transform:translateX(6px); }
-.rules b{ font-family:var(--head); color:var(--gold-bright); letter-spacing:.08em; min-width:1.7rem; font-size:1.15rem; }
+.crest .title{
+  font-family:'UnifrakturMaguntia', var(--display);
+  font-weight:400; line-height:.95;
+  color:var(--bone);
+  text-shadow:0 0 34px rgba(217,210,196,.14), 0 3px 0 rgba(0,0,0,.8);
+  animation:flicker 7s linear infinite;
+}
+.crest .title .blood{
+  color:var(--blood-hot);
+  text-shadow:0 0 26px rgba(194,24,31,.55), 0 0 60px rgba(124,13,18,.4);
+}
+@keyframes flicker{
+  0%,100%{ opacity:1; }
+  3%{ opacity:.55; } 4%{ opacity:1; }
+  19%{ opacity:.8; } 20%{ opacity:1; }
+  52%{ opacity:.4; } 53%{ opacity:1; }
+  74%{ opacity:.75; } 75%{ opacity:1; }
+}
+/* gocce di sangue che colano dal titolo */
+.drips{ position:relative; height:26px; width:min(420px,80%); margin:.2rem auto 0; }
+.drips i{
+  position:absolute; top:0; width:3px; border-radius:0 0 4px 4px;
+  background:linear-gradient(180deg, var(--blood-hot), var(--blood));
+  animation:drip 5.5s ease-in infinite;
+  opacity:.85;
+}
+.drips i:nth-child(1){ left:12%; animation-delay:.4s; }
+.drips i:nth-child(2){ left:38%; animation-delay:2.1s; }
+.drips i:nth-child(3){ left:63%; animation-delay:1.2s; }
+.drips i:nth-child(4){ left:86%; animation-delay:3.3s; }
+@keyframes drip{
+  0%{ height:0; opacity:0; }
+  12%{ opacity:.9; }
+  55%{ height:24px; opacity:.9; }
+  70%{ height:26px; opacity:0; }
+  100%{ height:26px; opacity:0; }
+}
+.crest .orn{ color:var(--blood-hot); font-size:1.3rem; letter-spacing:.5em; }
 
-/* ---------- carta-modulo ---------- */
-.form-card{
-  position:relative; border-radius:12px;
-  background:linear-gradient(170deg, #14382b, #0d241c);
-  border:1px solid var(--line); padding:clamp(1.8rem,3vw,2.8rem);
-  box-shadow:0 34px 70px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.03), inset 0 0 60px rgba(0,0,0,.35);
-  animation:rise .6s .2s ease both;
+/* ---------- tavola ouija (form) ---------- */
+.form-card.ouija{
+  position:relative; z-index:2;
+  background:
+    repeating-linear-gradient(93deg, rgba(255,255,255,.022) 0 2px, transparent 2px 7px),
+    linear-gradient(175deg, #171310, #0a0806 60%, #060404);
+  border:1px solid rgba(217,210,196,.16);
+  border-radius:14px 10px 16px 8px / 10px 16px 8px 14px;
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,.9),
+    0 24px 60px rgba(0,0,0,.75),
+    inset 0 0 60px rgba(0,0,0,.65);
+  transform:rotate(-.4deg);
+  padding:2.4rem 1.6rem 1.8rem;
 }
-.form-card::before{
-  content:''; position:absolute; inset:9px; pointer-events:none;
-  border:1px solid rgba(217,172,78,.25); border-radius:8px;
+.form-card.ouija .corner{
+  position:absolute; color:var(--bone-dim); font-size:1.1rem; opacity:.7;
 }
-.corner{
-  position:absolute; display:flex; flex-direction:column; align-items:center; gap:2px;
-  font-family:var(--head); font-weight:700; font-size:1.05rem; line-height:1; color:var(--gold); opacity:.85;
+.form-card.ouija .corner.tl{ top:.5rem; left:.7rem; }
+.form-card.ouija .corner.br{ bottom:.5rem; right:.7rem; }
+
+/* candele ai lati */
+.candle{
+  position:absolute; top:-34px; width:14px; height:52px;
+  background:linear-gradient(90deg, #cfc0a0, var(--wax) 40%, #b7a888);
+  border-radius:4px 4px 2px 2px;
+  box-shadow:0 6px 14px rgba(0,0,0,.6);
 }
-.corner i{ font-style:normal; color:var(--crimson-hot); font-size:1.15rem; }
-.corner.tl{ top:16px; left:18px; }
-.corner.br{ bottom:16px; right:18px; transform:rotate(180deg); }
+.candle.left{ left:8%; }
+.candle.right{ right:8%; }
+.candle .flame{
+  position:absolute; top:-16px; left:50%; transform:translateX(-50%);
+  width:10px; height:18px; border-radius:50% 50% 46% 54% / 62% 62% 38% 38%;
+  background:radial-gradient(circle at 50% 75%, #fff6d8 0%, #ffd76a 35%, #ff8c2e 65%, rgba(194,24,31,.0) 100%);
+  filter:blur(.4px);
+  box-shadow:0 0 22px 6px rgba(255,170,60,.35), 0 0 60px 18px rgba(255,120,40,.14);
+  animation:flame 1.1s ease-in-out infinite alternate;
+  transform-origin:50% 100%;
+}
+.candle.right .flame{ animation-delay:.45s; }
+@keyframes flame{
+  0%  { transform:translateX(-50%) scaleY(1)   skewX(0deg); }
+  35% { transform:translateX(-52%) scaleY(1.12) skewX(-3deg); }
+  70% { transform:translateX(-48%) scaleY(.94) skewX(3deg); }
+  100%{ transform:translateX(-50%) scaleY(1.06) skewX(-1deg); }
+}
 
 .card-title{
-  font-family:var(--head); font-weight:700; text-align:center; text-transform:uppercase;
-  letter-spacing:.22em; font-size:1.3rem; color:var(--gold-bright); margin-bottom:1.7rem;
-}
-.form-card .field{ margin-bottom:1.1rem; }
-.form-card .btn{ width:100%; }
-#roomCode{
-  text-transform:uppercase; letter-spacing:.5em; text-align:center;
-  font-family:var(--head); font-weight:700; font-size:1.7rem;
+  font-family:var(--head); text-transform:uppercase;
+  letter-spacing:.24em; color:var(--bone);
+  font-size:clamp(1rem,3.4vw,1.3rem);
 }
 
-.divider{
-  display:flex; align-items:center; gap:.9rem; margin:1.6rem 0;
-  font-family:var(--head); font-size:1rem; letter-spacing:.25em;
-  text-transform:uppercase; color:var(--ivory-dim);
+/* campi: incisi nella tavola */
+.field label{
+  color:var(--bone-dim); letter-spacing:.2em; text-transform:uppercase;
+  font-family:var(--head); font-size:.7rem;
 }
-.divider::before, .divider::after{
-  content:''; height:1px; flex:1;
-  background:linear-gradient(90deg, transparent, var(--line), transparent);
+.field input{
+  background:rgba(0,0,0,.42);
+  border:1px solid rgba(217,210,196,.14);
+  border-bottom:2px solid rgba(124,13,18,.65);
+  border-radius:6px;
+  color:var(--bone);
+  font-family:var(--body);
+  padding:.8rem .9rem;
+  transition:border-color .2s, box-shadow .2s, background .2s;
 }
-.divider span{ color:var(--crimson-hot); font-size:1.1rem; }
+.field input::placeholder{ color:rgba(143,136,123,.55); font-style:italic; }
+.field input:focus{
+  outline:none;
+  border-bottom-color:var(--blood-hot);
+  box-shadow:0 0 0 3px rgba(194,24,31,.16), 0 0 24px rgba(194,24,31,.18);
+  background:rgba(0,0,0,.6);
+}
 
+/* bottoni: sangue pulsante / osso */
+.menu-body .btn{
+  font-family:var(--head); letter-spacing:.16em; text-transform:uppercase;
+  border-radius:6px;
+}
+.menu-body .btn-blood{
+  background:linear-gradient(180deg, var(--blood-hot), var(--blood) 70%);
+  border:1px solid rgba(194,24,31,.7);
+  color:#ffe9e6;
+  box-shadow:0 0 0 1px rgba(0,0,0,.8), 0 8px 24px rgba(124,13,18,.4);
+  animation:bloodPulse 2.6s ease-in-out infinite;
+}
+.menu-body .btn-blood:hover{
+  box-shadow:0 0 0 1px rgba(0,0,0,.8), 0 10px 34px rgba(194,24,31,.55);
+  transform:translateY(-2px);
+}
+@keyframes bloodPulse{
+  0%,100%{ box-shadow:0 0 0 1px rgba(0,0,0,.8), 0 8px 22px rgba(124,13,18,.35); }
+  50%    { box-shadow:0 0 0 1px rgba(0,0,0,.8), 0 8px 34px rgba(194,24,31,.6); }
+}
+.menu-body .btn:not(.btn-blood){
+  background:transparent;
+  border:1px solid rgba(217,210,196,.3);
+  color:var(--bone);
+}
+.menu-body .btn:not(.btn-blood):hover{
+  background:rgba(217,210,196,.08);
+  border-color:var(--bone);
+}
+
+.divider{ color:var(--bone-dim); }
+.divider span{ color:var(--blood-hot); }
+
+/* errore: tremolio rosso */
 .error-line{
-  min-height:1.4em; margin-top:1.2rem; text-align:center;
-  font-family:var(--head); font-size:1.1rem; letter-spacing:.06em; color:var(--crimson-hot);
+  color:var(--blood-hot);
+  font-family:var(--head); letter-spacing:.08em;
+  min-height:1.2em;
+}
+.error-line:not(:empty){ animation:errShake .4s ease; }
+@keyframes errShake{
+  0%,100%{ transform:translateX(0); }
+  25%{ transform:translateX(-5px); }
+  50%{ transform:translateX(4px); }
+  75%{ transform:translateX(-3px); }
 }
 
-/* ---------- piè di pagina ---------- */
-.step-row{
-  display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap;
-  margin-top:clamp(2rem,4vw,3rem); padding-top:1.1rem;
-  border-top:1px solid rgba(217,172,78,.15);
-  font-family:var(--head); font-size:.95rem; letter-spacing:.25em;
-  text-transform:uppercase; color:rgba(201,190,163,.75);
+/* ---------- mazzo di carte spettrale ---------- */
+.fan .card-back{
+  background:
+    repeating-radial-gradient(circle at 50% 50%, rgba(124,13,18,.25) 0 2px, transparent 2px 9px),
+    linear-gradient(160deg, #1a0b0d, #0a0506);
+  border:1px solid rgba(194,24,31,.35);
+  box-shadow:0 14px 34px rgba(0,0,0,.7);
+}
+.fan .card-back::after{
+  content:'☠';
+  position:absolute; inset:0; display:grid; place-items:center;
+  color:rgba(194,24,31,.4); font-size:1.6rem;
+}
+.fan .card-face{
+  background:linear-gradient(170deg, #efe7d6, #cfc4ad);
+  color:#1a1a1a;
+  box-shadow:0 16px 40px rgba(0,0,0,.75), 0 0 30px rgba(194,24,31,.12);
+}
+.fan{ animation:breathe 6s ease-in-out infinite; }
+@keyframes breathe{
+  0%,100%{ transform:translateY(0) rotate(0deg); }
+  50%    { transform:translateY(-6px) rotate(-.6deg); }
 }
 
-@media (max-width:940px){
-  .table-area{ grid-template-columns:1fr; }
-  .form-card{ max-width:560px; width:100%; margin:0 auto; }
+/* regole: numerali gotici */
+.rules li{ color:var(--bone-dim); }
+.rules li b{
+  font-family:'UnifrakturMaguntia', var(--display);
+  color:var(--blood-hot); font-size:1.15rem;
+}
+
+/* footer */
+.step-row{ color:rgba(143,136,123,.6); letter-spacing:.24em; }
+
+/* ---------- telefono ---------- */
+@media (pointer:coarse){
+  .form-card.ouija{ padding:2rem 1.1rem 1.4rem; transform:none; }
+  .candle{ display:none; }
+  .drips{ width:90%; }
+  .crest .title{ font-size:clamp(2.4rem,12vw,3.4rem); }
+}
+
+/* rispetto per chi disattiva le animazioni */
+@media (prefers-reduced-motion:reduce){
+  .fog, .crest .title, .drips i, .candle .flame, .fan,
+  .menu-body .btn-blood, .error-line:not(:empty){ animation:none; }
 }
