@@ -1,9 +1,10 @@
-// ISPETTORE.JS v2.8.1 - indagine "cieca" + timer sbloccato SOLO da
-// Chiudi (dopo aver visto il valore) o da No/skip.
+// ISPETTORE.JS v2.9 - indagine "cieca" + timer sbloccato SOLO da Chiudi
+// (o da No/skip).
 // Flusso: vittima -> "Hai letto?" -> Si -> scegli persona -> scegli
 // caratteristica (SENZA valore) -> FINE ISPEZIONE (esce il valore,
-// timer ANCORA bloccato) -> CHIUDI (il timer PARTE).
-console.log('[ISPETTORE] caricato v2.8.1');
+// timer ANCORA bloccato, messaggio "l'assassino continua la sua
+// caccia") -> CHIUDI (timer PARTE, messaggio "Assassino a caccia").
+console.log('[ISPETTORE] caricato v2.9');
 (function(){
   const KILL_MS = 12000;
   let el = null, clue = null, seenKill = null;
@@ -201,7 +202,7 @@ console.log('[ISPETTORE] caricato v2.8.1');
       b.addEventListener('click', function(){
         if(faseEsito) return;
         campoScelto = c[0];
-        const tots = el.indCampi.querySelectorAll('.bersaglio-card');
+        const tots = el.indCampi.querySelectorAll('.bersargo-card, .bersaglio-card');
         for(let i = 0; i < tots.length; i++){ tots[i].classList.remove('scelto'); }
         b.classList.add('scelto');
         // NON mostro il valore: solo conferma della scelta
@@ -244,7 +245,7 @@ console.log('[ISPETTORE] caricato v2.8.1');
 
     // TIMER ANCORA BLOCCATO: partira solo con Chiudi
     aggiornaElimina();
-    showToast('Ispezione (' + n + '/3): premi Chiudi per far ripartire il timer');
+    showToast("Non appena premi Chiudi, l'assassino continua la sua caccia");
   }
 
   // CHIUDI: chiude il referto E SBLOCCA il timer.
@@ -253,7 +254,7 @@ console.log('[ISPETTORE] caricato v2.8.1');
     el.ind.hidden = true;
     el.indOk.textContent = 'Fine ispezione';
     await sbloccaTimer();
-    showToast('Timer sbloccato');
+    showToast('Assassino a caccia');
   }
 
   // No: sblocca subito, skip consumato
@@ -266,6 +267,7 @@ console.log('[ISPETTORE] caricato v2.8.1');
       room.skip_usati = n;
     }
     await sbloccaTimer();
+    showToast('Assassino a caccia');
   }
 
   function apriElimina(){
